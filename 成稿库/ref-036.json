@@ -1,0 +1,29 @@
+{
+  "slug": "ref-036",
+  "link_id": "36",
+  "title": "Portable bottle warmer tips for traveling parents",
+  "saved_at": "2026-06-23T03:45:30.265288+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\36\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\36",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\36\\script-pack.md"
+  },
+  "video_refs": [],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "便携恒温杯",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@themilknest/video/7434209692466826526",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "Just off personal and professional insight. ✨ If you’d like to hear my full thou",
+    "target_country": "US"
+  }
+}

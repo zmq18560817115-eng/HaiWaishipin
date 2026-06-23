@@ -1,0 +1,29 @@
+{
+  "slug": "ref-010",
+  "link_id": "10",
+  "title": "Portable bottle warmer tips for traveling parents",
+  "saved_at": "2026-06-23T02:21:06.894776+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\10\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\10",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\10\\script-pack.md"
+  },
+  "video_refs": [],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "便携恒温杯",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@claudiadelrio1/video/7472050129772629290",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "Try the momcozy portable bottle warmer with me💕😊 This was our first time trying ",
+    "target_country": "US"
+  }
+}

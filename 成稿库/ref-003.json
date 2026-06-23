@@ -1,0 +1,29 @@
+{
+  "slug": "ref-003",
+  "link_id": "3",
+  "title": "熊猫布布便携恒温杯 tips for calmer night feeds",
+  "saved_at": "2026-06-23T07:55:21.346533+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\3\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\3",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\3\\script-pack.md"
+  },
+  "video_refs": [],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "便携恒温杯",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@babybrezza/video/7383388217879383339",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "🍼💡 Baby's milk, perfectly warm with the tap of your phone with the Smart Bottle ",
+    "target_country": "US"
+  }
+}

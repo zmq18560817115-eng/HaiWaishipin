@@ -1,0 +1,29 @@
+{
+  "slug": "ref-002",
+  "link_id": "2",
+  "title": "熊猫布布便携恒温杯 tips for traveling parents",
+  "saved_at": "2026-06-23T06:10:37.862978+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\2\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\2",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\2\\script-pack.md"
+  },
+  "video_refs": [],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@eugenie.strawderman/video/7440471494041275678",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on",
+    "target_country": "US"
+  }
+}

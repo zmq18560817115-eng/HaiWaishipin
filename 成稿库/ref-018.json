@@ -1,0 +1,29 @@
+{
+  "slug": "ref-018",
+  "link_id": "18",
+  "title": "熊猫布布吸奶器 tips for busy moms",
+  "saved_at": "2026-06-23T06:14:24.223584+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\18\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\18",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\18\\script-pack.md"
+  },
+  "video_refs": [],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "吸奶器",
+  "product_name": "熊猫布布吸奶器",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@theregistrymama/video/7456447365608639774",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "registry must have",
+    "target_country": "US"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "slug": "ref-001",
+  "link_id": "1",
+  "title": "How to make a hands free pumping bra from a regular nursing bra?! PUMPING HACK! ",
+  "saved_at": "2026-06-23T03:54:35.294197+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\1\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\1",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\1\\script-pack.md"
+  },
+  "video_refs": [],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "便携恒温杯",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@gadgetglimpse/video/7376304558559071530",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, for",
+    "target_country": "US"
+  }
+}

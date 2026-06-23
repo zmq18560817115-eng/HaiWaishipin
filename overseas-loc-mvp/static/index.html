@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>下载交付包</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="simple-body">
+  <header class="simple-topbar">
+    <div>
+      <p class="eyebrow">出海出稿</p>
+      <h1 id="pageTitle">下载交付包</h1>
+      <p class="lede" id="pageLede">竞品库生成脚本后，来这里下载交给拍摄 / 剪辑。</p>
+    </div>
+    <div class="nav-links">
+      <a class="nav-chip" href="http://127.0.0.1:8788" target="_blank">← 竞品素材库</a>
+    </div>
+  </header>
+
+  <main class="simple-main delivery-main">
+    <section class="delivery-hero" id="projectHead">
+      <p class="muted">加载项目…</p>
+    </section>
+
+    <section class="delivery-actions" id="actionPanel">
+      <button class="primary wide huge" id="btnFinish">完成交付</button>
+      <p class="muted center" id="actionHint">生成七项脚本包 → 字幕 → 自动调 SeedDance（已配置 Key 时）</p>
+    </section>
+
+    <section class="delivery-ready hidden" id="readyPanel">
+      <button type="button" class="zip-download" id="btnZip">下载交付包.zip</button>
+      <p class="zip-note">内含 <strong>交付脚本包.md/json</strong>（七项）+ <strong>subtitles.srt</strong> + <strong>剪辑单.html</strong> + SeedDance 空镜（如有）</p>
+      <details class="file-details">
+        <summary>单独下载</summary>
+        <div id="downloadBox" class="download-box"></div>
+      </details>
+    </section>
+
+    <section class="seedance-panel" id="seedancePanel">
+      <h2>Step 6 · SeedDance 2.0 外接</h2>
+      <p class="seedance-status" id="seedanceStatus"></p>
+      <p class="seedance-pipeline" id="seedancePipeline"></p>
+      <div id="seedanceShots" class="seedance-shots"></div>
+      <div class="seedance-actions">
+        <button type="button" class="secondary" id="btnSeedanceTest">测试 SeedDance 连接</button>
+        <button type="button" class="secondary wide" id="btnSeedance">生成 AI 空镜</button>
+      </div>
+      <p class="muted center" id="seedanceHint"></p>
+    </section>
+
+    <section class="feedback-panel hidden" id="feedbackPanel">
+      <h2>Step 7 · 反馈（可选）</h2>
+      <p class="muted">剪辑/运营填写采纳与修改，写入 <code>反馈库/反馈记录.csv</code>，供后续反哺模型。</p>
+      <label>人工修改记录<textarea id="fbEdits" rows="3" placeholder="例如：第2镜口播缩短、字幕字号调整…"></textarea></label>
+      <label>是否采纳
+        <select id="fbAdopted">
+          <option>待定</option>
+          <option>已采纳</option>
+          <option>修改后采纳</option>
+          <option>未采纳</option>
+        </select>
+      </label>
+      <label>投放数据（可选）<input id="fbViews" placeholder="播放量"></label>
+      <button type="button" class="secondary wide" id="btnFeedback">保存反馈</button>
+    </section>
+
+    <section class="project-switch hidden" id="projectSwitch">
+      <label>切换项目
+        <select id="projectSelect"></select>
+      </label>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

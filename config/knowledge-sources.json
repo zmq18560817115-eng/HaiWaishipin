@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "工作流根目录统一知识源（8787 出稿 + 8788 竞品库共用 NAS 路径）",
+  "sources": [
+    {
+      "id": "obsidian-nas",
+      "type": "obsidian-markdown",
+      "root": "\\\\DS223\\obsidian知识库",
+      "description": "公司 NAS Obsidian 主库",
+      "priority": 130,
+      "enabled": true,
+      "exclude_dirs": [".obsidian", "attachments", "附件", "#recycle", ".trash", ".git", "__pycache__"]
+    },
+    {
+      "id": "ds223-products",
+      "type": "markdown",
+      "root": "\\\\DS223\\obsidian知识库\\shared-knowledge\\products",
+      "description": "DS223 产品资料（同步到竞品库 product_materials）",
+      "priority": 125,
+      "enabled": true,
+      "exclude_dirs": [".obsidian", "attachments", "附件"]
+    },
+    {
+      "id": "delivery-local-knowledge",
+      "type": "markdown",
+      "root": "../overseas-loc-mvp/knowledge",
+      "description": "出稿页本地知识镜像（离线兜底）",
+      "priority": 100,
+      "enabled": true,
+      "exclude_dirs": [".obsidian", "attachments", "附件", "#recycle", ".git", "__pycache__"]
+    },
+    {
+      "id": "delivery-docs",
+      "type": "markdown",
+      "root": "../overseas-loc-mvp/docs",
+      "description": "出稿 MVP 架构文档（只读参考）",
+      "priority": 80,
+      "enabled": true,
+      "exclude_dirs": []
+    },
+    {
+      "id": "competitor-product-materials",
+      "type": "markdown",
+      "root": "../海外视频本地化MVP/产品资料",
+      "description": "竞品库已同步产品资料",
+      "priority": 90,
+      "enabled": true,
+      "exclude_dirs": []
+    }
+  ]
+}

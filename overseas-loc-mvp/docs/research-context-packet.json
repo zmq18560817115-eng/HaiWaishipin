@@ -1,0 +1,97 @@
+{
+  "objective": "核查 PRD 并搭建可本地运行的海外短视频本地化最小 MVP",
+  "deliverable": "页面、FastAPI 接口、Prompt 逻辑、模型适配器、文件存储和实施步骤",
+  "research_mode": "standard",
+  "constraints": [
+    "Windows 本地运行",
+    "PRD B0-B6 文件契约",
+    "API Key 不写入业务产物",
+    "SeedDance 只处理 AI_BROLL",
+    "MVP 不做整片自动剪辑与投放 API"
+  ],
+  "assumptions": [
+    "首个试跑主题为 night-pumping-v1",
+    "无 API Key 时允许 demo_local 验证工作流",
+    "公司知识库暂以本地 Markdown 镜像为主"
+  ],
+  "sub_questions": [
+    {"id": "Q1", "question": "原文件架构能否承载可运行 MVP", "status": "answered"},
+    {"id": "Q2", "question": "PRD 接口与 Prompt 如何代码化", "status": "answered"},
+    {"id": "Q3", "question": "当前 Claude 与 SeedDance 接口名称是否有效", "status": "answered"},
+    {"id": "Q4", "question": "如何本地启动和验收", "status": "answered"}
+  ],
+  "evaluation_criteria": [
+    "页面可打开",
+    "B0-B6 文件链路可运行",
+    "合规扫描可阻断",
+    "提示词与模型调用可追溯",
+    "SeedDance LIVE_ACTION 防误用",
+    "移动端无横向溢出"
+  ],
+  "evidence": [
+    {
+      "id": "E1",
+      "claim": "PRD 要求 FastAPI 六步页面和 runs/{slug} 文件落盘",
+      "source": "PRD-海外短视频本地化.md §19.1-§19.3",
+      "source_type": "user-material",
+      "supports": ["Q1", "Q2"],
+      "support_type": "direct",
+      "quality_score": 11,
+      "confidence": "high",
+      "limitations": []
+    },
+    {
+      "id": "E2",
+      "claim": "claude-sonnet-4-20250514 已于 2026-06-15 退役",
+      "source": "Anthropic model deprecations documentation",
+      "source_type": "primary",
+      "supports": ["Q3"],
+      "support_type": "direct",
+      "quality_score": 11,
+      "confidence": "high",
+      "limitations": ["模型状态未来仍可能变化"]
+    },
+    {
+      "id": "E3",
+      "claim": "fal.ai 当前 SeedDance 2.0 image-to-video 模型 ID 不含 fast 且 image_urls 为必填数组",
+      "source": "fal.ai SeedDance 2.0 image-to-video API documentation",
+      "source_type": "primary",
+      "supports": ["Q3"],
+      "support_type": "direct",
+      "quality_score": 11,
+      "confidence": "high",
+      "limitations": ["第三方服务接口未来可能变化"]
+    },
+    {
+      "id": "E4",
+      "claim": "Seedance 2.0 官方支持多模态视频生成并包含 image-to-video",
+      "source": "ByteDance Seed official launch page",
+      "source_type": "primary",
+      "supports": ["Q3"],
+      "support_type": "direct",
+      "quality_score": 10,
+      "confidence": "high",
+      "limitations": ["官方发布页不等同于具体供应商 API 契约"]
+    }
+  ],
+  "conflicts": [
+    {
+      "issue": "PRD 中 Claude 默认模型和 fal.ai SeedDance 模型 ID 已与当前官方接口不一致",
+      "evidence_ids": ["E2", "E3"],
+      "resolution": "代码采用当前有效默认值，并全部保留环境变量覆盖"
+    }
+  ],
+  "unknowns": [
+    "公司 API Key 权限与预算",
+    "最终 allowed_claims_en 审批人",
+    "真实 SeedDance 生成质量与商品一致性",
+    "公司法务对海外母婴 claims 的最终意见"
+  ],
+  "synthesis": "原目录作为资产区合理，但需增加独立应用区。MVP 应以 FastAPI 六步页面固化 PRD 文件契约，通过 KRO 检索注入上下文，用 Claude 生成 EN 包，再由确定性代码生成 SRT 和合规报告；SeedDance 仅处理 AI_BROLL 单镜。",
+  "downstream_task": "交付可启动的本地应用、夜奶样例、架构说明和剩余公司配置清单",
+  "audit": {
+    "material_claims_supported": true,
+    "counterevidence_considered": true,
+    "remaining_research_could_change_answer": false
+  }
+}
