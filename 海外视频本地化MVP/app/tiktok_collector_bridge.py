@@ -20,7 +20,7 @@ WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
 if str(WORKFLOW_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKFLOW_ROOT))
 
-from tiktok_collector.models import CollectRequest, ReviewedTikTokVideoRecord
+from tiktok_collector.models import CollectRequest, ReviewedTikTokVideoRecord, TikTokVideoRecord
 from tiktok_collector.repository import TikTokVideoRepository
 from tiktok_collector.service import TikTokCollectorService
 
@@ -66,6 +66,8 @@ class CollectorImportResult:
     total_dropped: int
     imported_new_links: int
     updated_existing_links: int
+    skipped_other_category: int = 0
+    imported_total: int = 0
     json_path: str | None
     csv_path: str | None
     clean_json_path: str | None
@@ -137,6 +139,7 @@ def import_reviewed_records(
     review_json_path: str | None,
     output_dir: str,
     product_id: str = "",
+    strict_product_filter: bool = False,
 ) -> CollectorImportResult:
     from app.brand_policy import product_material_match
     from app.material_scope import material_dict_matches_product, scope_for_product, trim_material_library_to_product
@@ -167,7 +170,12 @@ def import_reviewed_records(
             "category": category,
             "subcategory": subcategory,
         }
-        if product_id and not product_material_match(product_id, preview) and not material_dict_matches_product(preview, product_id):
+        if (
+            strict_product_filter
+            and product_id
+            and not product_material_match(product_id, preview)
+            and not material_dict_matches_product(preview, product_id)
+        ):
             skipped_other_category += 1
             continue
         raw_row = raw_by_url.get(record.video_url)
@@ -237,6 +245,8 @@ def import_reviewed_records(
         total_dropped=total_dropped,
         imported_new_links=imported_new_links,
         updated_existing_links=updated_existing_links,
+        skipped_other_category=skipped_other_category,
+        imported_total=imported_new_links + updated_existing_links,
         json_path=json_path,
         csv_path=csv_path,
         clean_json_path=clean_json_path,
@@ -246,10 +256,43 @@ def import_reviewed_records(
     )
 
 
+def _records_for_workflow_import(
+    run_records: list[TikTokVideoRecord],
+    *,
+    clean_records: list[ReviewedTikTokVideoRecord],
+    dropped_records: list[ReviewedTikTokVideoRecord],
+) -> list[ReviewedTikTokVideoRecord]:
+    """入库用全量抓取结果；仅排除含负面词被清洗丢弃的条目。"""
+    blocked_urls = {
+        row.video_url
+        for row in dropped_records
+        if any(str(reason).startswith("negative_terms:") for reason in row.clean_reasons)
+    }
+    clean_by_url = {row.video_url: row for row in clean_records}
+    dropped_by_url = {row.video_url: row for row in dropped_records}
+    imported: list[ReviewedTikTokVideoRecord] = []
+    for record in run_records:
+        if record.video_url in blocked_urls:
+            continue
+        reviewed = clean_by_url.get(record.video_url) or dropped_by_url.get(record.video_url)
+        if reviewed:
+            imported.append(reviewed)
+            continue
+        imported.append(
+            ReviewedTikTokVideoRecord(
+                **record.model_dump(mode="python"),
+                clean_status="kept",
+                relevance_score=0,
+                clean_reasons=["imported_raw"],
+            )
+        )
+    return imported
+
+
 def run_collector_import(
     keywords: list[str],
     *,
-    limit_per_keyword: int = 20,
+    limit_per_keyword: int = 50,
     product_id: str = "",
 ) -> CollectorImportResult:
     service = TikTokCollectorService()
@@ -260,8 +303,13 @@ def run_collector_import(
         export_csv=True,
     )
     run = service.collect(request)
+    to_import = _records_for_workflow_import(
+        run.response.records,
+        clean_records=run.response.clean_records,
+        dropped_records=run.response.dropped_items,
+    )
     return import_reviewed_records(
-        run.response.clean_records,
+        to_import,
         total_collected=run.response.total_records,
         total_dropped=run.response.dropped_records,
         json_path=str(run.json_file) if run.json_file else None,
@@ -279,7 +327,7 @@ def query_collector_database(
     q: str = "",
     source_keyword: str = "",
     processing_status: str = "",
-    limit: int = 20,
+    limit: int = 50,
 ) -> CollectorDatabaseQueryResult:
     service = TikTokCollectorService()
     if not service.db.enabled:
@@ -309,7 +357,7 @@ def sync_collector_database_to_workflow(
     q: str = "",
     source_keyword: str = "",
     processing_status: str = "",
-    limit: int = 20,
+    limit: int = 50,
     product_id: str = "",
 ) -> CollectorDatabaseSyncResult:
     service = TikTokCollectorService()

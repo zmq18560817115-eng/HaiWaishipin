@@ -82,7 +82,7 @@ from .seedance_bridge import (
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 129
+UI_VERSION = 133
 
 
 def _render_index() -> HTMLResponse:
@@ -178,7 +178,7 @@ class JobStartRequest(BaseModel):
 
 class TikTokCollectorRequest(BaseModel):
     keywords: list[str] = Field(min_length=1)
-    limit_per_keyword: int = Field(default=20, ge=1, le=100)
+    limit_per_keyword: int = Field(default=50, ge=1, le=200)
     product_id: str = ""
 
 
@@ -186,7 +186,7 @@ class TikTokCollectorDbSyncRequest(BaseModel):
     q: str = ""
     source_keyword: str = ""
     processing_status: str = ""
-    limit: int = Field(default=20, ge=1, le=100)
+    limit: int = Field(default=50, ge=1, le=200)
     product_id: str = ""
 
 
@@ -244,7 +244,7 @@ async def health() -> dict:
         "seedance": seedance_config(),
         "tiktok_collector": {
             "available": True,
-            "limit_per_keyword": 20,
+            "limit_per_keyword": 50,
             "output_dir": str((ROOT.parent / "tiktok_collector" / "data" / "raw").resolve()),
             "clean_output_dir": str((ROOT.parent / "tiktok_collector" / "data" / "raw" / "clean").resolve()),
             "mysql_enabled": collector_database_enabled(),
@@ -773,6 +773,8 @@ async def tiktok_collector_collect(body: TikTokCollectorRequest) -> dict:
         "total_collected": result.total_collected,
         "total_cleaned": result.total_cleaned,
         "total_dropped": result.total_dropped,
+        "imported_total": result.imported_total,
+        "skipped_other_category": result.skipped_other_category,
         "imported_new_links": result.imported_new_links,
         "updated_existing_links": result.updated_existing_links,
         "json_path": result.json_path,
@@ -791,7 +793,7 @@ async def tiktok_collector_db_videos(
     q: str = "",
     source_keyword: str = "",
     processing_status: str = "",
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=200),
 ) -> dict:
     try:
         result = await run_in_threadpool(

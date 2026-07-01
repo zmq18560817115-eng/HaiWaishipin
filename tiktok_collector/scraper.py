@@ -336,7 +336,8 @@ class TikTokScraper:
         page.wait_for_timeout(self.settings.search_wait_ms)
         self._ensure_search_results_page(page, keyword, query_url)
         urls: list[str] = []
-        for _ in range(self.settings.search_scrolls):
+        scroll_rounds = max(self.settings.search_scrolls, (limit + 9) // 10)
+        for _ in range(scroll_rounds):
             for url in _search_result_urls(page):
                 if url not in urls:
                     urls.append(url)

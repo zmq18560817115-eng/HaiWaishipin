@@ -29,6 +29,7 @@ class CollectorSettings:
     browser_channels: tuple[str | None, ...]
     max_results: int
     search_scrolls: int
+    clean_min_score: int
     search_wait_ms: int
     video_wait_ms: int
     manual_verify_wait_ms: int
@@ -73,8 +74,9 @@ def load_settings() -> CollectorSettings:
     return CollectorSettings(
         headless=_bool("TIKTOK_COLLECTOR_HEADLESS", True),
         browser_channels=_browser_channels(),
-        max_results=max(1, min(100, _int("TIKTOK_COLLECTOR_MAX_RESULTS", 20))),
-        search_scrolls=max(1, _int("TIKTOK_COLLECTOR_SEARCH_SCROLLS", 5)),
+        max_results=max(1, min(200, _int("TIKTOK_COLLECTOR_MAX_RESULTS", 50))),
+        search_scrolls=max(1, _int("TIKTOK_COLLECTOR_SEARCH_SCROLLS", 12)),
+        clean_min_score=max(0, min(5, _int("TIKTOK_COLLECTOR_CLEAN_MIN_SCORE", 1))),
         search_wait_ms=max(500, _int("TIKTOK_COLLECTOR_SEARCH_WAIT_MS", 1800)),
         video_wait_ms=max(500, _int("TIKTOK_COLLECTOR_VIDEO_WAIT_MS", 1500)),
         manual_verify_wait_ms=max(5000, _int("TIKTOK_COLLECTOR_MANUAL_VERIFY_WAIT_MS", 90000)),

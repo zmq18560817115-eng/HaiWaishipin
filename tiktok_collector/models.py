@@ -36,7 +36,7 @@ class ReviewedTikTokVideoRecord(TikTokVideoRecord):
 
 class CollectRequest(BaseModel):
     keywords: list[str] = Field(min_length=1)
-    limit_per_keyword: int = Field(default=20, ge=1, le=100)
+    limit_per_keyword: int = Field(default=50, ge=1, le=200)
     export_json: bool = True
     export_csv: bool = True
 
@@ -57,6 +57,7 @@ class CollectResponse(BaseModel):
     dropped_records: int = 0
     records: list[TikTokVideoRecord]
     clean_records: list[ReviewedTikTokVideoRecord] = Field(default_factory=list)
+    dropped_items: list[ReviewedTikTokVideoRecord] = Field(default_factory=list)
     artifacts: ExportArtifacts
     started_at: str
     finished_at: str

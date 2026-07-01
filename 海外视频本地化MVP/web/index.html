@@ -18,10 +18,6 @@
       <p class="app-hero-sub">爆款结构迁移 · 品牌脚本出稿 · AI 分镜交付</p>
     </div>
     <nav class="top-nav-pills" id="mainNav" aria-label="主导航">
-      <button type="button" class="top-nav-collect" id="openCollectorNavBtn" title="按关键词抓取 TikTok 对标并同步入库">
-        <span class="nav-label">素材收集</span>
-        <span class="nav-desc">TikTok 抓取入库</span>
-      </button>
       <button type="button" data-view="generate" class="active">
         <span class="nav-label">视频生成</span>
         <span class="nav-desc">配场景 · 出脚本 · 成片</span>
@@ -70,17 +66,42 @@
       </details>
       <details class="settings-block" open>
         <summary>数据同步</summary>
-        <p class="hint">发现 → 入库 → 同步 TikTok → 拆解 → 更新模板</p>
-        <div class="job-grid job-grid-pills job-grid-compact">
-          <button type="button" class="job-btn pill-btn" data-job="discover">发现候选</button>
-          <button type="button" class="job-btn pill-btn" data-job="promote">筛选入库</button>
-          <button type="button" class="job-btn pill-btn" data-job="fetch">同步 TikTok</button>
-          <button type="button" class="job-btn pill-btn secondary" data-job="cache-thumbnails">缓存封面</button>
-          <button type="button" class="job-btn pill-btn secondary" data-job="prune" id="pruneMaterialsBtn" title="去重并限额，已拆解/成稿/有脚本默认保留">整理素材库</button>
-          <button type="button" class="job-btn pill-btn" data-job="decompose" data-provider="rule">批量规则拆解（免费）</button>
-          <button type="button" class="job-btn pill-btn secondary" data-job="decompose" data-provider="doubao" title="消耗豆包额度，建议仅对入选爆款使用">豆包精细拆解（限量）</button>
-          <button type="button" class="job-btn pill-btn" data-job="templates">更新模板</button>
-          <button type="button" class="job-btn pill-btn" data-job="products">同步产品</button>
+        <p class="hint">按顺序执行：发现 → 入库 → 同步 TikTok → 拆解 → 更新模板</p>
+        <div class="sync-workflow">
+          <section class="sync-step">
+            <h3 class="sync-step-label">① 发现与入库</h3>
+            <div class="job-grid job-grid-pills job-grid-compact">
+              <button type="button" class="job-btn pill-btn" data-job="discover">发现候选</button>
+              <button type="button" class="job-btn pill-btn" data-job="promote">筛选入库</button>
+            </div>
+          </section>
+          <section class="sync-step">
+            <h3 class="sync-step-label">② TikTok 元数据</h3>
+            <div class="job-grid job-grid-pills job-grid-compact">
+              <button type="button" class="job-btn pill-btn" data-job="fetch">同步 TikTok</button>
+              <button type="button" class="job-btn pill-btn secondary" data-job="cache-thumbnails">缓存封面</button>
+            </div>
+          </section>
+          <section class="sync-step">
+            <h3 class="sync-step-label">③ 结构拆解</h3>
+            <div class="job-grid job-grid-pills job-grid-compact">
+              <button type="button" class="job-btn pill-btn" data-job="decompose" data-provider="rule">批量规则拆解（免费）</button>
+              <button type="button" class="job-btn pill-btn secondary" data-job="decompose" data-provider="doubao" title="消耗豆包额度，建议仅对入选爆款使用">豆包精细拆解（限量）</button>
+            </div>
+          </section>
+          <section class="sync-step">
+            <h3 class="sync-step-label">④ 模板与产品</h3>
+            <div class="job-grid job-grid-pills job-grid-compact">
+              <button type="button" class="job-btn pill-btn" data-job="templates">更新模板</button>
+              <button type="button" class="job-btn pill-btn" data-job="products">同步产品</button>
+            </div>
+          </section>
+          <section class="sync-step sync-step-maint">
+            <h3 class="sync-step-label">维护</h3>
+            <div class="job-grid job-grid-pills job-grid-compact">
+              <button type="button" class="job-btn pill-btn secondary" data-job="prune" id="pruneMaterialsBtn" title="去重并限额，已拆解/成稿/有脚本默认保留">整理素材库</button>
+            </div>
+          </section>
         </div>
         <div id="jobStatus" class="job-status">就绪</div>
         <pre id="jobLog" class="job-log"></pre>

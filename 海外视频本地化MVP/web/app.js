@@ -2246,8 +2246,9 @@ function ensureCollectorPanel() {
         <textarea id="collectorKeywords" rows="3" placeholder="每行一个关键词，例如：&#10;breast pump&#10;baby bottle&#10;baby products"></textarea>
       </label>
       <label>每词条数
-        <input id="collectorLimit" type="number" min="1" max="100" value="20">
+        <input id="collectorLimit" type="number" min="1" max="200" value="50">
       </label>
+      <p class="hint muted">默认每词 50 条；可在 <code>tiktok_collector/.env</code> 调整滚动次数与清洗阈值。</p>
       <div class="collector-actions">
         <button type="button" class="primary pill-btn" id="btnCollectorRun">开始采集</button>
       </div>
@@ -2292,7 +2293,7 @@ async function refreshCollectorRuntimeHint() {
   }
 }
 
-const TIKTOK_DB_PREVIEW_LIMIT = 5;
+const TIKTOK_DB_PREVIEW_LIMIT = 20;
 const TIKTOK_DB_CAPTION_LEN = 48;
 
 function renderTikTokDbPreviewCards(items, total = items.length) {
@@ -2357,7 +2358,7 @@ function renderCollectorError(resultEl, message) {
 async function runCollectorImport() {
   const keywordsRaw = document.getElementById("collectorKeywords")?.value || "";
   const keywords = keywordsRaw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-  const limit = Number(document.getElementById("collectorLimit")?.value || 20);
+  const limit = Number(document.getElementById("collectorLimit")?.value || 50);
   const productId = productIdForScopedCapture();
   const statusEl = document.getElementById("collectorStatus");
   const resultEl = document.getElementById("collectorResult");
@@ -2380,13 +2381,13 @@ async function runCollectorImport() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         keywords,
-        limit_per_keyword: Number.isFinite(limit) ? limit : 20,
+        limit_per_keyword: Number.isFinite(limit) ? limit : 50,
         product_id: productId,
       }),
     });
     if (statusEl) {
       statusEl.className = "seedance-status collector-status";
-      statusEl.textContent = `采集完成：${data.total_collected} 条，新增 ${data.imported_new_links} 条，更新 ${data.updated_existing_links} 条`;
+      statusEl.textContent = `采集完成：抓取 ${data.total_collected} 条，入库 ${data.imported_total ?? (data.imported_new_links + data.updated_existing_links)} 条（新增 ${data.imported_new_links}，更新 ${data.updated_existing_links}，清洗丢弃 ${data.total_dropped || 0}）`;
     }
     if (resultEl) {
       resultEl.className = "collector-result muted";
@@ -2601,9 +2602,7 @@ function closeProductFloatPanel() {
   });
 }
 
-["openCollectorEntryBtn", "openCollectorNavBtn", "decomposeCollectorBtn"].forEach((id) => {
-  document.getElementById(id)?.addEventListener("click", () => openCollectorEntry());
-});
+document.getElementById("decomposeCollectorBtn")?.addEventListener("click", () => openCollectorEntry());
 document.getElementById("decomposeLibraryBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
 ["openMaterialLibraryBtn"].forEach((id) => {
   document.getElementById(id)?.addEventListener("click", () => openMaterialLibraryDrawer());

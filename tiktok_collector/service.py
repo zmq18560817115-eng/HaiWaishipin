@@ -38,7 +38,7 @@ class TikTokCollectorService:
         if self.db.enabled:
             self.db.init_db()
         db_upserted = self.repository.upsert_records(records)
-        clean_records, dropped_records = review_records(records)
+        clean_records, dropped_records = review_records(records, min_score=self.settings.clean_min_score)
         json_file: Path | None = None
         csv_file: Path | None = None
         clean_json_file: Path | None = None
@@ -70,6 +70,7 @@ class TikTokCollectorService:
             dropped_records=len(dropped_records),
             records=records,
             clean_records=clean_records,
+            dropped_items=dropped_records,
             artifacts=ExportArtifacts(
                 json_path=str(json_file) if json_file else None,
                 csv_path=str(csv_file) if csv_file else None,

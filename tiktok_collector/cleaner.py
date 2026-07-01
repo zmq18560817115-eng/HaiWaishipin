@@ -83,7 +83,7 @@ def _text_blob(record: TikTokVideoRecord) -> str:
     return " ".join(part for part in parts if part).lower()
 
 
-def review_record(record: TikTokVideoRecord) -> ReviewedTikTokVideoRecord:
+def review_record(record: TikTokVideoRecord, *, min_score: int = 1) -> ReviewedTikTokVideoRecord:
     text = _text_blob(record)
     keyword_terms = _keyword_terms(record.source_keyword)
     reasons: list[str] = []
@@ -108,12 +108,16 @@ def review_record(record: TikTokVideoRecord) -> ReviewedTikTokVideoRecord:
         score += 1
         reasons.append("engagement:comment_count>=10")
 
+    if record.caption.strip():
+        score += 1
+        reasons.append("has_caption")
+
     blocked = sorted(term for term in NEGATIVE_TERMS if term in text)
     if blocked:
         score -= 4
         reasons.append(f"negative_terms:{','.join(blocked[:4])}")
 
-    keep = score >= 2 and not blocked
+    keep = score >= min_score and not blocked
     if not keep and not blocked and not matches:
         reasons.append("insufficient_product_relevance")
 
@@ -125,11 +129,15 @@ def review_record(record: TikTokVideoRecord) -> ReviewedTikTokVideoRecord:
     )
 
 
-def review_records(records: list[TikTokVideoRecord]) -> tuple[list[ReviewedTikTokVideoRecord], list[ReviewedTikTokVideoRecord]]:
+def review_records(
+    records: list[TikTokVideoRecord],
+    *,
+    min_score: int = 1,
+) -> tuple[list[ReviewedTikTokVideoRecord], list[ReviewedTikTokVideoRecord]]:
     kept: list[ReviewedTikTokVideoRecord] = []
     dropped: list[ReviewedTikTokVideoRecord] = []
     for record in records:
-        reviewed = review_record(record)
+        reviewed = review_record(record, min_score=min_score)
         if reviewed.clean_status == "kept":
             kept.append(reviewed)
         else:
