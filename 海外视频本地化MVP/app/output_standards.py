@@ -142,7 +142,7 @@ def build_production_fidelity(product_id: str, asset_manifest: list[dict[str, An
     usage = next((a for a in asset_manifest if a.get("asset_type") == "usage_step"), None)
     scenes = [a for a in asset_manifest if a.get("asset_type") == "scene"]
     details = [a for a in asset_manifest if a.get("asset_type") == "detail_proof"]
-    return {
+    base = {
         "script_lock": "Execute approved storyboard shot order, dialogue, timing, and CTA exactly; no silent rewrites during generation.",
         "hero_image_lock": hero.get("source_path", "") if hero else "",
         "hero_rule": "Product appearance must match white-background hero exactly; never redesign, recolor, or simplify.",
@@ -157,6 +157,12 @@ def build_production_fidelity(product_id: str, asset_manifest: list[dict[str, An
         "new_category_rule": "New products require white hero + scenario images + detail images before scripting or generation.",
         "product_id": product_id,
     }
+    if product_id == "便携恒温杯":
+        base["temperature_display_rule"] = "Fahrenheit °F only on display (~98°F typical); never Celsius °C."
+        base["milk_physics_rule"] = (
+            "Body-warm breast milk/formula pour only; no boiling, steam plume, or bubbling hot liquid."
+        )
+    return base
 
 
 def build_shot_asset_map(
@@ -228,6 +234,8 @@ def build_claim_guardrails(product_id: str) -> dict[str, Any]:
                 "sterilization guarantee",
                 "bottle inside cup",
                 "commercial milk bottle as input",
+                "Celsius display on product screen",
+                "boiling milk with steam",
             ],
             "rewrites": {
                 "pain-free": "designed for a calmer routine",

@@ -10,6 +10,7 @@ from paths import MVP_ROOT, OVERSEAS_ENV
 
 DEFAULT_TURBO = "doubao-seed-2-1-turbo-260628"
 DEFAULT_PRO = "doubao-seed-2-1-pro-260628"
+DEFAULT_SCRIPT_PROVIDER = "auto"
 
 
 def _env() -> dict[str, str]:
@@ -71,11 +72,30 @@ def _env_flag(raw: str | None, *, default: bool) -> bool:
 def video_analysis_policy() -> dict:
     """视频拆解策略（读 overseas-loc-mvp/.env）。"""
     cfg = doubao_config()
+    on_view = _env_flag(_env().get("VIDEO_ANALYSIS_ON_VIEW"), default=False)
     return {
         "llm_enabled": bool(cfg.get("llm_enabled")),
         "auto_enabled": bool(cfg.get("auto_enabled")),
+        "on_view": on_view,
         "paused": bool(cfg.get("paused")),
         "message": str(cfg.get("pause_message") or ""),
+        "token_saving": token_saving_hints(),
+    }
+
+
+def decompose_batch_limit() -> int:
+    raw = (_env().get("DECOMPOSE_BATCH_LIMIT") or "0").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 0
+
+
+def token_saving_hints() -> dict[str, str]:
+    return {
+        "decompose": "仅对入选结构参考手动点「精细拆解」；批量用规则拆解；设 VIDEO_ANALYSIS_ON_VIEW=0",
+        "script": "脚本用 DOUBAO_SCRIPT_MODE=turbo 试跑，定稿再用 pro",
+        "video": "试跑设 AI_VIDEO_MAX_SHOTS=2；关闭 AI_VIDEO_ON_FINISH 避免交付时自动出片",
     }
 
 
@@ -87,6 +107,76 @@ def resolve_model(mode: str | None = None) -> str:
     if m == "turbo":
         return cfg["turbo_model"]
     return cfg["turbo_model"]
+
+
+def resolve_script_model(mode: str | None = None) -> str:
+    """脚本生成用豆包模型（默认 pro，质量更好）。"""
+    env = _env()
+    explicit = (env.get("DOUBAO_SCRIPT_MODEL") or "").strip()
+    if explicit:
+        return explicit
+    cfg = doubao_config()
+    m = (mode or env.get("DOUBAO_SCRIPT_MODE") or "pro").strip().lower()
+    if m == "turbo":
+        return cfg["turbo_model"]
+    if m == "pro":
+        return cfg["pro_model"]
+    return cfg["pro_model"]
+
+
+def script_llm_config() -> dict:
+    """脚本生成 LLM 路由（豆包 / Claude / 规则）。"""
+    env = _env()
+    provider = (env.get("SCRIPT_LLM_PROVIDER") or DEFAULT_SCRIPT_PROVIDER).strip().lower()
+    if provider not in ("auto", "doubao", "anthropic", "rule"):
+        provider = DEFAULT_SCRIPT_PROVIDER
+    ark_ready = bool((env.get("ARK_API_KEY") or "").strip())
+    doubao_enabled = ark_ready and _env_flag(env.get("DOUBAO_SCRIPT_ENABLED"), default=True)
+    anthropic_key = (env.get("ANTHROPIC_API_KEY") or "").strip()
+    anthropic_ready = bool(anthropic_key)
+    script_model = resolve_script_model()
+
+    if provider == "auto":
+        if doubao_enabled:
+            effective = "doubao"
+            label = f"豆包脚本（{script_model}，与拆解共用 ARK_API_KEY）"
+        elif anthropic_ready:
+            effective = "anthropic"
+            label = f"Claude（{env.get('OVERSEAS_LOC_MODEL') or 'claude-sonnet-4-6'}）"
+        else:
+            effective = "rule"
+            label = "规则模板（未配置 ARK_API_KEY / ANTHROPIC_API_KEY）"
+    elif provider == "doubao":
+        effective = "doubao" if doubao_enabled else "rule"
+        label = (
+            f"豆包脚本（{script_model}）"
+            if doubao_enabled
+            else "规则模板（豆包未配置或已关闭 DOUBAO_SCRIPT_ENABLED）"
+        )
+    elif provider == "anthropic":
+        effective = "anthropic" if anthropic_ready else "rule"
+        label = (
+            f"Claude（{env.get('OVERSEAS_LOC_MODEL') or 'claude-sonnet-4-6'}）"
+            if anthropic_ready
+            else "规则模板（未配置 ANTHROPIC_API_KEY）"
+        )
+    else:
+        effective = "rule"
+        label = "规则模板（SCRIPT_LLM_PROVIDER=rule）"
+
+    return {
+        "provider": provider,
+        "effective_provider": effective,
+        "label": label,
+        "doubao_configured": ark_ready,
+        "doubao_enabled": doubao_enabled,
+        "doubao_model": script_model,
+        "anthropic_available": anthropic_ready,
+        "anthropic_model": (env.get("OVERSEAS_LOC_MODEL") or "claude-sonnet-4-6").strip(),
+        "fallback": "rule_template（LLM 失败或未配置时自动使用）",
+        "env_path": str(OVERSEAS_ENV),
+        "setup": "在 overseas-loc-mvp/.env 填写 ARK_API_KEY；可选 SCRIPT_LLM_PROVIDER=auto|doubao|anthropic|rule",
+    }
 
 
 def ark_api_key() -> str:

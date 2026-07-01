@@ -85,6 +85,23 @@ def _load_scenario_tags_for_slug(slug: str, link_id: str = "") -> list[str]:
     return []
 
 
+def _feedback_review_done(record: dict[str, Any]) -> bool:
+    if str(record.get("review_status") or "") == "done":
+        return True
+    if str(record.get("feedback_reviewed_at") or "").strip():
+        return True
+    if str(record.get("manual_edits") or "").strip():
+        return True
+    if record.get("issue_tags"):
+        return True
+    if str(record.get("adopted") or "") not in ("", "待定"):
+        return True
+    pub = record.get("publish") or {}
+    if any(str(pub.get(k) or "").strip() for k in ("views", "engagement", "notes")):
+        return True
+    return False
+
+
 def _normalize_feedback_record(record: dict[str, Any]) -> dict[str, Any]:
     slug = str(record.get("slug") or "")
     if slug:
@@ -107,6 +124,7 @@ def _normalize_feedback_record(record: dict[str, Any]) -> dict[str, Any]:
         record["issue_tags"] = []
     else:
         record["issue_tags"] = [t for t in tags if t in ISSUE_TAG_IDS]
+    record["review_done"] = _feedback_review_done(record)
     return record
 
 
@@ -142,6 +160,8 @@ def save_feedback(slug: str, updates: dict[str, Any]) -> dict[str, Any]:
     from datetime import datetime, timezone
 
     record["updated_at"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    record["review_status"] = "done"
+    record["feedback_reviewed_at"] = record["updated_at"]
     record = _normalize_feedback_record(record)
     path = FEEDBACK_DIR / f"{slug}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,7 +173,7 @@ def save_feedback(slug: str, updates: dict[str, Any]) -> dict[str, Any]:
 def _sync_feedback_csv(slug: str, record: dict[str, Any]) -> None:
     index = FEEDBACK_DIR / "反馈记录.csv"
     fields = [
-        "slug", "link_id", "title", "product_id", "updated_at",
+        "slug", "link_id", "title", "product_id", "updated_at", "review_status",
         "issue_tags", "manual_edits", "adopted",
         "publish_views", "publish_engagement", "publish_notes", "notes",
     ]
@@ -169,6 +189,7 @@ def _sync_feedback_csv(slug: str, record: dict[str, Any]) -> None:
         "title": str(record.get("title", "")),
         "product_id": str(record.get("product_id", "")),
         "updated_at": str(record.get("updated_at", "")),
+        "review_status": str(record.get("review_status", "")),
         "issue_tags": ",".join(record.get("issue_tags") or []),
         "manual_edits": str(record.get("manual_edits", "")),
         "adopted": str(record.get("adopted", "")),

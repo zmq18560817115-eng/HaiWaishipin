@@ -32,14 +32,25 @@
 
 ## 环境
 
-1. `安装并检查开发环境.cmd` — 双 venv
-2. `ANTHROPIC_API_KEY` — 脚本生成（可选，有规则兜底）
-3. `overseas-loc-mvp/.env` — `ARK_API_KEY` / SeedDance（`配置SeedDance.cmd`）
+1. `检查开发环境.cmd` — 检查并自动创建双 venv
+2. `overseas-loc-mvp/.env` — `ARK_API_KEY`（豆包拆解 + 脚本生成 + SeedDance）
+3. 可选 `ANTHROPIC_API_KEY` — 仅当 `SCRIPT_LLM_PROVIDER=anthropic` 时使用 Claude
 
 ## 维护
 
 | 命令 | 作用 |
 |------|------|
-| `整理工作区目录.cmd` | 首次迁移旧目录到 `01_*` |
 | `清理工作区.cmd` | 去重路径、删临时文件、建立 junction |
-| `运行TikTok抓取工作流.cmd` | 同步竞品元数据 |
+| `本地生成视频.cmd` | 命令行 SeedDance 出片 |
+| `运行TikTok抓取工作流.cmd` | 同步竞品元数据（可选） |
+
+## 内网部署（团队）
+
+1. `git clone` 本仓库到服务器（如 `D:\vl-workflow`）
+2. `检查开发环境.cmd` — 创建双 venv
+3. 复制 `overseas-loc-mvp/.env.example` → `.env`，填写 `ARK_API_KEY`
+4. 复制 `海外视频本地化MVP/.env.example` → `.env`，设置 `WORKBENCH_HOST=0.0.0.0` 与 `WORKBENCH_API_TOKEN`
+5. 双击 **`部署内网.cmd`**，局域网访问 `http://<服务器IP>:8788`
+6. 定期运行 **`备份工作区.cmd`**（数据备份到 `06_备份库/`，已在 .gitignore）
+
+用户可在页面下载成片 zip；服务器同时保留 `03_产出库` 版本归档。

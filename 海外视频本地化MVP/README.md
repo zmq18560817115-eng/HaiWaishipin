@@ -12,8 +12,8 @@
 |------|------|
 | 发现候选 | Playwright 公开页面低频发现 URL → discovery_candidates |
 | 同步 TikTok | oEmbed + Playwright |
-| 结构拆解 | 当前规则模板（标题/话题）；下一步接豆包视频理解 + ASR 做详细分镜 |
-| 生成脚本 | Claude（`ANTHROPIC_API_KEY`）或规则模板 |
+| 结构拆解 | 豆包视频理解（`ARK_API_KEY`）+ 规则兜底 |
+| 生成脚本 | 豆包（默认，共用 `ARK_API_KEY`）→ Claude → 规则模板 |
 | 完成交付 | `overseas-loc-mvp` 子进程 |
 | AI 空镜 | SeedDance 2.0 / fal.ai（`FAL_KEY`，可选） |
 

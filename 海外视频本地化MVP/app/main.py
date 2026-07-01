@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -35,11 +36,16 @@ from .data import (
     load_materials,
     load_script_payload,
     material_detail,
+    material_already_analyzed,
     needs_doubao_analysis,
     shot_count_for,
 )
-from .analyze_jobs import analyze_status, clear_analyze_job, start_material_analyze
-from .doubao_config import doubao_config, video_analysis_policy
+from .archive_delivery import build_archive_zip, list_archive_versions
+from .auth_middleware import WorkbenchAuthMiddleware
+from .deploy_config import public_status as deployment_status, workbench_host, workbench_port
+from .doubao_config import doubao_config, script_llm_config, video_analysis_policy
+from .daily_quota import assert_script_quota, production_profile, quota_status, record_script_generation
+from .doubao_script import test_script_connection
 from .doubao_video_analysis import test_connection as test_doubao_connection
 from .jobs import job_status, start_job
 from .library_api import list_feedback, list_finished, load_feedback, load_templates, save_feedback
@@ -55,6 +61,8 @@ from .olm_bridge import (
 )
 from .product_tags import normalize_selected_tags, product_delivery_tags
 from .products import get_product, list_products, update_product
+from .prompt_library import ensure_default_presets, list_prompts, record_usage
+from .reverse_prompt import run_reverse_prompt
 from .scene_script import scenario_conflict_note
 from .script_gen import generate_script
 from .thumbnails import ensure_thumbnail_cached
@@ -72,8 +80,30 @@ from .seedance_bridge import (
 )
 
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
+app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 91
+UI_VERSION = 129
+
+
+def _render_index() -> HTMLResponse:
+    raw = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    raw = raw.replace("{{UI_VERSION}}", str(UI_VERSION))
+    from .deploy_config import api_token
+
+    raw = raw.replace("{{WORKBENCH_TOKEN_JS}}", json.dumps(api_token()))
+    return HTMLResponse(raw)
+
+
+def _tiktok_collector_runtime() -> dict:
+    workflow_root = ROOT.parent
+    if str(workflow_root) not in sys.path:
+        sys.path.insert(0, str(workflow_root))
+    try:
+        from tiktok_collector.browser_launch import collector_runtime_status
+
+        return collector_runtime_status()
+    except Exception as exc:
+        return {"cursor_sandbox": False, "system_browsers": [], "error": str(exc)}
 
 
 def _friendly_analyze_message(detail: dict[str, Any] | None, link_id: int | str) -> str:
@@ -143,11 +173,13 @@ class FeedbackUpdateRequest(BaseModel):
 class JobStartRequest(BaseModel):
     engine: str = "auto"
     provider: str = "auto"
+    product_id: str = ""
 
 
 class TikTokCollectorRequest(BaseModel):
     keywords: list[str] = Field(min_length=1)
     limit_per_keyword: int = Field(default=20, ge=1, le=100)
+    product_id: str = ""
 
 
 class TikTokCollectorDbSyncRequest(BaseModel):
@@ -155,17 +187,29 @@ class TikTokCollectorDbSyncRequest(BaseModel):
     source_keyword: str = ""
     processing_status: str = ""
     limit: int = Field(default=20, ge=1, le=100)
+    product_id: str = ""
+
+
+class EnsureAnalysisRequest(BaseModel):
+    provider: str = "rule"  # rule | doubao | auto
+
+
+class ReversePromptBody(BaseModel):
+    reverse_type: str = "video"
+    product_id: str = ""
+    save: bool = True
 
 
 @app.get("/")
 async def index() -> HTMLResponse:
-    raw = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(raw.replace("{{UI_VERSION}}", str(UI_VERSION)))
+    return _render_index()
 
 
 @app.get("/api/health")
 async def health() -> dict:
     items = load_materials()
+    script_cfg = script_llm_config()
+    ensure_default_presets()
     return {
         "ok": True,
         "ui_version": UI_VERSION,
@@ -174,11 +218,11 @@ async def health() -> dict:
         "analyzed": sum(1 for i in items if i.get("has_analysis")),
         "products": len(list_products()),
         "finished": len(list_finished()),
+        "prompt_library": len(list_prompts()),
         "job": job_status(),
         "llm": {
-            "available": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),
-            "model": os.getenv("OVERSEAS_LOC_MODEL", "claude-sonnet-4-6"),
-            "fallback": "rule_template（无 Key 时自动使用）",
+            **script_cfg,
+            "available": script_cfg["effective_provider"] in ("doubao", "anthropic"),
             "role": "脚本生成",
         },
         "decompose": {
@@ -204,7 +248,10 @@ async def health() -> dict:
             "output_dir": str((ROOT.parent / "tiktok_collector" / "data" / "raw").resolve()),
             "clean_output_dir": str((ROOT.parent / "tiktok_collector" / "data" / "raw" / "clean").resolve()),
             "mysql_enabled": collector_database_enabled(),
+            "runtime": _tiktok_collector_runtime(),
         },
+        "production": production_profile(),
+        "deployment": deployment_status(),
     }
 
 
@@ -265,7 +312,12 @@ async def material_analysis_detail(link_id: int) -> dict:
     if not detail and not policy.get("auto_enabled"):
         raise HTTPException(
             status_code=404,
-            detail=policy.get("message") or "素材尚未拆解，且当前已暂停自动分析",
+            detail="素材尚未拆解。请先在设置运行「批量规则拆解（免费）」，或点「精细拆解」",
+        )
+    if not detail and not policy.get("on_view"):
+        raise HTTPException(
+            status_code=404,
+            detail="素材尚未拆解。请运行「批量规则拆解（免费）」；豆包精细拆解请手动触发",
         )
     if detail and not policy.get("llm_enabled") and shot_count_for(lid, detail) < 1:
         return {
@@ -338,6 +390,71 @@ async def material_analyze(link_id: int) -> dict:
             msg = (proc.stderr or proc.stdout or msg)[-300:]
         raise HTTPException(status_code=500, detail=msg)
     return {"ok": True, "status": "ready", "detail": detail}
+
+
+@app.post("/api/materials/{link_id}/ensure-analysis")
+async def ensure_material_analysis(link_id: int, body: EnsureAnalysisRequest | None = None) -> dict:
+    """确保素材已有结构拆解：默认规则拆解（省 token），可选豆包精细拆解。"""
+    import subprocess
+
+    from .jobs import PIPELINE, PYTHON
+
+    lid = str(link_id)
+    if not material_detail(link_id):
+        raise HTTPException(status_code=404, detail="素材不存在")
+
+    if material_already_analyzed(lid):
+        detail = load_analysis_detail(lid)
+        provider = (detail or {}).get("analyze_provider") or "cached"
+        return {"ok": True, "status": "ready", "provider": provider, "detail": detail}
+
+    req = body or EnsureAnalysisRequest()
+    provider = (req.provider or "rule").strip().lower()
+    if provider == "auto":
+        policy = video_analysis_policy()
+        cfg = doubao_config()
+        provider = (
+            "doubao"
+            if policy.get("llm_enabled") and cfg.get("configured")
+            else "rule"
+        )
+    if provider not in ("rule", "doubao"):
+        provider = "rule"
+    if provider == "doubao" and not video_analysis_policy().get("llm_enabled"):
+        provider = "rule"
+
+    def _run() -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                str(PYTHON),
+                str(PIPELINE),
+                "decompose",
+                "--provider",
+                provider,
+                "--link-id",
+                str(link_id),
+            ],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=600,
+        )
+
+    proc = await run_in_threadpool(_run)
+    detail = load_analysis_detail(lid)
+    if proc.returncode != 0 or not material_already_analyzed(lid):
+        msg = _friendly_analyze_message(detail, link_id)
+        if proc.returncode != 0:
+            msg = ((proc.stderr or proc.stdout or msg) or "拆解失败")[-400:]
+        raise HTTPException(status_code=500, detail=msg)
+    return {
+        "ok": True,
+        "status": "ready",
+        "provider": (detail or {}).get("analyze_provider") or provider,
+        "detail": detail,
+    }
 
 
 @app.get("/api/materials/{link_id}/thumbnail")
@@ -427,6 +544,10 @@ async def material_preview(link_id: int, product_id: str = "") -> dict:
 @app.post("/api/materials/{link_id}/generate")
 async def generate(link_id: int, body: GenerateRequest) -> dict:
     try:
+        assert_script_quota()
+    except ValueError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    try:
         result = generate_script(
             link_id,
             product_id=body.product_id,
@@ -450,6 +571,10 @@ async def generate(link_id: int, body: GenerateRequest) -> dict:
         )
         slug = f"ref-{link_id:03d}"
         result["slug"] = slug
+        meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
+        if not meta and isinstance(result.get("script_pack"), dict):
+            meta = {"provider": result.get("provider"), "model": result.get("model")}
+        result["daily_quota"] = record_script_generation(link_id, result.get("meta") or {})
         return result
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -483,6 +608,57 @@ async def product_save(product_id: str, body: ProductUpdateRequest) -> dict:
 async def templates() -> dict:
     items = load_templates()
     return {"total": len(items), "items": items}
+
+
+@app.get("/api/prompt-library")
+async def prompt_library(
+    product_id: str = Query(""),
+    content_line: str = Query(""),
+    source: str = Query(""),
+    reverse_type: str = Query(""),
+    prompt_type: str = Query(""),
+    limit: int = Query(200, ge=1, le=500),
+) -> dict:
+    items = list_prompts(
+        product_id=product_id,
+        content_line=content_line,
+        source=source,
+        reverse_type=reverse_type,
+        prompt_type=prompt_type,
+        limit=limit,
+    )
+    presets = [i for i in items if i.get("source") == "preset"]
+    reverse_items = [i for i in items if str(i.get("source") or "").startswith("reverse")]
+    return {
+        "total": len(items),
+        "preset_count": len(presets),
+        "reverse_count": len(reverse_items),
+        "items": items,
+        "presets": presets,
+        "reverse": reverse_items,
+    }
+
+
+@app.post("/api/materials/{link_id}/reverse-prompt")
+async def material_reverse_prompt(link_id: int, body: ReversePromptBody) -> dict:
+    try:
+        return await run_in_threadpool(
+            run_reverse_prompt,
+            link_id,
+            reverse_type=body.reverse_type,
+            product_id=body.product_id,
+            save=body.save,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/prompt-library/{prompt_id}/use")
+async def prompt_library_use(prompt_id: str) -> dict:
+    row = record_usage(prompt_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="提示词不存在")
+    return {"ok": True, "item": row}
 
 
 @app.get("/api/library/finished")
@@ -564,6 +740,7 @@ async def jobs_start(job_name: str, body: JobStartRequest | None = None) -> dict
             job_name,
             engine=(body.engine if body else "auto"),
             provider=(body.provider if body else "auto"),
+            product_id=(body.product_id if body else "") or "",
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -581,9 +758,13 @@ async def tiktok_collector_collect(body: TikTokCollectorRequest) -> dict:
             run_collector_import,
             keywords,
             limit_per_keyword=body.limit_per_keyword,
+            product_id=body.product_id or "",
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"TikTok 采集失败: {exc}") from exc
+        msg = str(exc).strip() or "未知错误"
+        if not msg.startswith("TikTok") and "Playwright" not in msg:
+            msg = f"TikTok 采集失败: {msg}"
+        raise HTTPException(status_code=500, detail=msg) from exc
     items = load_materials()
     return {
         "ok": True,
@@ -645,6 +826,7 @@ async def tiktok_collector_db_sync(body: TikTokCollectorDbSyncRequest) -> dict:
             source_keyword=body.source_keyword,
             processing_status=body.processing_status,
             limit=body.limit,
+            product_id=body.product_id or "",
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"TikTok MySQL 同步失败: {exc}") from exc
@@ -672,7 +854,14 @@ async def delivery_finish(slug: str) -> dict:
 
 @app.get("/api/doubao/test")
 async def doubao_test() -> dict:
-    return await test_doubao_connection()
+    video = await test_doubao_connection()
+    script = await test_script_connection()
+    return {"video_analysis": video, "script_generation": script}
+
+
+@app.get("/api/script-llm/test")
+async def script_llm_test() -> dict:
+    return await test_script_connection()
 
 
 @app.get("/api/seedance/test")
@@ -743,10 +932,46 @@ async def delivery_zip(slug: str) -> StreamingResponse:
     )
 
 
+@app.get("/api/archive/{slug}/versions")
+async def archive_versions(slug: str) -> dict:
+    versions = list_archive_versions(slug)
+    if not versions:
+        raise HTTPException(status_code=404, detail="尚无服务器归档，请先完成成片拼接")
+    return {"slug": slug, "total": len(versions), "items": versions}
+
+
+@app.get("/api/archive/{slug}/{version}/zip")
+async def archive_zip(slug: str, version: str) -> StreamingResponse:
+    try:
+        data, filename = build_archive_zip(slug, version)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return StreamingResponse(
+        iter([data]),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/api/admin/backup")
+async def admin_backup() -> dict:
+    """内网：触发工作区备份到 06_备份库（或 WORKFLOW_BACKUP_DIR）。"""
+    from backup_workspace import run_backup
+
+    manifest = await run_in_threadpool(run_backup)
+    ok = sum(1 for row in manifest.get("items", []) if row.get("ok"))
+    return {"ok": ok > 0, "backed_up": ok, "destination": manifest.get("destination"), "items": manifest.get("items")}
+
+
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8788, reload=False)
+    host = workbench_host()
+    port = workbench_port()
+    print(f"工作台启动 http://{host}:{port}  （UI v{UI_VERSION}）")
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        print("内网模式：请确保防火墙放行上述端口；建议配置 WORKBENCH_API_TOKEN")
+    uvicorn.run("app.main:app", host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":

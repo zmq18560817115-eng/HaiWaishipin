@@ -37,6 +37,13 @@ ROOT_DEMO_CMDS = (
     WORKFLOW_ROOT / "启动页面MVP.cmd",
 )
 
+ROOT_REDUNDANT_CMDS = (
+    WORKFLOW_ROOT / "安装并检查开发环境.cmd",
+    WORKFLOW_ROOT / "整理工作区目录.cmd",
+    WORKFLOW_ROOT / "打开工作流文件夹.cmd",
+    WORKFLOW_ROOT / "归档MVP产出.cmd",
+)
+
 DEPRECATED_DIRS = (
     WORKFLOW_ROOT / "overseas-loc-mvp" / "static",
 )
@@ -79,7 +86,7 @@ def clean_temp_and_logs(*, dry_run: bool) -> int:
 
 def clean_demo_launchers(*, dry_run: bool) -> int:
     n = 0
-    for cmd in ROOT_DEMO_CMDS:
+    for cmd in (*ROOT_DEMO_CMDS, *ROOT_REDUNDANT_CMDS):
         if _remove_path(cmd, dry_run=dry_run):
             n += 1
     legacy_bat = WORKFLOW_ROOT / "overseas-loc-mvp" / "start.bat"
@@ -130,14 +137,14 @@ def write_architecture_readme(*, dry_run: bool) -> None:
 
 旧路径 `数据表/`、`成稿库/` 等为 **junction** 指向 `01_*` / `04_*` / `05_*`，启动 8788 时自动创建。
 
-## 维护命令
+## 根目录命令
 
 | 命令 | 作用 |
 |------|------|
 | `启动工作台.cmd` | 日常入口 |
-| `安装并检查开发环境.cmd` | 双 venv 与依赖 |
+| `检查开发环境.cmd` | 检查并创建双 venv |
 | `配置SeedDance.cmd` | 编辑 `overseas-loc-mvp/.env` |
-| `整理工作区目录.cmd` | 首次迁移素材到 `01_*` |
+| `清理工作区.cmd` | 去重、junction、删临时文件 |
 | `python 海外视频本地化MVP/scripts/cleanup_workspace.py` | 本瘦身脚本 |
 """
     if dry_run:

@@ -52,7 +52,8 @@ def sanitize_seedance_prompt(text: str) -> str:
 
 def _usage_compact() -> str:
     return (
-        "Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; "
+        "Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; "
+        "Fahrenheit °F display ~98°F only, no °C; no steam or boiling; "
         "never put bottle inside cup; match white-background hero and pour-spout reference exactly"
     )
 
@@ -116,8 +117,8 @@ def build_role_video_prompt(
         )
     if role == "证明":
         return _clamp_prompt(
-            f"Proof detail, {scene_en}, macro shot of warm milk pouring OUT from lid spout of {cup} "
-            f"into baby feeding bottle, hinged lid open, {safe}. {usage}. {structure}. {vo}"
+            f"Proof detail, {scene_en}, macro shot of body-warm milk pouring OUT from lid spout of {cup} "
+            f"into baby feeding bottle, no steam plume or boiling bubbles, hinged lid open, {safe}. {usage}. {structure}. {vo}"
         )
     if role == "行动号召":
         if character and shot_needs_person(role):

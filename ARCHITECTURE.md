@@ -30,12 +30,16 @@
 
 旧路径 `数据表/`、`成稿库/` 等为 **junction** 指向 `01_*` / `04_*` / `05_*`，启动 8788 时自动创建。
 
-## 维护命令
+## 根目录命令（无重复入口）
 
 | 命令 | 作用 |
 |------|------|
-| `启动工作台.cmd` | 日常入口 |
-| `安装并检查开发环境.cmd` | 双 venv 与依赖 |
-| `配置SeedDance.cmd` | 编辑 `overseas-loc-mvp/.env` |
-| `整理工作区目录.cmd` | 首次迁移素材到 `01_*` |
-| `python 海外视频本地化MVP/scripts/cleanup_workspace.py` | 本瘦身脚本 |
+| `启动工作台.cmd` | 日常入口 → http://127.0.0.1:8788 |
+| `检查开发环境.cmd` | 检查并自动创建双 venv、依赖、MySQL |
+| `配置SeedDance.cmd` | 编辑 `overseas-loc-mvp/.env` 并测试 |
+| `清理工作区.cmd` | 去重路径、删临时文件、建立 junction |
+| `本地生成视频.cmd` | 命令行 SeedDance（不依赖页面） |
+| `运行TikTok抓取工作流.cmd` | 命令行同步竞品（可选） |
+| `启动MySQL.cmd` / `停止MySQL.cmd` | MySQL 服务（可选） |
+
+成片归档由交付引擎自动写入 `03_产出库/`，无需单独归档脚本。

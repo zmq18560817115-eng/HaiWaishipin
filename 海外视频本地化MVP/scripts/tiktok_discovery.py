@@ -283,9 +283,15 @@ def _dedupe_keys() -> set[str]:
     return keys
 
 
-def load_queries() -> list[dict[str, str]]:
+def load_queries(product_id: str = "") -> list[dict[str, str]]:
     rows = _read_csv(DISCOVERY_QUERIES_CSV)
-    return [r for r in rows if str(r.get("enabled", "1")).strip() not in ("0", "false", "False", "no")]
+    enabled = [r for r in rows if str(r.get("enabled", "1")).strip() not in ("0", "false", "False", "no")]
+    if not product_id:
+        return enabled
+    from app.material_scope import candidate_row_matches_product
+
+    matched = [r for r in enabled if candidate_row_matches_product(r, product_id)]
+    return matched
 
 
 def discover_candidates(
@@ -294,10 +300,14 @@ def discover_candidates(
     engine: str = "auto",
     headless: bool = True,
     sleep: float = 0.8,
+    product_id: str = "",
 ) -> dict[str, Any]:
-    queries = load_queries()
+    queries = load_queries(product_id)
     if not queries:
-        return {"ok": False, "message": f"没有启用的查询：{DISCOVERY_QUERIES_CSV}", "added": 0}
+        msg = f"没有启用的查询：{DISCOVERY_QUERIES_CSV}"
+        if product_id:
+            msg = f"当前产品「{product_id}」无匹配发现关键词，请在 discovery_queries.csv 配置同品类查询"
+        return {"ok": False, "message": msg, "added": 0, "product_id": product_id}
     known = _dedupe_keys()
     existing = _read_csv(DISCOVERY_CANDIDATES_CSV)
     next_id = max([_int(r.get("candidate_id")) for r in existing] or [0]) + 1
@@ -362,13 +372,26 @@ def discover_candidates(
         "added": len(added),
         "candidate_file": str(DISCOVERY_CANDIDATES_CSV),
         "errors": errors,
+        "product_id": product_id,
     }
 
 
-def promote_candidates(*, limit: int = 20, min_score: float = 0.0) -> dict[str, Any]:
-    candidates = _read_csv(DISCOVERY_CANDIDATES_CSV)
-    if not candidates:
+def promote_candidates(*, limit: int = 20, min_score: float = 0.0, product_id: str = "") -> dict[str, Any]:
+    all_candidates = _read_csv(DISCOVERY_CANDIDATES_CSV)
+    if not all_candidates:
         return {"ok": False, "message": "候选池为空", "promoted": 0}
+    pool = all_candidates
+    if product_id:
+        from app.material_scope import candidate_row_matches_product
+
+        pool = [r for r in all_candidates if candidate_row_matches_product(r, product_id)]
+        if not pool:
+            return {
+                "ok": False,
+                "message": f"候选池无与「{product_id}」同品类条目",
+                "promoted": 0,
+                "product_id": product_id,
+            }
     raw_rows = _read_csv(RAW_LINKS_CSV)
     known: set[str] = set()
     for row in raw_rows:
@@ -381,7 +404,7 @@ def promote_candidates(*, limit: int = 20, min_score: float = 0.0) -> dict[str, 
     next_link_id = max([_int(r.get("link_id")) for r in raw_rows] or [0]) + 1
     eligible = [
         row
-        for row in candidates
+        for row in pool
         if row.get("status", "candidate") in ("candidate", "selected")
         and _float(row.get("score")) >= min_score
         and (row.get("video_id") or video_id_from_url(row.get("url", ""))) not in known
@@ -414,14 +437,15 @@ def promote_candidates(*, limit: int = 20, min_score: float = 0.0) -> dict[str, 
     if promoted_rows:
         _append_csv(RAW_LINKS_CSV, promoted_rows, RAW_LINK_FIELDS)
         now = utc_now()
-        for row in candidates:
+        for row in all_candidates:
             if str(row.get("candidate_id")) in promoted_ids:
                 row["status"] = "promoted"
                 row["promoted_at"] = now
-        _write_csv(DISCOVERY_CANDIDATES_CSV, candidates, CANDIDATE_FIELDS)
+        _write_csv(DISCOVERY_CANDIDATES_CSV, all_candidates, CANDIDATE_FIELDS)
     return {
         "ok": True,
         "promoted": len(promoted_rows),
         "raw_links": str(RAW_LINKS_CSV),
+        "product_id": product_id,
         "next_step": "运行 fetch --engine auto，再运行 decompose --provider doubao",
     }

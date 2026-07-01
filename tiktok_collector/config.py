@@ -26,6 +26,7 @@ def _int(name: str, default: int) -> int:
 @dataclass(slots=True)
 class CollectorSettings:
     headless: bool
+    browser_channels: tuple[str | None, ...]
     max_results: int
     search_scrolls: int
     search_wait_ms: int
@@ -39,8 +40,30 @@ class CollectorSettings:
     mysql_echo: bool
 
 
+def _browser_channels() -> tuple[str | None, ...]:
+    """Playwright channel: None=bundled Chromium, or chrome/msedge for system browser."""
+    raw = os.getenv("TIKTOK_COLLECTOR_BROWSER_CHANNEL", "").strip()
+    if raw:
+        channels: list[str | None] = []
+        for part in raw.split(","):
+            token = part.strip().lower()
+            if not token or token in {"chromium", "bundled", "default"}:
+                channels.append(None)
+            elif token in {"chrome", "google-chrome"}:
+                channels.append("chrome")
+            elif token in {"msedge", "edge", "microsoft-edge"}:
+                channels.append("msedge")
+        return tuple(channels) if channels else (None,)
+    # 默认优先本机 Chrome/Edge，避免 playwright install 下载失败时无法采集
+    import sys
+
+    if sys.platform == "win32":
+        return ("chrome", "msedge", None)
+    return ("chrome", "msedge", None)
+
+
 def load_settings() -> CollectorSettings:
-    load_dotenv(ENV_FILE, override=False)
+    load_dotenv(ENV_FILE, override=True)
     output_dir = Path(os.getenv("TIKTOK_COLLECTOR_OUTPUT_DIR", "./data/raw")).expanduser()
     if not output_dir.is_absolute():
         output_dir = (BASE_DIR / output_dir).resolve()
@@ -49,6 +72,7 @@ def load_settings() -> CollectorSettings:
         user_data_dir = (BASE_DIR / user_data_dir).resolve()
     return CollectorSettings(
         headless=_bool("TIKTOK_COLLECTOR_HEADLESS", True),
+        browser_channels=_browser_channels(),
         max_results=max(1, min(100, _int("TIKTOK_COLLECTOR_MAX_RESULTS", 20))),
         search_scrolls=max(1, _int("TIKTOK_COLLECTOR_SEARCH_SCROLLS", 5)),
         search_wait_ms=max(500, _int("TIKTOK_COLLECTOR_SEARCH_WAIT_MS", 1800)),

@@ -8,6 +8,7 @@ const state = {
   selectedMaterialId: null,
   selectedProductId: null,
   selectedFeedbackSlug: null,
+  feedbackHideReviewed: false,
   feedbackTagDefs: null,
   scriptSlug: null,
   showAllMaterials: false,
@@ -21,8 +22,10 @@ const state = {
   healthCache: null,
   scriptStep: "product",
   generateStudioTab: "featured",
+  imitateStudioTab: "featured",
   selectedScenarioFeature: null,
   generateWorkspaceOpen: false,
+  generateDockMode: "imitate",
   pendingScenarioTag: null,
   createPipelineActive: false,
   seedanceProgressPersist: false,
@@ -37,12 +40,29 @@ const state = {
   },
   promptEnhanceOn: false,
   promptEnhanceUsed: false,
+  viralPipelineBusy: false,
+  pendingViralLinkId: null,
+  generatePromptSelection: null,
+  reverseType: "video",
+  reverseMaterialId: null,
+  reverseLastResult: null,
 };
 
 const VIDEO_RESOLUTIONS = ["720P", "1080P"];
 const VIDEO_ASPECT_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3"];
 const VIDEO_DURATIONS = [5, 10, 20];
 const GENERATE_COUNTS = [1, 2, 3, 4];
+
+const SCOPED_MATERIAL_JOBS = new Set(["discover", "promote", "fetch"]);
+
+function productIdForScopedCapture() {
+  const productId = currentProductId();
+  if (!productId) {
+    window.alert("请先在底部配置「产品」与场景标签。抓取将只保留当前产品品类（如便携恒温杯）。");
+    return "";
+  }
+  return productId;
+}
 
 const JOB_LABELS = {
   discover: "发现候选",
@@ -53,6 +73,7 @@ const JOB_LABELS = {
   products: "同步产品资料",
   links: "生成链接表",
   "cache-thumbnails": "缓存封面图",
+  prune: "整理素材库",
 };
 
 function jobLabel(name) {
@@ -84,8 +105,8 @@ const IMITATE_FEATURES = [
 ];
 
 const REVERSE_FEATURES = [
-  { id: "video-rev", label: "视频反推", sub: "拆镜头 → Prompt", grad: "g-video-rev", planned: true },
-  { id: "script-rev", label: "脚本反推", sub: "拆解脚本结构", grad: "g-script-rev", planned: true },
+  { id: "video-rev", label: "视频反推", sub: "拆镜头 → Prompt", grad: "g-video-rev", reverseType: "video" },
+  { id: "script-rev", label: "脚本反推", sub: "拆解脚本结构", grad: "g-script-rev", reverseType: "script" },
 ];
 
 const DRAFT_FEEDBACK_FEATURES = [
@@ -220,12 +241,11 @@ function readSelectedTags(group) {
 }
 
 function syncDockPromptFromScenarioTags() {
-  const ta = document.getElementById("generateDockPrompt");
-  if (!ta) return;
   const scenarios = readSelectedTags("scenario");
-  ta.value = scenarios.length
+  const text = scenarios.length
     ? `${scenarios[0]}场景：展示产品在真实使用环境中的卖点与痛点，口播自然、镜头节奏对标爆款结构。`
     : "";
+  setImitationPrompt(text);
 }
 
 function toggleTagChip(group, value) {
@@ -288,10 +308,12 @@ function formatPackResult(pack, meta) {
   const m = pack.inputs?.market || {};
   const provider = meta?.provider || pack.provider || "";
   const model = meta?.model || pack.model || "";
-  const providerLine = provider === "anthropic"
+  const providerLine = provider === "doubao"
+    ? `脚本引擎：豆包（${esc(model || "ark")}）`
+    : provider === "anthropic"
     ? `脚本引擎：Claude（${esc(model || "claude")}）`
     : provider === "rule_template"
-      ? "脚本引擎：规则模板（未配置 ANTHROPIC_API_KEY 或 API 失败时自动使用）"
+      ? "脚本引擎：规则模板（LLM 未配置或 API 失败时自动使用）"
       : "";
   const tagSummary = [
     m.audience_tags?.length ? `人群：${m.audience_tags.join("、")}` : "",
@@ -387,58 +409,125 @@ function syncDockScrollPadding() {
   if (dockPadRaf) cancelAnimationFrame(dockPadRaf);
   dockPadRaf = requestAnimationFrame(() => {
     dockPadRaf = 0;
-    const dock = document.getElementById("generateDock");
-    const scroll = document.querySelector('.module-studio[data-module="generate"] .module-studio-scroll');
-    const studio = document.querySelector('.module-studio[data-module="generate"]');
-    if (!dock || !scroll || state.view !== "generate") return;
-    const h = Math.ceil(dock.getBoundingClientRect().height) + 24;
-    scroll.style.paddingBottom = `${h}px`;
-    studio?.style.setProperty("--dock-pad", `${h}px`);
+    const configs = [
+      { view: "generate", dockId: "generateDock", module: "generate" },
+      { view: "imitate", dockId: "imitateDock", module: "imitate" },
+    ];
+    for (const { view, dockId, module } of configs) {
+      if (state.view !== view) continue;
+      const dock = document.getElementById(dockId);
+      const scroll = document.querySelector(`.module-studio[data-module="${module}"] .module-studio-scroll`);
+      const studio = document.querySelector(`.module-studio[data-module="${module}"]`);
+      if (!dock || !scroll) continue;
+      const h = Math.ceil(dock.getBoundingClientRect().height) + 24;
+      scroll.style.paddingBottom = `${h}px`;
+      studio?.style.setProperty("--dock-pad", `${h}px`);
+    }
   });
+}
+
+function dockRunDefaultHtml(view = state.view) {
+  return view === "imitate"
+    ? '<span class="dock-run-icon">✦</span> 开始复刻'
+    : '<span class="dock-run-icon">✦</span> 开始创作';
+}
+
+function forEachDockRunBtn(fn) {
+  ["generateDockRun", "imitateDockRun"].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) fn(btn, id);
+  });
+}
+
+function activeStudioDock() {
+  return state.view === "imitate"
+    ? document.getElementById("imitateDock")
+    : document.getElementById("generateDock");
+}
+
+function getImitationPromptEls() {
+  return [
+    document.getElementById("generateDockPrompt"),
+    document.getElementById("imitateDockPrompt"),
+  ].filter(Boolean);
+}
+
+function getImitationPrompt() {
+  const primary = state.generateDockMode === "generate" || state.view !== "imitate"
+    ? document.getElementById("generateDockPrompt")
+    : document.getElementById("imitateDockPrompt");
+  return primary?.value?.trim()
+    || document.getElementById("generateDockPrompt")?.value?.trim()
+    || document.getElementById("imitateDockPrompt")?.value?.trim()
+    || "";
+}
+
+function setImitationPrompt(value) {
+  getImitationPromptEls().forEach((ta) => { ta.value = value; });
+}
+
+function syncImitationPromptFields() {
+  const gen = document.getElementById("generateDockPrompt");
+  const im = document.getElementById("imitateDockPrompt");
+  if (!gen || !im) return;
+  const src = gen.value || im.value;
+  if (gen.value !== src) gen.value = src;
+  if (im.value !== src) im.value = src;
 }
 
 function syncFinishButton(canFinish, delivered) {
   const canProduce = Boolean(canFinish && currentScriptSlug());
-  const runBtn = document.getElementById("generateDockRun");
-  if (runBtn && !runBtn.dataset.busy) {
+  forEachDockRunBtn((runBtn) => {
+    if (runBtn.dataset.busy) return;
+    const imitate = runBtn.id === "imitateDockRun";
     runBtn.disabled = !canProduce && Boolean(state.lastPreview?.has_script) === false
       ? !tagsSelectionOk() || !state.selectedMaterialId
       : false;
     runBtn.title = canProduce || tagsSelectionOk()
-      ? "生成脚本并产出 AI 分镜视频"
+      ? imitate ? "按爆款结构生成脚本并出片" : "生成脚本并产出 AI 分镜视频"
       : "请先配置产品与对标";
-  }
+  });
 }
 
-function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, persist } = {}) {
-  const bar = document.getElementById("seedanceProgress");
-  const statusEl = document.getElementById("seedanceProgressStatus");
-  const fill = document.getElementById("seedanceProgressFill");
-  const meta = document.getElementById("seedancePipelineCompact");
-  const track = bar?.querySelector(".seedance-progress-track");
-  if (!bar) return;
+const SEEDANCE_PROGRESS_TARGETS = [
+  { bar: "seedanceProgress", status: "seedanceProgressStatus", fill: "seedanceProgressFill", meta: "seedancePipelineCompact" },
+  { bar: "imitateSeedanceProgress", status: "imitateSeedanceProgressStatus", fill: "imitateSeedanceProgressFill", meta: "imitateSeedancePipelineCompact" },
+];
 
+function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, persist } = {}) {
   if (persist != null) state.seedanceProgressPersist = Boolean(persist);
   if (!show && persist !== true) state.seedanceProgressPersist = false;
 
   const visible = Boolean(show && (state.createPipelineActive || state.seedanceProgressPersist));
-  const wasVisible = !bar.classList.contains("hidden");
-  bar.classList.toggle("hidden", !visible);
+  let wasVisible = false;
 
-  if (!visible) {
-    fill?.classList.remove("indeterminate");
-    if (wasVisible) syncDockScrollPadding();
-    return;
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const bar = document.getElementById(ids.bar);
+    const statusEl = document.getElementById(ids.status);
+    const fill = document.getElementById(ids.fill);
+    const meta = document.getElementById(ids.meta);
+    const track = bar?.querySelector(".seedance-progress-track");
+    if (!bar) continue;
+
+    if (!bar.classList.contains("hidden")) wasVisible = true;
+    bar.classList.toggle("hidden", !visible);
+
+    if (!visible) {
+      fill?.classList.remove("indeterminate");
+      continue;
+    }
+
+    if (status && statusEl) statusEl.textContent = status;
+    if (pipeline != null && meta) meta.textContent = pipeline;
+    if (fill) {
+      fill.classList.toggle("indeterminate", Boolean(indeterminate));
+      if (percent != null) fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    }
+    if (track && percent != null) track.setAttribute("aria-valuenow", String(Math.round(percent)));
   }
 
-  if (status && statusEl) statusEl.textContent = status;
-  if (pipeline != null && meta) meta.textContent = pipeline;
-  if (fill) {
-    fill.classList.toggle("indeterminate", Boolean(indeterminate));
-    if (percent != null) fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
-  }
-  if (track && percent != null) track.setAttribute("aria-valuenow", String(Math.round(percent)));
-  if (!wasVisible) syncDockScrollPadding();
+  if (!visible && wasVisible) syncDockScrollPadding();
+  else if (visible && !wasVisible) syncDockScrollPadding();
 }
 
 function renderSeedanceFinalPreview(slug, seedance) {
@@ -447,7 +536,7 @@ function renderSeedanceFinalPreview(slug, seedance) {
   const final = seedance?.final_video || {};
   if (final.ready && final.file && slug) {
     box.classList.remove("hidden");
-    box.innerHTML = `<a class="seedance-final-link" href="/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}" target="_blank">预览成片 final-video.mp4</a>`;
+    box.innerHTML = `<a class="seedance-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}`)}" target="_blank">预览成片 final-video.mp4</a>`;
   } else {
     box.classList.add("hidden");
     box.innerHTML = "";
@@ -455,7 +544,6 @@ function renderSeedanceFinalPreview(slug, seedance) {
 }
 
 async function runStartCreate() {
-  const runBtn = document.getElementById("generateDockRun");
   const ps = document.getElementById("scriptProductSelect");
   if (ps?.value) {
     state.selectedProductId = ps.value;
@@ -471,11 +559,11 @@ async function runStartCreate() {
     return;
   }
 
-  if (runBtn) {
+  forEachDockRunBtn((runBtn) => {
     runBtn.disabled = true;
     runBtn.dataset.busy = "1";
     runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 创作中…';
-  }
+  });
 
   try {
     const prev = state.lastPreview || {};
@@ -488,11 +576,11 @@ async function runStartCreate() {
     refreshScriptFloatFromPreview(prev);
     openScriptFloatPanel();
   } finally {
-    if (runBtn) {
+    forEachDockRunBtn((runBtn) => {
       delete runBtn.dataset.busy;
       runBtn.disabled = false;
-      runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 开始创作';
-    }
+      runBtn.innerHTML = dockRunDefaultHtml(runBtn.id === "imitateDockRun" ? "imitate" : "generate");
+    });
     syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
   }
 }
@@ -503,9 +591,12 @@ function renderDockProduceComplete(slug, message) {
     percent: 100,
     persist: true,
   });
-  const meta = document.getElementById("seedancePipelineCompact");
-  if (meta && slug) {
-    meta.innerHTML = `<a class="seedance-final-link" href="/api/delivery/${encodeURIComponent(slug)}/zip" download>下载成片 zip</a>`;
+  const linkHtml = slug
+    ? `<a class="seedance-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`)}" download>下载成片 zip</a>`
+    : "";
+  for (const id of ["seedancePipelineCompact", "imitateSeedancePipelineCompact"]) {
+    const meta = document.getElementById(id);
+    if (meta && linkHtml) meta.innerHTML = linkHtml;
   }
 }
 
@@ -517,20 +608,19 @@ async function runConfirmProduceVideo() {
     return;
   }
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
-  const runBtn = document.getElementById("generateDockRun");
   closeScriptFloatPanel();
   state.seedanceProgressPersist = false;
   if (produceBtn) {
     produceBtn.disabled = true;
     produceBtn.textContent = "生成中…";
   }
-  if (runBtn) {
+  forEachDockRunBtn((runBtn) => {
     runBtn.disabled = true;
     runBtn.dataset.busy = "1";
     runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 生成中…';
-  }
+  });
   state.createPipelineActive = true;
-  document.getElementById("generateDock")?.scrollIntoView({ behavior: "smooth", block: "end" });
+  activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
   try {
     const ok = await runProduceVideo({ background: true });
     await refreshScriptPreview();
@@ -547,11 +637,11 @@ async function runConfirmProduceVideo() {
       produceBtn.disabled = false;
       produceBtn.textContent = "确认生成视频";
     }
-    if (runBtn) {
+    forEachDockRunBtn((runBtn) => {
       delete runBtn.dataset.busy;
       runBtn.disabled = false;
-      runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 开始创作';
-    }
+      runBtn.innerHTML = dockRunDefaultHtml(runBtn.id === "imitateDockRun" ? "imitate" : "generate");
+    });
     syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
   }
 }
@@ -575,8 +665,9 @@ function setScriptActionStatus(msg) {
 }
 
 function syncDownloadLinks(href, visible) {
+  const url = href ? withApiToken(href) : "";
   document.querySelectorAll("#scriptDownloadBtnBottom, .js-script-download").forEach((dl) => {
-    if (href) dl.href = href;
+    if (url) dl.href = url;
     dl.classList.toggle("hidden", !visible);
   });
 }
@@ -717,47 +808,72 @@ function viralVideoCardHtml(item) {
   </button>`;
 }
 
-function syncGenerateViralGridDesc(count) {
-  const el = document.getElementById("generateViralGridDesc");
+function syncImitationViralGridDesc(descId, count, variant = "generate") {
+  const el = document.getElementById(descId);
   if (!el) return;
   const productId = currentProductId();
   if (!productId) {
-    el.textContent = "请先在底部配置「产品」与场景标签，此处将展示同品类已抓取爆款";
+    el.textContent = variant === "imitate"
+      ? "请先在底部配置「产品」与场景标签，此处展示同品类爆款供结构复刻"
+      : "请先在底部配置「产品」与场景标签，此处将展示同品类已抓取爆款";
     return;
   }
   if (!count) {
-    el.textContent = `当前产品「${currentProductLabel()}」暂无已拆解对标，占位预留 · 可在设置中同步 TikTok 或打开「对标」浏览`;
+    el.textContent = variant === "imitate"
+      ? `当前产品「${currentProductLabel()}」暂无已抓取对标，可在设置同步 TikTok 或打开「对标」浏览`
+      : `当前产品「${currentProductLabel()}」暂无已拆解对标，占位预留 · 可在设置中同步 TikTok 或打开「对标」浏览`;
     return;
   }
-  el.textContent = `已抓取 ${count} 条同品类爆款（按播放量排序），点击卡片设为对标参考`;
+  el.textContent = variant === "imitate"
+    ? `已抓取 ${count} 条同品类爆款，点击卡片自动拆解结构 → 套用品牌脚本 → 出片`
+    : `已抓取 ${count} 条同品类爆款（按播放量排序），点击卡片自动拆解 → 生成脚本 → 出片`;
 }
 
-function renderGenerateViralGrid() {
-  const root = document.getElementById("generateFeatureGrid");
+function bindViralVideoCards(root) {
+  if (!root) return;
+  root.querySelectorAll(".viral-video-card[data-link-id]").forEach((card) => {
+    card.addEventListener("click", async () => {
+      const linkId = Number(card.dataset.linkId);
+      if (!productWorkflowReady()) {
+        state.pendingViralLinkId = linkId;
+        await openProductFloatPanel();
+        return;
+      }
+      await runViralBenchmarkPipeline(linkId);
+    });
+  });
+}
+
+function renderImitationViralGrid(gridId, descId, variant = "generate") {
+  const root = document.getElementById(gridId);
   if (!root) return;
   const pool = getMaterialPreviewPool();
   const sorted = [...pool].sort((a, b) => (Number(b.view_count) || 0) - (Number(a.view_count) || 0));
   const display = sorted.slice(0, 12);
-  syncGenerateViralGridDesc(display.length);
+  syncImitationViralGridDesc(descId, display.length, variant);
 
   if (display.length) {
     root.classList.add("has-viral-videos");
     root.innerHTML = display.map((item) => viralVideoCardHtml(item)).join("");
-    root.querySelectorAll(".viral-video-card[data-link-id]").forEach((card) => {
-      card.addEventListener("click", async () => {
-        const linkId = Number(card.dataset.linkId);
-        if (!productWorkflowReady()) {
-          await openProductFloatPanel();
-          return;
-        }
-        await selectGenerateViralVideo(linkId);
-      });
-    });
+    bindViralVideoCards(root);
     return;
   }
 
   root.classList.remove("has-viral-videos");
-  renderFeatureGrid("generateFeatureGrid", GENERATE_FEATURES);
+  if (variant === "generate") {
+    renderFeatureGrid(gridId, GENERATE_FEATURES);
+  } else {
+    root.innerHTML = `<p class="muted module-feature-empty">配置产品标签后，同品类爆款将显示在此；也可在「结构模板」页选用镜头节奏。</p>`;
+  }
+}
+
+function renderAllImitationViralGrids() {
+  renderImitationViralGrid("generateFeatureGrid", "generateViralGridDesc", "generate");
+  renderImitationViralGrid("imitateFeatureGrid", "imitateViralGridDesc", "imitate");
+}
+
+function renderGenerateViralGrid() {
+  renderAllImitationViralGrids();
 }
 
 async function selectGenerateViralVideo(linkId) {
@@ -769,6 +885,114 @@ async function selectGenerateViralVideo(linkId) {
   renderGenerateViralGrid();
   renderRefFloatMaterialList();
   if (currentProductId()) await refreshScriptPreview();
+}
+
+async function ensureMaterialAnalysis(linkId) {
+  const item = state.items.find((i) => i.link_id === linkId);
+  if (item?.has_analysis) return item;
+  showSeedanceProgress(true, {
+    status: "正在拆解对标视频结构（规则，省 token）…",
+    indeterminate: true,
+    pipeline: "",
+  });
+  setScriptActionStatus("正在拆解对标结构…");
+  const res = await api(`/api/materials/${linkId}/ensure-analysis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "rule" }),
+  });
+  const detail = await api(`/api/materials/${linkId}`);
+  if (item) {
+    item.has_analysis = Boolean(detail.analysis);
+    item.analysis = detail.analysis;
+    item.analyze_provider = detail.analysis?.analyze_provider || res.provider || "rule";
+  }
+  renderAllImitationViralGrids();
+  renderMaterialList();
+  renderRefFloatMaterialList();
+  return item;
+}
+
+async function runViralBenchmarkPipeline(linkId) {
+  if (state.viralPipelineBusy) return;
+  if (!productWorkflowReady()) {
+    state.pendingViralLinkId = linkId;
+    await openProductFloatPanel();
+    return;
+  }
+  if (!materialInProductPool(linkId) && !state.showAllMaterials) {
+    setScriptActionStatus("该爆款与当前产品品类不一致，请更换产品或勾选「显示其他品类」。");
+    return;
+  }
+
+  state.viralPipelineBusy = true;
+  forEachDockRunBtn((runBtn) => {
+    runBtn.disabled = true;
+    runBtn.dataset.busy = "1";
+    runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 流水线运行中…';
+  });
+
+  try {
+    if (state.selectedMaterialId !== linkId) resetPromptEnhanceUsed();
+    state.selectedMaterialId = linkId;
+    repopulateScriptMaterials();
+    syncMaterialSelectFromState();
+    syncWorkspaceRefChip();
+    syncDockRefSlot();
+    renderAllImitationViralGrids();
+    renderRefFloatMaterialList();
+    closeScriptFloatPanel();
+    state.createPipelineActive = true;
+    state.seedanceProgressPersist = false;
+    activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+
+    await ensureMaterialAnalysis(linkId);
+    await refreshScriptPreview();
+
+    if (state.lastPreview?.product_match === false) {
+      const msg = document.getElementById("scriptMismatchWarn")?.textContent
+        || "对标与产品品类不一致，请更换对标或产品。";
+      setScriptActionStatus(msg);
+      showSeedanceProgress(true, { status: msg, persist: true });
+      return;
+    }
+
+    showSeedanceProgress(true, {
+      status: "正在根据对标结构生成品牌脚本…",
+      indeterminate: true,
+      pipeline: state.healthCache?.llm?.label || "",
+    });
+    await runScriptGenerate();
+    await refreshScriptPreview();
+
+    if (!state.lastPreview?.has_script && !currentScriptSlug()) {
+      setScriptActionStatus("脚本生成失败，请检查产品标签与 API 配置");
+      showSeedanceProgress(true, { status: "脚本生成失败", persist: true });
+      return;
+    }
+
+    const ok = await runProduceVideo({ background: true });
+    await refreshScriptPreview();
+    const slug = currentScriptSlug();
+    if (ok !== false && slug) {
+      syncDownloadLinks(`/api/delivery/${slug}/zip`, true);
+      renderDockProduceComplete(slug, "对标流水线完成：可下载 zip 或预览成片");
+      setScriptActionStatus("对标视频已用于生成，成片见底部进度条");
+    }
+  } catch (err) {
+    setScriptActionStatus(err.message);
+    showSeedanceProgress(true, { status: `失败：${err.message}`, persist: true });
+  } finally {
+    state.viralPipelineBusy = false;
+    state.createPipelineActive = false;
+    if (!state.seedanceProgressPersist) showSeedanceProgress(false);
+    forEachDockRunBtn((runBtn) => {
+      delete runBtn.dataset.busy;
+      runBtn.disabled = false;
+      runBtn.innerHTML = dockRunDefaultHtml(runBtn.id === "imitateDockRun" ? "imitate" : "generate");
+    });
+    syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
+  }
 }
 
 function handleDraftFeedbackFeature(action) {
@@ -816,8 +1040,48 @@ function switchGenerateStudioTab(tab) {
   state.generateStudioTab = tab;
   const root = document.querySelector('.module-studio[data-module="generate"]');
   switchModuleStudioTab(root, tab);
-  if (tab === "featured") renderGenerateViralGrid();
+  if (tab === "featured") renderAllImitationViralGrids();
   if (tab === "examples") renderGenerateExamples();
+}
+
+function switchImitateStudioTab(tab) {
+  state.imitateStudioTab = tab;
+  const root = document.querySelector('.module-studio[data-module="imitate"]');
+  switchModuleStudioTab(root, tab);
+  if (tab === "featured") renderAllImitationViralGrids();
+  if (tab === "templates") renderImitateTemplates();
+}
+
+async function renderImitateTemplates() {
+  const root = document.getElementById("imitateTemplatesList");
+  if (!root) return;
+  root.innerHTML = '<p class="muted">加载结构模板…</p>';
+  try {
+    const data = await api("/api/templates");
+    const items = data.items || [];
+    if (!items.length) {
+      root.innerHTML = '<p class="muted">暂无结构模板，请先同步对标并完成拆解。</p>';
+      return;
+    }
+    root.innerHTML = items.map((t) => `
+      <button type="button" class="feature-card imitate-template-card" data-template-id="${esc(t.template_id)}">
+        <span class="feature-card-bg g-template"></span>
+        <span class="feature-card-label">
+          <strong>${esc(t.label || t.template_id)}</strong>
+          <span>${esc(t.structure_chain || "")}</span>
+        </span>
+      </button>`).join("");
+    root.querySelectorAll(".imitate-template-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const item = items.find((x) => x.template_id === card.dataset.templateId);
+        if (!item) return;
+        setImitationPrompt(`按「${item.label}」结构拍摄：${item.structure_chain}`);
+        activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+      });
+    });
+  } catch (err) {
+    root.innerHTML = `<p class="muted">加载失败：${esc(err.message)}</p>`;
+  }
 }
 
 function switchDraftFeedbackStudioTab(tab) {
@@ -835,14 +1099,315 @@ function collapseGenerateWorkspace() {
   switchGenerateStudioTab(state.generateStudioTab || "featured");
 }
 
+function syncGenerateDockMode(mode = state.generateDockMode) {
+  state.generateDockMode = mode || "imitate";
+  const dock = document.getElementById("generateDock");
+  document.querySelectorAll('#generateDock .studio-dock-modes [data-gen-mode]').forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.genMode === state.generateDockMode);
+  });
+  const isGenerate = state.generateDockMode === "generate";
+  dock?.classList.toggle("dock-gen-mode-generate", isGenerate);
+  dock?.classList.toggle("dock-gen-mode-imitate", !isGenerate);
+  const promptTa = document.getElementById("generateDockPrompt");
+  if (promptTa) {
+    promptTa.placeholder = isGenerate
+      ? "点击「提示词选择」选用品类提示词，完整文案将显示在此，可直接修改后「开始创作」"
+      : "① 点击「产品」配置场景标签 → ② 点击上方爆款卡片（自动拆解+出片）或底部「开始创作」";
+  }
+  syncDockPromptSelectSlot();
+  syncDockScrollPadding();
+}
+
+function syncDockPromptSelectSlot() {
+  const btn = document.getElementById("dockOpenPromptSelectBtn");
+  if (!btn) return;
+  const sel = state.generatePromptSelection;
+  const promptText = document.getElementById("generateDockPrompt")?.value?.trim() || "";
+  const hasText = Boolean(sel?.text || promptText);
+  btn.classList.toggle("has-value", hasText);
+  btn.title = sel?.label ? `已选：${sel.label}` : (hasText ? "已填写创作提示词，点击更换" : "选择创作提示词模板");
+}
+
+async function renderPromptSelectList() {
+  const root = document.getElementById("promptSelectList");
+  if (!root) return;
+  root.innerHTML = '<p class="muted">加载提示词…</p>';
+  const items = [];
+  try {
+    const productId = currentProductId() || "";
+    const libPath = productId
+      ? `/api/prompt-library?product_id=${encodeURIComponent(productId)}`
+      : "/api/prompt-library";
+    const lib = await api(libPath);
+    for (const row of lib.presets || lib.items?.filter((r) => r.source === "preset") || []) {
+      const text = row.prompt_text || row.prompt_text_en || "";
+      if (!text) continue;
+      items.push({
+        id: row.prompt_id,
+        promptId: row.prompt_id,
+        label: row.label || row.prompt_type,
+        sub: row.sub || text.slice(0, 48),
+        text,
+        kind: "preset",
+        sortOrder: Number(row.sort_order) || 99,
+      });
+    }
+    for (const row of lib.reverse || lib.items?.filter((r) => String(r.source || "").startsWith("reverse")) || []) {
+      const text = row.prompt_text_en || row.prompt_text || "";
+      if (!text) continue;
+      const usage = Number(row.usage_count) || 0;
+      items.push({
+        id: `lib-${row.prompt_id}`,
+        promptId: row.prompt_id,
+        label: row.label || "反推提示词",
+        sub: `${row.reverse_type === "script" ? "脚本" : "视频"}反推 · 使用 ${usage} 次`,
+        text,
+        kind: "library",
+        usageCount: usage,
+      });
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const data = await api("/api/templates");
+    for (const t of data.items || []) {
+      items.push({
+        id: `tpl-${t.template_id}`,
+        label: t.label || t.template_id,
+        sub: (t.structure_chain || "").slice(0, 48),
+        text: `按「${t.label}」结构拍摄：${t.structure_chain || ""}`,
+        kind: "template",
+        sortOrder: 50,
+      });
+    }
+  } catch {
+    /* optional */
+  }
+  items.sort((a, b) => {
+    const order = { preset: 0, template: 1, library: 2 };
+    const ao = order[a.kind] ?? 9;
+    const bo = order[b.kind] ?? 9;
+    if (ao !== bo) return ao - bo;
+    if (a.kind === "preset") return (a.sortOrder || 99) - (b.sortOrder || 99);
+    if (a.kind === "library") return (b.usageCount || 0) - (a.usageCount || 0);
+    return 0;
+  });
+  if (!items.length) {
+    root.innerHTML = '<p class="muted">暂无提示词，请检查数据表 prompt_library.json</p>';
+    return;
+  }
+  const activeId = state.generatePromptSelection?.id || "";
+  const cardGrad = (kind) => {
+    if (kind === "library") return "g-video-rev";
+    if (kind === "preset") return "g-template";
+    return "g-brand";
+  };
+  root.innerHTML = items.map((item, idx) => `
+    <button type="button" class="feature-card prompt-select-card${activeId === item.id ? " selected" : ""}${item.kind === "library" ? " prompt-library-card" : ""}"
+      data-prompt-idx="${idx}">
+      <span class="feature-card-bg ${cardGrad(item.kind)}"></span>
+      <span class="feature-card-label">
+        <strong>${esc(item.label)}</strong>
+        <span>${esc(item.sub || item.text)}</span>
+      </span>
+    </button>`).join("");
+  root.querySelectorAll(".prompt-select-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const item = items[Number(card.dataset.promptIdx)];
+      if (!item) return;
+      root.querySelectorAll(".prompt-select-card").forEach((c) => c.classList.remove("selected"));
+      card.classList.add("selected");
+      state.generatePromptSelection = {
+        id: item.id,
+        label: item.label,
+        text: item.text,
+        kind: item.kind,
+        promptId: item.promptId || "",
+      };
+      setImitationPrompt(item.text);
+      resetPromptEnhanceUsed();
+      syncDockPromptSelectSlot();
+      const status = document.getElementById("promptSelectFloatStatus");
+      if (status) status.textContent = `已选：${item.label}（已写入编辑区，可修改）`;
+    });
+  });
+}
+
+async function openPromptSelectFloatPanel() {
+  const panel = document.getElementById("promptSelectFloatPanel");
+  const backdrop = document.getElementById("promptSelectFloatBackdrop");
+  if (!panel || !backdrop) return;
+  await renderPromptSelectList();
+  const status = document.getElementById("promptSelectFloatStatus");
+  if (status) {
+    status.textContent = state.generatePromptSelection?.label
+      ? `已选：${state.generatePromptSelection.label}`
+      : "请选择一条提示词";
+  }
+  openFloatPanel("promptSelectFloatPanel", "promptSelectFloatBackdrop");
+}
+
+function closePromptSelectFloatPanel() {
+  closeFloatPanel("promptSelectFloatPanel", "promptSelectFloatBackdrop", () => {
+    syncDockPromptSelectSlot();
+  });
+}
+
+function confirmPromptSelectFloatPanel() {
+  const sel = state.generatePromptSelection;
+  const ta = document.getElementById("generateDockPrompt");
+  const text = ta?.value?.trim() || sel?.text || "";
+  if (!text) {
+    const status = document.getElementById("promptSelectFloatStatus");
+    if (status) status.textContent = "请先选择一条提示词";
+    return;
+  }
+  setImitationPrompt(text);
+  if (sel) state.generatePromptSelection = { ...sel, text };
+  resetPromptEnhanceUsed();
+  syncDockPromptSelectSlot();
+  if (sel?.promptId) {
+    api(`/api/prompt-library/${encodeURIComponent(sel.promptId)}/use`, { method: "POST" }).catch(() => {});
+  }
+  closePromptSelectFloatPanel();
+  ta?.focus();
+  if (ta) ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function syncReverseDockType() {
+  const reverseType = state.reverseType || "video";
+  document.querySelectorAll("#reverseDock .studio-dock-modes button").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.reverseType === reverseType);
+  });
+}
+
+function syncReverseDockMaterial() {
+  const label = document.getElementById("reverseDockMaterialLabel");
+  const chip = document.getElementById("reverseDockStatusChip");
+  const linkId = state.reverseMaterialId;
+  const item = linkId ? state.items.find((i) => i.link_id === linkId) : null;
+  if (label) {
+    label.textContent = item
+      ? (item.title || `#${linkId}`).slice(0, 14)
+      : "素材库";
+  }
+  if (chip) {
+    const reverseType = state.reverseType || "video";
+    chip.textContent = item
+      ? `已选 #${linkId} · ${reverseType === "script" ? "脚本" : "视频"}反推`
+      : "拆解 · 反推入库";
+  }
+}
+
+async function renderReversePromptLibrary() {
+  const root = document.getElementById("reversePromptLibraryList");
+  if (!root) return;
+  root.innerHTML = '<p class="muted">加载中…</p>';
+  try {
+    const productId = currentProductId() || "";
+    const path = productId
+      ? `/api/prompt-library?product_id=${encodeURIComponent(productId)}`
+      : "/api/prompt-library";
+    const data = await api(path);
+    const rows = (data.reverse || data.items || []).filter(
+      (r) => String(r.source || "").startsWith("reverse"),
+    );
+    if (!rows.length) {
+      root.innerHTML = '<p class="muted">暂无反推提示词。选择素材并点击「开始反推」后自动入库。</p>';
+      return;
+    }
+    root.innerHTML = rows.map((row, idx) => {
+      const text = row.prompt_text_en || row.prompt_text || "";
+      const usage = Number(row.usage_count) || 0;
+      const typeZh = row.reverse_type === "script" ? "脚本" : "视频";
+      return `
+        <button type="button" class="feature-card prompt-select-card prompt-library-card" data-lib-idx="${idx}">
+          <span class="feature-card-bg g-video-rev"></span>
+          <span class="feature-card-label">
+            <strong>${esc(row.label || "反推提示词")}</strong>
+            <span>${esc(typeZh)} · 使用 ${usage} 次 · #${esc(row.link_id || "")}</span>
+          </span>
+        </button>`;
+    }).join("");
+    root.querySelectorAll(".prompt-library-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const row = rows[Number(card.dataset.libIdx)];
+        const ta = document.getElementById("reverseDockPrompt");
+        if (ta && row) ta.value = row.prompt_text_en || row.prompt_text || "";
+      });
+    });
+  } catch (err) {
+    root.innerHTML = `<p class="muted">加载失败：${esc(err.message)}</p>`;
+  }
+}
+
+function loadReverseView() {
+  syncReverseDockType();
+  syncReverseDockMaterial();
+  renderReversePromptLibrary();
+}
+
+async function runReversePrompt() {
+  const linkId = state.reverseMaterialId;
+  if (!linkId) {
+    window.alert("请先从素材库选择对标视频");
+    openMaterialLibraryDrawer();
+    return;
+  }
+  const btn = document.getElementById("reverseDockRun");
+  const ta = document.getElementById("reverseDockPrompt");
+  const chip = document.getElementById("reverseDockStatusChip");
+  const reverseType = state.reverseType || "video";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="dock-run-icon">✦</span> 反推中…';
+  }
+  if (chip) chip.textContent = "正在反推并写入提示词库…";
+  try {
+    const data = await api(`/api/materials/${linkId}/reverse-prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reverse_type: reverseType,
+        product_id: currentProductId() || "",
+        save: true,
+      }),
+    });
+    state.reverseLastResult = data;
+    if (ta) ta.value = data.primary_prompt || "";
+    if (chip) {
+      chip.textContent = `已入库 ${data.saved_count || 0} 条 · ${data.composite_label || ""}`.slice(0, 48);
+    }
+    await renderReversePromptLibrary();
+  } catch (err) {
+    window.alert(err.message || "反推失败");
+    if (chip) chip.textContent = "拆解 · 反推入库";
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="dock-run-icon">✦</span> 开始反推';
+    }
+  }
+}
+
+function openGenerateModule() {
+  switchView("generate");
+  expandGenerateWorkspace();
+  syncGenerateDockMode("generate");
+  document.getElementById("generateDock")?.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
 async function renderDraftFeedbackHistory() {
   const root = document.getElementById("draftFeedbackHistoryList");
   if (!root) return;
   try {
     const data = await api("/api/library/finished");
     const items = (data.items || []).slice(0, 12);
+    root.classList.remove("detail-empty");
     if (!items.length) {
-      root.innerHTML = '<div class="detail-empty">暂无成稿。完成交付后在此查看历史。</div>';
+      root.classList.add("detail-empty");
+      root.innerHTML = "暂无成稿。完成交付后在此查看历史。";
       return;
     }
     root.innerHTML = items.map((r) => `
@@ -857,7 +1422,8 @@ async function renderDraftFeedbackHistory() {
       btn.addEventListener("click", () => openHistoryInWorkspace(btn.dataset.slug));
     });
   } catch (err) {
-    root.innerHTML = `<div class="detail-empty">加载失败：${esc(err.message)}</div>`;
+    root.classList.add("detail-empty");
+    root.innerHTML = `加载失败：${esc(err.message)}`;
   }
 }
 
@@ -922,24 +1488,30 @@ async function renderDraftFeedbackStats() {
 
 function initModuleStudios() {
   initDockGenSettings();
-  renderGenerateViralGrid();
-  renderFeatureGrid("imitateFeatureGrid", IMITATE_FEATURES);
-  renderFeatureGrid("reverseFeatureGrid", REVERSE_FEATURES);
+  renderAllImitationViralGrids();
+  renderFeatureGrid("reverseFeatureGrid", REVERSE_FEATURES, {
+    onClick: (id) => {
+      const feat = REVERSE_FEATURES.find((f) => f.id === id);
+      if (feat?.reverseType) {
+        state.reverseType = feat.reverseType;
+        syncReverseDockType();
+        syncReverseDockMaterial();
+      }
+    },
+  });
   renderDraftFeedbackStats();
 
   document.querySelectorAll('.module-studio[data-module="generate"] .module-studio-tabs button').forEach((btn) => {
     btn.addEventListener("click", () => switchGenerateStudioTab(btn.dataset.studioTab));
   });
   document.querySelectorAll('.module-studio[data-module="imitate"] .module-studio-tabs button').forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const root = document.querySelector('.module-studio[data-module="imitate"]');
-      switchModuleStudioTab(root, btn.dataset.studioTab);
-    });
+    btn.addEventListener("click", () => switchImitateStudioTab(btn.dataset.studioTab));
   });
   document.querySelectorAll('.module-studio[data-module="reverse"] .module-studio-tabs button').forEach((btn) => {
     btn.addEventListener("click", () => {
       const root = document.querySelector('.module-studio[data-module="reverse"]');
       switchModuleStudioTab(root, btn.dataset.studioTab);
+      if (btn.dataset.studioTab === "exports") renderReversePromptLibrary();
     });
   });
   document.querySelectorAll('.module-studio[data-module="draft-feedback"] .module-studio-tabs button').forEach((btn) => {
@@ -947,9 +1519,30 @@ function initModuleStudios() {
   });
 
   document.getElementById("generateBackHomeBtn")?.addEventListener("click", collapseGenerateWorkspace);
+  document.getElementById("generateDockModeBtn")?.addEventListener("click", () => openGenerateModule());
+  document.querySelector('#generateDock .studio-dock-modes [data-gen-mode="imitate"]')
+    ?.addEventListener("click", () => {
+      switchView("generate");
+      syncGenerateDockMode("imitate");
+    });
+  document.querySelector('#generateDock .studio-dock-modes [data-gen-mode="generate"]')
+    ?.addEventListener("click", () => openGenerateModule());
   document.getElementById("generateDockRun")?.addEventListener("click", () => runStartCreate());
+  document.getElementById("imitateDockRun")?.addEventListener("click", () => runStartCreate());
   document.getElementById("dockOpenMaterialsBtn")?.addEventListener("click", () => openRefFloatPanel());
+  document.getElementById("imitateOpenMaterialsBtn")?.addEventListener("click", () => openRefFloatPanel());
   document.getElementById("dockOpenProductBtn")?.addEventListener("click", () => openProductFloatPanel());
+  document.getElementById("dockOpenPromptSelectBtn")?.addEventListener("click", () => openPromptSelectFloatPanel());
+  document.getElementById("promptSelectFloatCloseBtn")?.addEventListener("click", closePromptSelectFloatPanel);
+  document.getElementById("promptSelectFloatBackdrop")?.addEventListener("click", closePromptSelectFloatPanel);
+  document.getElementById("promptSelectFloatConfirmBtn")?.addEventListener("click", confirmPromptSelectFloatPanel);
+  document.getElementById("imitateOpenProductBtn")?.addEventListener("click", () => openProductFloatPanel());
+  getImitationPromptEls().forEach((ta) => {
+    ta.addEventListener("input", () => {
+      syncImitationPromptFields();
+      if (ta.id === "generateDockPrompt") syncDockPromptSelectSlot();
+    });
+  });
   document.getElementById("productFloatCloseBtn")?.addEventListener("click", closeProductFloatPanel);
   document.getElementById("productFloatBackdrop")?.addEventListener("click", closeProductFloatPanel);
   document.getElementById("productFloatConfirmBtn")?.addEventListener("click", async () => {
@@ -962,6 +1555,12 @@ function initModuleStudios() {
     const productChanged = Boolean(state.lastScriptProductId && productId !== state.lastScriptProductId);
     if (productChanged || tagsChanged) resetPromptEnhanceUsed();
     closeProductFloatPanel();
+    const pendingViral = state.pendingViralLinkId;
+    state.pendingViralLinkId = null;
+    if (pendingViral) {
+      await runViralBenchmarkPipeline(pendingViral);
+      return;
+    }
     await refreshScriptPreview();
     if (hadScript && (tagsChanged || productChanged)) {
       await runScriptGenerate();
@@ -971,7 +1570,7 @@ function initModuleStudios() {
       syncDockProductSlot();
       syncDockRefSlot();
       repopulateScriptMaterials();
-      renderGenerateViralGrid();
+      renderAllImitationViralGrids();
       if (!state.selectedMaterialId) openRefFloatPanel();
     }
   });
@@ -997,20 +1596,54 @@ function initModuleStudios() {
     await runScriptGenerate();
     openScriptFloatPanel();
   });
-  document.getElementById("imitateDockRefBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
   document.getElementById("reverseDockMaterialBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
+  document.getElementById("reverseDockRun")?.addEventListener("click", () => runReversePrompt());
+  document.querySelectorAll("#reverseDock .studio-dock-modes button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.reverseType = btn.dataset.reverseType || "video";
+      syncReverseDockType();
+      syncReverseDockMaterial();
+    });
+  });
+  syncGenerateDockMode(state.generateDockMode || "imitate");
 }
 
 function syncDockChipsFromHealth() {
   const h = state.healthCache;
+  const prov = h?.seedance?.provider === "volcengine-ark" ? "SeedDance" : "AI 视频";
+  const mode = h?.seedance?.mode === "script" ? "脚本分镜" : "空镜";
+  const modelText = h?.seedance ? `${prov} · ${mode}` : null;
   const model = document.getElementById("dockModelChip");
-  if (model && h?.seedance) {
-    const prov = h.seedance.provider === "volcengine-ark" ? "SeedDance" : "AI 视频";
-    const mode = h.seedance.mode === "script" ? "脚本分镜" : "空镜";
-    model.textContent = `${prov} · ${mode}`;
-  }
+  if (model && modelText) model.textContent = modelText;
+  const imitateChip = document.getElementById("imitateDockModelChip");
+  if (imitateChip) imitateChip.textContent = modelText ? `爆款模仿 · ${mode}` : "爆款模仿 · 结构复刻";
+  syncDailyScriptQuota();
   syncDockVideoSettingsLabel();
   syncDockProductSlot();
+}
+
+function syncDailyScriptQuota(quotaOverride) {
+  const q = quotaOverride || state.healthCache?.production?.daily_script_quota;
+  const chips = [
+    document.getElementById("dailyScriptQuotaChip"),
+    document.getElementById("imitateDailyQuotaChip"),
+  ].filter(Boolean);
+  if (!q?.enabled || !q.limit) {
+    chips.forEach((chip) => chip.classList.add("hidden"));
+    return;
+  }
+  const label = `今日脚本 ${q.used}/${q.limit}`;
+  const blocked = q.remaining <= 0;
+  chips.forEach((chip) => {
+    chip.classList.remove("hidden", "quota-warn", "quota-full");
+    chip.textContent = label;
+    if (blocked) chip.classList.add("quota-full");
+    else if (q.remaining <= 2) chip.classList.add("quota-warn");
+  });
+  document.querySelectorAll(".js-script-generate, #generateDockRun, #imitateDockRun").forEach((btn) => {
+    btn.disabled = blocked;
+    btn.title = blocked ? "今日 LLM 脚本配额已满，明日再试或调高 DAILY_SCRIPT_QUOTA" : "";
+  });
 }
 
 function currentVideoSettings() {
@@ -1037,21 +1670,36 @@ function loadVideoSettings() {
 
 function syncDockVideoSettingsLabel() {
   const vs = currentVideoSettings();
-  const label = document.getElementById("dockVideoSettingsLabel");
-  const countLabel = document.getElementById("dockGenerateCountLabel");
-  if (label) label.textContent = `${vs.resolution} · ${vs.aspectRatio}`;
-  if (countLabel) countLabel.textContent = `生成 ${vs.generateCount} 条`;
+  const text = `${vs.resolution} · ${vs.aspectRatio}`;
+  const countText = `生成 ${vs.generateCount} 条`;
+  for (const id of ["dockVideoSettingsLabel", "imitateDockVideoSettingsLabel"]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  for (const id of ["dockGenerateCountLabel", "imitateDockGenerateCountLabel"]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = countText;
+  }
 }
 
 function renderDockVideoSettingsPanel() {
   const vs = currentVideoSettings();
-  const resRow = document.getElementById("dockResolutionRow");
-  const ratioRow = document.getElementById("dockAspectRatioRow");
-  if (resRow) {
-    resRow.innerHTML = VIDEO_RESOLUTIONS.map((r) =>
-      `<button type="button" class="dock-settings-pill${r === vs.resolution ? " active" : ""}" data-resolution="${r}">${r}</button>`
-    ).join("");
-    resRow.querySelectorAll("[data-resolution]").forEach((btn) => {
+  const resHtml = VIDEO_RESOLUTIONS.map((r) =>
+    `<button type="button" class="dock-settings-pill${r === vs.resolution ? " active" : ""}" data-resolution="${r}">${r}</button>`
+  ).join("");
+  const ratioHtml = VIDEO_ASPECT_RATIOS.map((ratio) => {
+    const cls = ratio.replace(":", "x");
+    return `<button type="button" class="dock-ratio-btn${ratio === vs.aspectRatio ? " active" : ""}" data-aspect-ratio="${ratio}" title="${ratio}">
+      <span class="dock-ratio-icon ratio-${cls}" aria-hidden="true"></span>
+      <span>${ratio}</span>
+    </button>`;
+  }).join("");
+
+  for (const id of ["dockResolutionRow", "imitateDockResolutionRow"]) {
+    const row = document.getElementById(id);
+    if (!row) continue;
+    row.innerHTML = resHtml;
+    row.querySelectorAll("[data-resolution]").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.videoSettings.resolution = btn.dataset.resolution;
         persistVideoSettings();
@@ -1060,15 +1708,11 @@ function renderDockVideoSettingsPanel() {
       });
     });
   }
-  if (ratioRow) {
-    ratioRow.innerHTML = VIDEO_ASPECT_RATIOS.map((ratio) => {
-      const cls = ratio.replace(":", "x");
-      return `<button type="button" class="dock-ratio-btn${ratio === vs.aspectRatio ? " active" : ""}" data-aspect-ratio="${ratio}" title="${ratio}">
-        <span class="dock-ratio-icon ratio-${cls}" aria-hidden="true"></span>
-        <span>${ratio}</span>
-      </button>`;
-    }).join("");
-    ratioRow.querySelectorAll("[data-aspect-ratio]").forEach((btn) => {
+  for (const id of ["dockAspectRatioRow", "imitateDockAspectRatioRow"]) {
+    const row = document.getElementById(id);
+    if (!row) continue;
+    row.innerHTML = ratioHtml;
+    row.querySelectorAll("[data-aspect-ratio]").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.videoSettings.aspectRatio = btn.dataset.aspectRatio;
         persistVideoSettings();
@@ -1080,21 +1724,75 @@ function renderDockVideoSettingsPanel() {
 }
 
 function renderDockGenerateCountMenu() {
-  const menu = document.getElementById("dockGenerateCountMenu");
-  if (!menu) return;
   const vs = currentVideoSettings();
-  menu.innerHTML = GENERATE_COUNTS.map((n) =>
+  const html = GENERATE_COUNTS.map((n) =>
     `<button type="button" class="dock-gen-count-option${n === vs.generateCount ? " active" : ""}" role="menuitem" data-count="${n}">生成 ${n} 条</button>`
   ).join("");
-  menu.querySelectorAll("[data-count]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.videoSettings.generateCount = Number(btn.dataset.count);
-      persistVideoSettings();
-      syncDockVideoSettingsLabel();
-      renderDockGenerateCountMenu();
-      closeDockGenerateCountMenu();
+  for (const id of ["dockGenerateCountMenu", "imitateDockGenerateCountMenu"]) {
+    const menu = document.getElementById(id);
+    if (!menu) continue;
+    menu.innerHTML = html;
+    menu.querySelectorAll("[data-count]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.videoSettings.generateCount = Number(btn.dataset.count);
+        persistVideoSettings();
+        syncDockVideoSettingsLabel();
+        renderDockGenerateCountMenu();
+        closeDockGenerateCountMenu();
+        closeImitateDockGenerateCountMenu();
+      });
     });
-  });
+  }
+}
+
+function closeImitateDockVideoSettingsPanel() {
+  const wrap = document.getElementById("imitateVideoSettingsWrap");
+  const btn = document.getElementById("imitateVideoSettingsBtn");
+  const panel = document.getElementById("imitateDockVideoSettingsPanel");
+  wrap?.classList.remove("open");
+  btn?.setAttribute("aria-expanded", "false");
+  panel?.classList.add("hidden");
+  if (panel) panel.hidden = true;
+}
+
+function openImitateDockVideoSettingsPanel() {
+  const wrap = document.getElementById("imitateVideoSettingsWrap");
+  const btn = document.getElementById("imitateVideoSettingsBtn");
+  const panel = document.getElementById("imitateDockVideoSettingsPanel");
+  if (!wrap || !btn || !panel) return;
+  closeImitateDockGenerateCountMenu();
+  closeDockVideoSettingsPanel();
+  closeDockGenerateCountMenu();
+  renderDockVideoSettingsPanel();
+  panel.classList.remove("hidden");
+  panel.hidden = false;
+  wrap.classList.add("open");
+  btn.setAttribute("aria-expanded", "true");
+}
+
+function closeImitateDockGenerateCountMenu() {
+  const wrap = document.getElementById("imitateGenerateCountWrap");
+  const btn = document.getElementById("imitateGenerateCountBtn");
+  const menu = document.getElementById("imitateDockGenerateCountMenu");
+  wrap?.classList.remove("open");
+  btn?.setAttribute("aria-expanded", "false");
+  menu?.classList.add("hidden");
+  if (menu) menu.hidden = true;
+}
+
+function openImitateDockGenerateCountMenu() {
+  const wrap = document.getElementById("imitateGenerateCountWrap");
+  const btn = document.getElementById("imitateGenerateCountBtn");
+  const menu = document.getElementById("imitateDockGenerateCountMenu");
+  if (!wrap || !btn || !menu) return;
+  closeImitateDockVideoSettingsPanel();
+  closeDockVideoSettingsPanel();
+  closeDockGenerateCountMenu();
+  renderDockGenerateCountMenu();
+  menu.classList.remove("hidden");
+  menu.hidden = false;
+  wrap.classList.add("open");
+  btn.setAttribute("aria-expanded", "true");
 }
 
 function closeDockVideoSettingsPanel() {
@@ -1112,6 +1810,7 @@ function openDockVideoSettingsPanel() {
   const btn = document.getElementById("dockVideoSettingsBtn");
   const panel = document.getElementById("dockVideoSettingsPanel");
   if (!wrap || !btn || !panel) return;
+  closeImitateDockGenerateCountMenu();
   closeDockGenerateCountMenu();
   renderDockVideoSettingsPanel();
   panel.classList.remove("hidden");
@@ -1136,6 +1835,7 @@ function openDockGenerateCountMenu() {
   const menu = document.getElementById("dockGenerateCountMenu");
   if (!wrap || !btn || !menu) return;
   closeDockVideoSettingsPanel();
+  closeImitateDockVideoSettingsPanel();
   renderDockGenerateCountMenu();
   menu.classList.remove("hidden");
   menu.hidden = false;
@@ -1144,14 +1844,17 @@ function openDockGenerateCountMenu() {
 }
 
 function syncPromptEnhanceButton() {
-  const btn = document.getElementById("dockPromptEnhanceBtn");
-  if (!btn) return;
   const used = state.promptEnhanceUsed;
-  btn.disabled = used;
-  btn.classList.toggle("active", Boolean(state.promptEnhanceOn) && !used);
-  btn.title = used
+  const title = used
     ? "本轮已使用提示词增强（切换产品/对标或完成生成后可再次使用）"
     : "结合标签与对标结构强化创作指令（每轮仅可点击一次）";
+  for (const id of ["dockPromptEnhanceBtn", "imitatePromptEnhanceBtn"]) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.disabled = used;
+    btn.classList.toggle("active", Boolean(state.promptEnhanceOn) && !used);
+    btn.title = title;
+  }
 }
 
 function resetPromptEnhanceUsed() {
@@ -1162,13 +1865,11 @@ function resetPromptEnhanceUsed() {
 
 function enhanceDockPrompt() {
   if (state.promptEnhanceUsed) return;
-  const ta = document.getElementById("generateDockPrompt");
-  if (!ta) return;
   const tags = readAllSelectedTags();
   const vs = currentVideoSettings();
   const material = state.items.find((i) => i.link_id === state.selectedMaterialId);
   const analysis = material?.analysis || state.lastPreview?.material?.analysis || {};
-  const base = ta.value.trim();
+  const base = getImitationPrompt();
   const sceneLine = tags.scenarios[0]
     ? `${tags.scenarios[0]}场景：展示产品在真实使用环境中的卖点与痛点，口播自然、镜头节奏对标爆款结构。`
     : "";
@@ -1184,7 +1885,7 @@ function enhanceDockPrompt() {
     analysis.hook_3s ? `钩子参考：${String(analysis.hook_3s).slice(0, 80)}` : "",
     "口播口语化、镜头节奏紧凑；禁止医疗承诺、竞品品牌与夸大表述",
   ].filter(Boolean);
-  ta.value = lead ? `${lead}\n\n${boosts.join("；")}` : boosts.join("；");
+  setImitationPrompt(lead ? `${lead}\n\n${boosts.join("；")}` : boosts.join("；"));
   state.promptEnhanceOn = true;
   state.promptEnhanceUsed = true;
   syncPromptEnhanceButton();
@@ -1213,20 +1914,40 @@ function initDockGenSettings() {
   document.getElementById("dockPromptEnhanceBtn")?.addEventListener("click", () => {
     enhanceDockPrompt();
   });
+  document.getElementById("imitateVideoSettingsBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const wrap = document.getElementById("imitateVideoSettingsWrap");
+    if (wrap?.classList.contains("open")) closeImitateDockVideoSettingsPanel();
+    else openImitateDockVideoSettingsPanel();
+  });
+  document.getElementById("imitateGenerateCountBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const wrap = document.getElementById("imitateGenerateCountWrap");
+    if (wrap?.classList.contains("open")) closeImitateDockGenerateCountMenu();
+    else openImitateDockGenerateCountMenu();
+  });
+  document.getElementById("imitatePromptEnhanceBtn")?.addEventListener("click", () => {
+    enhanceDockPrompt();
+  });
 
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#dockVideoSettingsWrap")) closeDockVideoSettingsPanel();
     if (!e.target.closest("#dockGenerateCountWrap")) closeDockGenerateCountMenu();
+    if (!e.target.closest("#imitateVideoSettingsWrap")) closeImitateDockVideoSettingsPanel();
+    if (!e.target.closest("#imitateGenerateCountWrap")) closeImitateDockGenerateCountMenu();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeDockVideoSettingsPanel();
       closeDockGenerateCountMenu();
+      closeImitateDockVideoSettingsPanel();
+      closeImitateDockGenerateCountMenu();
     }
   });
 }
 
 function normalizeView(name) {
+  if (name === "home") return "generate";
   if (name === "materials" || name === "script" || name === "workspace") return "generate";
   if (name === "finished" || name === "feedback") return "draft-feedback";
   return name;
@@ -1267,6 +1988,8 @@ function activateView(name, options = {}) {
     loadWorkspaceView();
     if (!state.generateWorkspaceOpen) collapseGenerateWorkspace();
   }
+  if (name === "imitate") loadImitateView();
+  if (name === "reverse") loadReverseView();
   if (name === "products") loadProductsView();
   if (name === "draft-feedback") {
     const sub = options.sub || state.draftFeedbackSub || "finished";
@@ -1274,6 +1997,7 @@ function activateView(name, options = {}) {
     renderDraftFeedbackStats();
     renderDraftFeedbackHistory();
   }
+  syncDockScrollPadding();
   return name;
 }
 
@@ -1288,6 +2012,8 @@ function syncDraftFeedbackSubNav(sub) {
   finishedPanel?.classList.toggle("active", sub === "finished");
   const feedbackPanel = document.getElementById("draftFeedbackPanelFeedback");
   feedbackPanel?.classList.toggle("active", sub === "feedback");
+  document.querySelector('.module-studio[data-module="draft-feedback"]')
+    ?.classList.toggle("draft-feedback-mode-feedback", sub === "feedback");
 }
 
 function switchDraftFeedbackSub(sub) {
@@ -1357,11 +2083,19 @@ function updateLoopBarFromForm(prev = {}) {
   syncDockRefSlot();
 }
 
-async function api(path, options) {
-  const res = await fetch(path, options);
+async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (window.__WB_TOKEN__) headers["X-Workbench-Token"] = window.__WB_TOKEN__;
+  const res = await fetch(path, { ...options, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || res.statusText);
   return data;
+}
+
+function withApiToken(path) {
+  if (!window.__WB_TOKEN__) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}token=${encodeURIComponent(window.__WB_TOKEN__)}`;
 }
 
 function debounce(fn, ms = 280) {
@@ -1394,8 +2128,28 @@ async function loadWorkspaceView() {
   if (!state.items.length) await loadMaterials();
   await loadScriptView();
   syncWorkspaceActionBar(state.scriptStep);
-  renderGenerateViralGrid();
+  renderAllImitationViralGrids();
   syncDockChipsFromHealth();
+  syncDockProductSlot();
+  syncDockRefSlot();
+  syncImitationPromptFields();
+  syncDockScrollPadding();
+}
+
+async function loadImitateView() {
+  if (!state.items.length) await loadMaterials();
+  if (!state.products.length) await loadScriptView();
+  renderAllImitationViralGrids();
+  syncDockChipsFromHealth();
+  syncDockProductSlot();
+  syncDockRefSlot();
+  syncImitationPromptFields();
+  syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
+  const tab = state.imitateStudioTab || "featured";
+  const root = document.querySelector('.module-studio[data-module="imitate"]');
+  switchModuleStudioTab(root, tab);
+  if (tab === "templates") renderImitateTemplates();
+  syncDockScrollPadding();
 }
 
 function openSettingsDrawer() {
@@ -1431,17 +2185,62 @@ function closeSettingsDrawer() {
   }, 220);
 }
 
+function openCollectorEntry() {
+  openSettingsDrawer();
+  ensureCollectorPanel();
+  window.setTimeout(() => {
+    const block = document.getElementById("collectorSettingsBlock");
+    if (block) block.open = true;
+    document.getElementById("collectorKeywords")?.focus();
+  }, 180);
+}
+
+function openTikTokLibraryEntry() {
+  openMaterialLibraryDrawer();
+  window.setTimeout(() => {
+    const fold = document.querySelector(".material-library-tiktok-db");
+    if (fold) fold.open = true;
+    document.getElementById("materialLibraryTikTokQuery")?.focus();
+  }, 180);
+}
+
+const STARTER_GUIDE_DISMISSED_KEY = "vl_starter_guide_dismissed";
+
+function isStarterGuideDismissed() {
+  return (
+    localStorage.getItem(STARTER_GUIDE_DISMISSED_KEY) === "1"
+    || localStorage.getItem("vl_starter_guide_closed") === "1"
+  );
+}
+
+function dismissStarterGuide() {
+  localStorage.setItem(STARTER_GUIDE_DISMISSED_KEY, "1");
+  localStorage.removeItem("vl_starter_guide_closed");
+  closeStarterGuidePanel();
+}
+
+function openStarterGuidePanel() {
+  if (isStarterGuideDismissed()) return;
+  openFloatPanel("starterGuidePanel", "starterGuideBackdrop");
+}
+
+function closeStarterGuidePanel() {
+  closeFloatPanel("starterGuidePanel", "starterGuideBackdrop");
+}
+
 function ensureCollectorPanel() {
   if (document.getElementById("btnCollectorRun")) return;
   const body = document.querySelector(".settings-drawer-body");
   const productsBlock = document.getElementById("openProductsBtn")?.closest(".settings-block");
   if (!body || !productsBlock) return;
   const wrap = document.createElement("details");
+  wrap.id = "collectorSettingsBlock";
   wrap.className = "settings-block";
   wrap.open = true;
   wrap.innerHTML = `
     <summary>TikTok 采集</summary>
     <p class="hint">按关键词抓取 TikTok 公开视频元数据，并自动同步入当前素材库。</p>
+    <p id="collectorRuntimeHint" class="workflow-warn hidden"></p>
     <div class="collector-form">
       <label>关键词
         <textarea id="collectorKeywords" rows="3" placeholder="每行一个关键词，例如：&#10;breast pump&#10;baby bottle&#10;baby products"></textarea>
@@ -1466,6 +2265,31 @@ function ensureCollectorPanel() {
   body.insertBefore(wrap, productsBlock);
   document.getElementById("btnCollectorRun")?.addEventListener("click", runCollectorImport);
   document.getElementById("btnCollectorQuery")?.addEventListener("click", runCollectorQuery);
+  void refreshCollectorRuntimeHint();
+}
+
+async function refreshCollectorRuntimeHint() {
+  const hint = document.getElementById("collectorRuntimeHint");
+  if (!hint) return;
+  try {
+    const health = await api("/api/health");
+    const runtime = health.tiktok_collector?.runtime || {};
+    if (runtime.cursor_sandbox || (runtime.playwright_sandbox_path && !runtime.collector_ready)) {
+      hint.classList.remove("hidden");
+      hint.textContent =
+        "当前服务在 Cursor 沙箱中运行，TikTok 采集不可用。请关闭 Cursor 内的 python 服务，在资源管理器中双击「启动页面.cmd」重新打开工作台。";
+      return;
+    }
+    if (!runtime.system_browsers?.length) {
+      hint.classList.remove("hidden");
+      hint.textContent = "未检测到本机 Chrome/Edge，请先安装浏览器后再采集。";
+      return;
+    }
+    hint.classList.add("hidden");
+    hint.textContent = "";
+  } catch {
+    hint.classList.add("hidden");
+  }
 }
 
 const TIKTOK_DB_PREVIEW_LIMIT = 5;
@@ -1490,18 +2314,66 @@ function renderTikTokDbPreviewCards(items, total = items.length) {
   return cards + more;
 }
 
+function normalizeCollectorError(message) {
+  return String(message || "")
+    .replace(/^采集失败：/g, "")
+    .replace(/^TikTok 采集失败:\s*/gi, "")
+    .trim();
+}
+
+function collectorErrorHint(message) {
+  const raw = normalizeCollectorError(message);
+  if (/cursor-sandbox|cursor 沙箱|不要用 cursor|cursor-sandbox-cache/i.test(raw)) {
+    return [
+      "服务正在 Cursor 内置终端/沙箱中运行，无法调用本机 Chrome。",
+      "1. 关掉 Cursor 里运行 app.main 的终端窗口",
+      "2. 打开文件夹：海外视频本地化工作流\\海外视频本地化MVP",
+      "3. 双击「启动页面.cmd」",
+      "4. 浏览器打开 http://127.0.0.1:8788 后再采集",
+    ].join("\n");
+  }
+  if (/playwright|chromium|chrome\.exe|launch_persistent|无法启动/i.test(raw)) {
+    return [
+      "无需 playwright install。请确认：",
+      "1. 本机已安装 Google Chrome 或 Edge",
+      "2. 不要用 Cursor 终端启动服务",
+      "3. 双击「启动页面.cmd」打开工作台",
+      "4. 采集时会弹出浏览器窗口",
+    ].join("\n");
+  }
+  return "";
+}
+
+function renderCollectorError(resultEl, message) {
+  if (!resultEl) return;
+  const raw = normalizeCollectorError(message);
+  const hint = collectorErrorHint(message);
+  resultEl.className = "collector-result collector-error-detail";
+  resultEl.innerHTML = `
+    <p class="collector-error-msg">${esc(raw)}</p>
+    ${hint ? `<p class="collector-error-hint">${esc(hint)}</p>` : ""}`;
+}
+
 async function runCollectorImport() {
   const keywordsRaw = document.getElementById("collectorKeywords")?.value || "";
   const keywords = keywordsRaw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   const limit = Number(document.getElementById("collectorLimit")?.value || 20);
+  const productId = productIdForScopedCapture();
   const statusEl = document.getElementById("collectorStatus");
   const resultEl = document.getElementById("collectorResult");
   if (!keywords.length) {
     if (statusEl) statusEl.textContent = "请至少输入一个关键词";
     return;
   }
-  if (statusEl) statusEl.textContent = "正在采集 TikTok 公开数据，请稍候…";
-  if (resultEl) resultEl.textContent = "";
+  if (!productId) return;
+  if (statusEl) {
+    statusEl.className = "seedance-status collector-status";
+    statusEl.textContent = `正在采集「${currentProductLabel()}」同品类 TikTok 数据…`;
+  }
+  if (resultEl) {
+    resultEl.className = "collector-result muted";
+    resultEl.textContent = "";
+  }
   try {
     const data = await api("/api/tiktok-collector/collect", {
       method: "POST",
@@ -1509,12 +2381,15 @@ async function runCollectorImport() {
       body: JSON.stringify({
         keywords,
         limit_per_keyword: Number.isFinite(limit) ? limit : 20,
+        product_id: productId,
       }),
     });
     if (statusEl) {
+      statusEl.className = "seedance-status collector-status";
       statusEl.textContent = `采集完成：${data.total_collected} 条，新增 ${data.imported_new_links} 条，更新 ${data.updated_existing_links} 条`;
     }
     if (resultEl) {
+      resultEl.className = "collector-result muted";
       const parts = [
         data.json_path ? `JSON: ${data.json_path}` : "",
         data.csv_path ? `CSV: ${data.csv_path}` : "",
@@ -1525,7 +2400,11 @@ async function runCollectorImport() {
     await refreshHealth();
     await loadMaterials();
   } catch (err) {
-    if (statusEl) statusEl.textContent = `采集失败：${err.message}`;
+    if (statusEl) {
+      statusEl.className = "seedance-status collector-status collector-status-error";
+      statusEl.textContent = "采集失败";
+    }
+    renderCollectorError(resultEl, err.message);
   }
 }
 
@@ -1602,20 +2481,23 @@ function syncProductFloatStatus() {
 }
 
 function syncDockProductSlot() {
-  const btn = document.getElementById("dockOpenProductBtn");
-  if (!btn) return;
   const ready = Boolean(document.getElementById("scriptProductSelect")?.value) && tagsSelectionOk();
-  btn.classList.toggle("has-value", ready);
+  for (const id of ["dockOpenProductBtn", "imitateOpenProductBtn"]) {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle("has-value", ready);
+  }
 }
 
 function syncDockRefSlot() {
-  const btn = document.getElementById("dockOpenMaterialsBtn");
-  if (!btn) return;
   const ready = productWorkflowReady();
-  btn.disabled = !ready;
-  btn.classList.toggle("dock-upload-slot-locked", !ready);
-  btn.classList.toggle("has-value", ready && Boolean(state.selectedMaterialId));
-  btn.title = ready ? "选择同品类对标视频" : "请先点击「产品」完成配置";
+  for (const id of ["dockOpenMaterialsBtn", "imitateOpenMaterialsBtn"]) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.disabled = !ready;
+    btn.classList.toggle("dock-upload-slot-locked", !ready);
+    btn.classList.toggle("has-value", ready && Boolean(state.selectedMaterialId));
+    btn.title = ready ? "选择同品类对标视频" : "请先点击「产品」完成配置";
+  }
 }
 
 function syncRefFloatStatus() {
@@ -1719,8 +2601,20 @@ function closeProductFloatPanel() {
   });
 }
 
-["openMaterialLibraryBtn", "openMaterialLibraryAnalyzedBtn"].forEach((id) => {
+["openCollectorEntryBtn", "openCollectorNavBtn", "decomposeCollectorBtn"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("click", () => openCollectorEntry());
+});
+document.getElementById("decomposeLibraryBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
+["openMaterialLibraryBtn"].forEach((id) => {
   document.getElementById(id)?.addEventListener("click", () => openMaterialLibraryDrawer());
+});
+document.getElementById("openMaterialLibraryAnalyzedBtn")?.addEventListener("click", () => {
+  state.filters.analyzedOnly = true;
+  const analyzed = document.getElementById("analyzedOnly");
+  if (analyzed) analyzed.checked = true;
+  const ref = document.getElementById("refFloatAnalyzedOnly");
+  if (ref) ref.checked = true;
+  openMaterialLibraryDrawer();
 });
 document.getElementById("materialLibraryCloseBtn")?.addEventListener("click", closeMaterialLibraryDrawer);
 document.getElementById("materialLibraryBackdrop")?.addEventListener("click", closeMaterialLibraryDrawer);
@@ -1950,7 +2844,7 @@ function currentProductLabel() {
 
 function getMaterialPreviewPool() {
   const productId = currentProductId();
-  let pool = state.items.filter((i) => i.has_analysis);
+  let pool = state.items.filter((i) => i.fetch_status === "ok" || i.has_analysis || i.url);
   if (productId && !state.showAllMaterials) {
     pool = pool.filter((i) => materialMatchesProduct(i, productId));
   }
@@ -2220,6 +3114,10 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
   renderRefFloatMaterialList();
   renderGenerateViralGrid();
   if (fromDrawer) closeMaterialLibraryDrawer();
+  if (state.view === "reverse") {
+    state.reverseMaterialId = linkId;
+    syncReverseDockMaterial();
+  }
   repopulateScriptMaterials();
   syncMaterialSelectFromState();
   syncWorkspaceRefChip();
@@ -2255,6 +3153,7 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
         if (btn) { btn.disabled = false; btn.textContent = "重试拆解"; }
       }
     });
+    if (state.view === "reverse") syncReverseDockMaterial();
     document.getElementById("copyTranscriptBtn")?.addEventListener("click", (e) => {
       const text = detail?.full_transcript || d.analysis?.full_transcript || "";
       copyText(text, e.currentTarget);
@@ -2558,9 +3457,9 @@ document.getElementById("scriptProductSelect")?.addEventListener("change", async
   resetPromptEnhanceUsed();
   state.selectedProductId = document.getElementById("scriptProductSelect").value;
   state.selectedMaterialId = null;
-  const dockPrompt = document.getElementById("generateDockPrompt");
-  if (dockPrompt) dockPrompt.value = "";
-  const pane = document.getElementById("materialDetail");
+  setImitationPrompt("");
+  state.generatePromptSelection = null;
+  syncDockPromptSelectSlot();
   if (pane) {
     pane.className = "detail-empty ref-float-detail";
     pane.innerHTML = "选择左侧对标视频查看拆解";
@@ -2598,6 +3497,12 @@ async function runScriptGenerate() {
     openRefFloatPanel();
     return;
   }
+  const quota = state.healthCache?.production?.daily_script_quota;
+  if (quota?.enabled && quota.remaining <= 0) {
+    setScriptActionStatus(`今日 LLM 脚本配额已用完（${quota.used}/${quota.limit}），请明日再试。`);
+    openScriptFloatPanel();
+    return;
+  }
   await refreshScriptPreview();
   if (state.lastPreview?.product_match === false) {
     const warn = document.getElementById("scriptMismatchWarn");
@@ -2613,7 +3518,7 @@ async function runScriptGenerate() {
   setScriptActionStatus("");
   try {
     const vs = currentVideoSettings();
-    const creativeBrief = document.getElementById("generateDockPrompt")?.value?.trim() || "";
+    const creativeBrief = getImitationPrompt();
     const res = await api(`/api/materials/${linkId}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2641,6 +3546,14 @@ async function runScriptGenerate() {
     state.scriptTagSnapshot = captureTagSnapshot();
     state.lastScriptProductId = productId;
     if (resultEl) resultEl.innerHTML = formatPackResult(pack, res.meta);
+    if (res.daily_quota) {
+      if (!state.healthCache) state.healthCache = {};
+      if (!state.healthCache.production) state.healthCache.production = {};
+      state.healthCache.production.daily_script_quota = res.daily_quota;
+      syncDailyScriptQuota(res.daily_quota);
+    } else {
+      await refreshHealth();
+    }
     syncFinishButton(true, Boolean(state.lastPreview?.delivery_ready));
     syncScriptProduceEmpty(true);
     setScriptStep("produce");
@@ -2648,8 +3561,10 @@ async function runScriptGenerate() {
     resetPromptEnhanceUsed();
   } catch (err) {
     if (resultEl) resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    if (String(err.message || "").includes("配额")) syncDailyScriptQuota();
   } finally {
     genBtns.forEach((b) => { b.disabled = false; });
+    syncDailyScriptQuota();
   }
 }
 
@@ -2864,7 +3779,7 @@ async function loadFinishedView() {
       <td>${esc((r.title || "").slice(0, 48))}</td>
       <td>${esc(r.product_name || r.product_id)}</td>
       <td>${esc((r.saved_at || "").slice(0, 19))}</td>
-      <td><a href="/api/delivery/${esc(r.slug)}/zip">下载 zip</a></td>
+      <td><a href="${esc(withApiToken(`/api/delivery/${r.slug}/zip`))}">下载 zip</a></td>
     </tr>`).join("")}</tbody></table>`;
 }
 
@@ -2885,6 +3800,57 @@ function collectFeedbackIssueTags(form) {
   return [...form.querySelectorAll('input[name="issue_tags"]:checked')].map((el) => el.value);
 }
 
+function isFeedbackReviewed(r) {
+  if (!r) return false;
+  if (r.review_done || r.review_status === "done") return true;
+  if (String(r.feedback_reviewed_at || "").trim()) return true;
+  if (String(r.manual_edits || "").trim()) return true;
+  if ((r.issue_tags || []).length) return true;
+  if (String(r.adopted || "") && r.adopted !== "待定") return true;
+  const pub = r.publish || {};
+  return Boolean(String(pub.views || "").trim() || String(pub.engagement || "").trim() || String(pub.notes || "").trim());
+}
+
+function sortFeedbackItems(items) {
+  const pending = [];
+  const done = [];
+  for (const row of items) {
+    (isFeedbackReviewed(row) ? done : pending).push(row);
+  }
+  return [...pending, ...done];
+}
+
+function pickInitialFeedbackSlug(items) {
+  const sorted = sortFeedbackItems(items);
+  const visible = state.feedbackHideReviewed
+    ? sorted.filter((r) => !isFeedbackReviewed(r))
+    : sorted;
+  if (!visible.length) return null;
+  const firstPending = sorted.find((r) => !isFeedbackReviewed(r));
+  const cur = state.selectedFeedbackSlug
+    ? sorted.find((r) => r.slug === state.selectedFeedbackSlug)
+    : null;
+  if (cur) {
+    if (!isFeedbackReviewed(cur)) return cur.slug;
+    if (firstPending) return firstPending.slug;
+    return cur.slug;
+  }
+  return (firstPending || visible[0]).slug;
+}
+
+function pickNextFeedbackSlug(items, afterSlug) {
+  const sorted = sortFeedbackItems(items);
+  const pool = state.feedbackHideReviewed
+    ? sorted.filter((r) => !isFeedbackReviewed(r))
+    : sorted;
+  const pending = pool.filter((r) => !isFeedbackReviewed(r));
+  if (!pending.length) return pool[0]?.slug || null;
+  const idx = pending.findIndex((r) => r.slug === afterSlug);
+  if (idx >= 0 && idx + 1 < pending.length) return pending[idx + 1].slug;
+  if (idx >= 0) return pending.find((r) => r.slug !== afterSlug)?.slug || null;
+  return pending[0].slug;
+}
+
 function syncFeedbackEditorTab(tab) {
   state.feedbackEditorTab = tab;
   document.querySelectorAll("#feedbackEditorTabs button[data-fb-tab]").forEach((btn) => {
@@ -2897,23 +3863,65 @@ function syncFeedbackEditorTab(tab) {
 
 async function loadFeedbackView() {
   const data = await api("/api/library/feedback");
-  const items = data.items || [];
+  const items = sortFeedbackItems(data.items || []);
   const root = document.getElementById("feedbackList");
   if (!items.length) {
     root.innerHTML = '<div class="detail-empty">暂无反馈记录</div>';
+    state.selectedFeedbackSlug = null;
+    document.getElementById("feedbackEditor").innerHTML = '<div class="detail-empty">← 选择左侧成稿</div>';
     return;
   }
-  if (!state.selectedFeedbackSlug) state.selectedFeedbackSlug = items[0].slug;
-  root.innerHTML = items.map((r) => {
-    const tags = (r.issue_tags || []).length ? ` · ${(r.issue_tags || []).length}项问题` : "";
-    return `
-    <button type="button" class="card compact ${r.slug === state.selectedFeedbackSlug ? "active" : ""}" data-slug="${esc(r.slug)}">
-      <div><h3>${esc((r.title || r.slug).slice(0, 42))}</h3>
-      <div class="meta">${esc(r.adopted || "待定")}${tags} · ${esc((r.updated_at || "").slice(0, 10))}</div></div>
+  const pendingCount = items.filter((r) => !isFeedbackReviewed(r)).length;
+  const doneCount = items.length - pendingCount;
+  state.selectedFeedbackSlug = pickInitialFeedbackSlug(items);
+  const visibleItems = state.feedbackHideReviewed
+    ? items.filter((r) => !isFeedbackReviewed(r))
+    : items;
+  if (!visibleItems.length) {
+    root.innerHTML = `
+      <p class="feedback-list-summary muted">全部 ${items.length} 条已反馈</p>
+      <button type="button" class="secondary compact-btn" id="feedbackShowAllBtn">显示全部成稿</button>`;
+    document.getElementById("feedbackShowAllBtn")?.addEventListener("click", () => {
+      state.feedbackHideReviewed = false;
+      loadFeedbackView();
+    });
+    if (!state.selectedFeedbackSlug) state.selectedFeedbackSlug = items[0].slug;
+    renderFeedbackEditor();
+    return;
+  }
+  root.innerHTML = `
+    <div class="feedback-list-shell">
+      <div class="feedback-list-head">
+        <p class="feedback-list-summary muted">待反馈 ${pendingCount} · 已完成 ${doneCount}</p>
+        <label class="feedback-hide-reviewed">
+          <input type="checkbox" id="feedbackHideReviewedChk" ${state.feedbackHideReviewed ? "checked" : ""}>
+          仅看待反馈
+        </label>
+      </div>
+      <div class="feedback-list-scroll">
+        ${visibleItems.map((r) => {
+      const reviewed = isFeedbackReviewed(r);
+      const tags = (r.issue_tags || []).length ? ` · ${(r.issue_tags || []).length}项问题` : "";
+      const badge = reviewed
+        ? '<span class="feedback-status-badge done">已反馈</span>'
+        : '<span class="feedback-status-badge pending">待反馈</span>';
+      return `
+    <button type="button" class="card compact feedback-list-card${r.slug === state.selectedFeedbackSlug ? " active" : ""}${reviewed ? " feedback-reviewed" : ""}" data-slug="${esc(r.slug)}">
+      <div class="feedback-list-card-main">
+        <h3>${esc((r.title || r.slug).slice(0, 42))}</h3>
+        <div class="meta">${esc(r.adopted || "待定")}${tags} · ${esc((r.updated_at || "").slice(0, 10))}</div>
+      </div>
+      ${badge}
     </button>`;
-  }).join("");
-  root.querySelectorAll(".card").forEach((c) =>
-    c.addEventListener("click", () => { state.selectedFeedbackSlug = c.dataset.slug; loadFeedbackView(); })
+        }).join("")}
+      </div>
+    </div>`;
+  document.getElementById("feedbackHideReviewedChk")?.addEventListener("change", (e) => {
+    state.feedbackHideReviewed = e.target.checked;
+    loadFeedbackView();
+  });
+  root.querySelectorAll(".feedback-list-card").forEach((c) =>
+    c.addEventListener("click", () => { state.selectedFeedbackSlug = c.dataset.slug; loadFeedbackView(); }),
   );
   renderFeedbackEditor();
 }
@@ -2929,9 +3937,9 @@ async function renderFeedbackEditor() {
     const tagDefs = await ensureFeedbackTagDefs();
     const selectedTags = new Set(r.issue_tags || []);
     const tagHtml = tagDefs.map((t) => `
-      <label class="feedback-issue-chip">
+      <label class="feedback-issue-chip" title="${esc(t.hint_zh || t.label)}">
         <input type="checkbox" name="issue_tags" value="${esc(t.id)}" ${selectedTags.has(t.id) ? "checked" : ""}>
-        <span>${esc(t.label)}</span>
+        <span class="feedback-issue-chip-text">${esc(t.label)}</span>
       </label>`).join("");
     const scLine = (r.scenario_tags || []).join("、") || "—";
     let loopPreview = "";
@@ -2947,48 +3955,68 @@ async function renderFeedbackEditor() {
         }
       } catch { /* ignore */ }
     }
-    pane.className = "detail feedback-editor";
+    pane.className = "feedback-editor feedback-pane-body feedback-editor-shell";
     pane.innerHTML = `
-      <h3>${esc(r.title || slug)}</h3>
-      <p class="muted feedback-editor-meta">产品 ${esc(r.product_id || "—")} · 场景 ${esc(scLine)}</p>
+      <div class="feedback-editor-head">
+        <h3>${esc(r.title || slug)}</h3>
+        <p class="muted feedback-editor-meta">产品 ${esc(r.product_id || "—")} · 场景 ${esc(scLine)}</p>
+      </div>
       ${loopPreview}
-      <p class="muted feedback-editor-hint">请将采纳状态设为「已采纳」或「修改后采纳」，并勾选问题类型；保存后会在下次同产品、同场景生成时自动注入脚本与分镜约束。</p>
       <nav class="feedback-editor-tabs" id="feedbackEditorTabs" aria-label="反馈类型">
         <button type="button" class="${tab === "review" ? "active" : ""}" data-fb-tab="review">成片审核</button>
         <button type="button" class="${tab === "metrics" ? "active" : ""}" data-fb-tab="metrics">投放数据</button>
         <button type="button" data-fb-tab="iterate" disabled title="规划中">迭代优化</button>
       </nav>
-      <form id="feedbackForm" class="form-grid">
+      <form id="feedbackForm" class="feedback-form-body">
         <div class="feedback-form-section${tab === "review" ? "" : " hidden"}" data-fb-panel="review">
-          <fieldset class="feedback-issue-fieldset">
-            <legend>问题类型（结构化）</legend>
+          <div class="feedback-block">
+            <div class="feedback-block-title">问题类型</div>
             <div class="feedback-issue-grid">${tagHtml || '<span class="muted">加载标签…</span>'}</div>
-          </fieldset>
-          <label>具体问题描述
-            <textarea name="manual_edits" rows="4" placeholder="补充细节，如：倒出口画成宽口直倒、奶瓶放入杯内等">${esc(r.manual_edits)}</textarea>
-          </label>
-          <label>采纳状态
-            <select name="adopted">
-              ${["待定", "已采纳", "未采纳", "修改后采纳"].map((o) =>
-                `<option ${r.adopted === o ? "selected" : ""}>${o}</option>`).join("")}
-            </select>
-          </label>
-          <label>备注<textarea name="notes" rows="2" placeholder="补充说明">${esc(r.notes)}</textarea></label>
+          </div>
+          <div class="feedback-block">
+            <label class="feedback-block-label">具体问题描述
+              <textarea name="manual_edits" rows="2" placeholder="如：杯盖展示不符合实物、倒出口画成宽口直倒等">${esc(r.manual_edits)}</textarea>
+            </label>
+          </div>
+          <div class="feedback-form-row-2">
+            <div class="feedback-block">
+              <label class="feedback-block-label">采纳状态
+                <select name="adopted">
+                  ${["待定", "已采纳", "未采纳", "修改后采纳"].map((o) =>
+                    `<option ${r.adopted === o ? "selected" : ""}>${o}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <div class="feedback-block">
+              <label class="feedback-block-label">备注
+                <textarea name="notes" rows="2" placeholder="补充说明">${esc(r.notes)}</textarea>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="feedback-form-section${tab === "metrics" ? "" : " hidden"}" data-fb-panel="metrics">
-          <label>播放量<input name="publish_views" value="${esc(pub.views)}"></label>
-          <label>互动率<input name="publish_engagement" placeholder="如 3.2%" value="${esc(pub.engagement)}"></label>
-          <label>投放备注<textarea name="publish_notes" rows="3" placeholder="投放渠道、表现与复盘">${esc(pub.notes)}</textarea></label>
-          <p class="muted">高互动率已采纳反馈会作为同产品模板的结构/场景参考（权重次于本次竞品拆解）。</p>
+          <div class="feedback-form-row-2">
+            <div class="feedback-block">
+              <label class="feedback-block-label">播放量<input name="publish_views" value="${esc(pub.views)}"></label>
+            </div>
+            <div class="feedback-block">
+              <label class="feedback-block-label">互动率<input name="publish_engagement" placeholder="如 3.2%" value="${esc(pub.engagement)}"></label>
+            </div>
+          </div>
+          <div class="feedback-block">
+            <label class="feedback-block-label">投放备注<textarea name="publish_notes" rows="2" placeholder="投放渠道、表现与复盘">${esc(pub.notes)}</textarea></label>
+          </div>
+          <p class="muted feedback-metrics-hint">高互动率已采纳反馈会作为同产品模板的结构/场景参考。</p>
         </div>
         <div class="feedback-form-section${tab === "iterate" ? "" : " hidden"}" data-fb-panel="iterate">
-          <p class="muted module-placeholder-inner compact">基础闭环已接入：已采纳反馈 → 下次同产品同场景生成自动注入约束。完整自动迭代（一键重生成）规划中。</p>
+          <p class="muted module-placeholder-inner compact">基础闭环已接入：已采纳反馈 → 下次同产品同场景生成自动注入约束。</p>
         </div>
-        <div class="feedback-form-actions">
-          <button type="submit" class="primary">保存反馈</button>
-          <p id="fbHint" class="muted"></p>
-        </div>
-      </form>`;
+      </form>
+      <div class="feedback-editor-footer">
+        <button type="submit" class="primary" form="feedbackForm">保存并下一条</button>
+        <button type="button" class="secondary" id="feedbackSkipBtn">跳过本条</button>
+        <p id="fbHint" class="muted"></p>
+      </div>`;
     document.getElementById("feedbackEditorTabs")?.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-fb-tab]:not(:disabled)");
       if (btn) syncFeedbackEditorTab(btn.dataset.fbTab);
@@ -2996,6 +4024,7 @@ async function renderFeedbackEditor() {
     document.getElementById("feedbackForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
+      const savedSlug = slug;
       try {
         await api(`/api/library/feedback/${encodeURIComponent(slug)}`, {
           method: "POST",
@@ -3010,11 +4039,31 @@ async function renderFeedbackEditor() {
             publish_notes: fd.get("publish_notes"),
           }),
         });
-        document.getElementById("fbHint").textContent = "已保存";
+        const fresh = await api("/api/library/feedback");
+        const items = fresh.items || [];
+        const nextSlug = pickNextFeedbackSlug(items, savedSlug);
+        state.selectedFeedbackSlug = nextSlug;
+        if (!nextSlug || !items.some((r) => !isFeedbackReviewed(r))) {
+          state.feedbackHideReviewed = true;
+        }
         await loadFeedbackView();
+        const hint = document.getElementById("fbHint");
+        if (hint) {
+          hint.textContent = nextSlug && nextSlug !== savedSlug
+            ? "已保存，已切换下一条待反馈"
+            : "已保存，全部成稿已反馈完成";
+        }
       } catch (err) {
         document.getElementById("fbHint").textContent = err.message;
       }
+    });
+    document.getElementById("feedbackSkipBtn")?.addEventListener("click", async () => {
+      const fresh = await api("/api/library/feedback");
+      const nextSlug = pickNextFeedbackSlug(fresh.items || [], slug);
+      state.selectedFeedbackSlug = nextSlug;
+      await loadFeedbackView();
+      const hint = document.getElementById("fbHint");
+      if (hint) hint.textContent = nextSlug ? "已跳过，切换下一条" : "没有更多待反馈成稿";
     });
   } catch (err) {
     pane.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
@@ -3047,13 +4096,31 @@ async function loadSettingsView() {
   renderSeedanceSettings(h);
   const policyNote = h.decompose?.policy?.paused
     ? `<br><span class="warn-inline">拆解已暂停</span>（已有结果不重复调豆包，新素材不分析）`
+    : !h.decompose?.policy?.on_view
+      ? `<br><span class="muted">省 token：打开素材不自动豆包拆解，需手动「精细拆解」</span>`
+      : "";
+  const prod = h.production || {};
+  const dep = h.deployment || {};
+  const quota = prod.daily_script_quota || {};
+  const quotaLine = quota.enabled
+    ? `<br>量产配额：今日 LLM 脚本 <strong>${quota.used}/${quota.limit}</strong>（${prod.script_mode || "pro"} · ${prod.decompose_mode || "pro"} · 最多 ${prod.ai_video_max_shots || "?"} 镜/条）`
     : "";
+  const deployEl = document.getElementById("deployInfo");
+  if (deployEl) {
+    deployEl.innerHTML = `
+      监听 <code>${esc(dep.host || "127.0.0.1")}:${esc(String(dep.port || 8788))}</code>
+      ${dep.intranet_mode ? ' · <span class="warn-inline">内网模式</span>' : ""}
+      ${dep.auth_enabled ? " · 已启用访问令牌" : " · 未启用令牌（仅建议内网可信环境）"}<br>
+      数据根目录：<code>${esc(dep.workflow_root || "")}</code><br>
+      成片归档：<code>${esc(dep.production_archive || "03_产出库")}</code><br>
+      备份目录：<code>${esc(dep.backup_root || "06_备份库")}</code>`;
+  }
   document.getElementById("envInfo").innerHTML = `
     UI v${h.ui_version} · 素材 ${h.materials}（已拆解 ${h.analyzed}）· 产品 ${h.products} · 成稿 ${h.finished}<br>
     结构拆解：${h.decompose?.label || "规则模板"}${policyNote}<br>
-    脚本生成：${h.llm.available ? h.llm.model : h.llm.fallback}<br>
+    脚本生成：${h.llm.label || (h.llm.available ? h.llm.doubao_model || h.llm.anthropic_model : h.llm.fallback)}<br>
     交付引擎：${h.delivery_engine?.label || "overseas-loc-mvp"}<br>
-    SeedDance：${h.seedance?.configured ? `已配置 ${h.seedance.provider}` : "未配置"}`;
+    SeedDance：${h.seedance?.configured ? `已配置 ${h.seedance.provider}` : "未配置"}${quotaLine}`;
   await pollJobStatus();
 }
 
@@ -3087,11 +4154,31 @@ async function pollJobStatus() {
 document.querySelectorAll(".job-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const job = btn.dataset.job;
+    if (job === "prune") {
+      const productId = currentProductId() || "";
+      const scopeNote = productId
+        ? `将先移除非「${productId}」品类素材，再按 MATERIAL_MAX_TOTAL 去重并限额（已拆解/成稿/有脚本默认保留）。`
+        : "将按 MATERIAL_MAX_TOTAL 去重并裁剪素材库（已拆解、已成稿、有脚本、模板引用默认保留）。";
+      const ok = window.confirm(`${scopeNote}\n\n确定执行？`);
+      if (!ok) return;
+    }
+    const payload = {
+      engine: btn.dataset.engine || "auto",
+      provider: btn.dataset.provider || "auto",
+    };
+    if (SCOPED_MATERIAL_JOBS.has(job)) {
+      const productId = productIdForScopedCapture();
+      if (!productId) return;
+      payload.product_id = productId;
+    }
+    if (job === "prune" && currentProductId()) {
+      payload.product_id = currentProductId();
+    }
     try {
       await api(`/api/jobs/${job}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ engine: "auto" }),
+        body: JSON.stringify(payload),
       });
       document.getElementById("jobStatus").textContent = `已启动：${job}`;
       await pollJobStatus();
@@ -3115,12 +4202,43 @@ document.getElementById("openProductsFromSettings")?.addEventListener("click", (
   closeSettingsDrawer();
   switchView("products");
 });
+document.getElementById("guideGoCollectorBtn")?.addEventListener("click", () => {
+  closeStarterGuidePanel();
+  openCollectorEntry();
+});
+document.getElementById("guideGoLibraryBtn")?.addEventListener("click", () => {
+  closeStarterGuidePanel();
+  openTikTokLibraryEntry();
+});
+document.getElementById("starterGuideSkipBtn")?.addEventListener("click", dismissStarterGuide);
+document.getElementById("starterGuideCloseBtn")?.addEventListener("click", dismissStarterGuide);
+document.getElementById("starterGuideBackdrop")?.addEventListener("click", dismissStarterGuide);
+
+document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", async () => {
+  const el = document.getElementById("backupStatus");
+  if (el) el.textContent = "备份中…";
+  try {
+    const data = await api("/api/admin/backup", { method: "POST" });
+    if (el) {
+      el.textContent = data.ok
+        ? `备份完成：${data.backed_up} 项 → ${data.destination || ""}`
+        : "备份未完成，请查看服务端日志";
+    }
+  } catch (err) {
+    if (el) el.textContent = err.message || "备份失败";
+  }
+});
 
 document.getElementById("settingsOpenBtn")?.addEventListener("click", () => openSettingsDrawer());
 document.getElementById("settingsCloseBtn")?.addEventListener("click", () => closeSettingsDrawer());
 document.getElementById("settingsBackdrop")?.addEventListener("click", () => closeSettingsDrawer());
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  const guidePanel = document.getElementById("starterGuidePanel");
+  if (guidePanel?.classList.contains("open")) {
+    dismissStarterGuide();
+    return;
+  }
   closeSettingsDrawer();
   closeProductFloatPanel();
   closeRefFloatPanel();
@@ -3275,6 +4393,9 @@ async function bootstrapApp() {
   syncDockScrollPadding();
   window.addEventListener("resize", syncDockScrollPadding);
   activateView("generate");
+  if (!isStarterGuideDismissed()) {
+    window.setTimeout(() => openStarterGuidePanel(), 480);
+  }
 }
 
 bootstrapApp();

@@ -15,6 +15,7 @@ __pycache__/
 overseas-loc-mvp/runs/*
 !overseas-loc-mvp/runs/.gitkeep
 overseas-loc-mvp/logs/
+06_备份库/
 海外视频本地化MVP/生成脚本/
 01_素材库/脚本快照/
 03_产出库/**/*.mp4

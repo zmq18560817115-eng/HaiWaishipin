@@ -8,7 +8,21 @@ from dotenv import load_dotenv
 
 
 MVP_ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW_ROOT = MVP_ROOT.parent
+_DEFAULT_WORKFLOW_ROOT = MVP_ROOT.parent
+_OVERSEAS_ENV_CANDIDATE = _DEFAULT_WORKFLOW_ROOT / "overseas-loc-mvp" / ".env"
+
+load_dotenv(_OVERSEAS_ENV_CANDIDATE)
+load_dotenv(MVP_ROOT / ".env")
+
+
+def _resolve_workflow_root() -> Path:
+    raw = os.getenv("WORKFLOW_ROOT", "").strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return _DEFAULT_WORKFLOW_ROOT
+
+
+WORKFLOW_ROOT = _resolve_workflow_root()
 
 # ── 工作区目录（01 素材库 / 03 产出库 / 04 成稿 / 05 反馈）────────────────
 MATERIAL_LIBRARY_DIR = WORKFLOW_ROOT / "01_素材库"
@@ -31,6 +45,7 @@ DISCOVERY_CANDIDATES_CSV = DATA_DIR / "discovery_candidates.csv"
 VIDEOS_META_CSV = DATA_DIR / "videos_meta.csv"
 VIDEO_ANALYSIS_CSV = DATA_DIR / "video_analysis.csv"
 SCRIPT_TEMPLATES_CSV = DATA_DIR / "script_templates.csv"
+PROMPT_LIBRARY_JSON = DATA_DIR / "prompt_library.json"
 SCRIPT_TEMPLATES_DIR = MVP_ROOT / "script_templates"
 PRODUCT_MATERIALS_CSV = DATA_DIR / "product_materials.csv"
 WEB_DIR = MVP_ROOT / "web"
@@ -46,7 +61,6 @@ KRO_CODEX_DIR = (
 KRO_CONFIG_PATH = MVP_ROOT / "config" / "knowledge-sources.json"
 SCHEMA_SQL = SQL_DIR / "schema.sql"
 
-WORKFLOW_ROOT = MVP_ROOT.parent
 OVERSEAS_MVP_DIR = WORKFLOW_ROOT / "overseas-loc-mvp"
 OVERSEAS_RUNS_DIR = OVERSEAS_MVP_DIR / "runs"
 OVERSEAS_ENV = OVERSEAS_MVP_DIR / ".env"
@@ -90,8 +104,8 @@ def load_windows_user_env() -> None:
 
 
 load_windows_user_env()
-load_dotenv(OVERSEAS_ENV)
-load_dotenv(MVP_ROOT / ".env")
+load_dotenv(OVERSEAS_ENV, override=True)
+load_dotenv(MVP_ROOT / ".env", override=True)
 
 
 def kro_script_path() -> Path:

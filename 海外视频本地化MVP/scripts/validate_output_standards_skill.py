@@ -52,7 +52,7 @@ def main() -> int:
         )
     )
 
-    keywords = ("flip-top", "spout hole", "storage bag", "FORBIDDEN", "wide-mouth")
+    keywords = ("flip-top", "spout hole", "storage bag", "FORBIDDEN", "wide-mouth", "Fahrenheit", "steam plume")
     missing = [k for k in keywords if k not in THERMOS_USAGE_EN]
     results.append(
         check(

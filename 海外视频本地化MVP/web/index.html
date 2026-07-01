@@ -18,6 +18,10 @@
       <p class="app-hero-sub">爆款结构迁移 · 品牌脚本出稿 · AI 分镜交付</p>
     </div>
     <nav class="top-nav-pills" id="mainNav" aria-label="主导航">
+      <button type="button" class="top-nav-collect" id="openCollectorNavBtn" title="按关键词抓取 TikTok 对标并同步入库">
+        <span class="nav-label">素材收集</span>
+        <span class="nav-desc">TikTok 抓取入库</span>
+      </button>
       <button type="button" data-view="generate" class="active">
         <span class="nav-label">视频生成</span>
         <span class="nav-desc">配场景 · 出脚本 · 成片</span>
@@ -35,7 +39,7 @@
         <span class="nav-desc">交付 · 投放数据</span>
       </button>
     </nav>
-    <div class="top-stats" aria-label="数据概览">
+    <div class="top-stats" aria-label="素材概览">
       <button type="button" class="top-stat-pill" id="openMaterialLibraryBtn" title="打开对标素材库">
         <strong id="statMaterials">-</strong> 素材
       </button>
@@ -72,7 +76,9 @@
           <button type="button" class="job-btn pill-btn" data-job="promote">筛选入库</button>
           <button type="button" class="job-btn pill-btn" data-job="fetch">同步 TikTok</button>
           <button type="button" class="job-btn pill-btn secondary" data-job="cache-thumbnails">缓存封面</button>
-          <button type="button" class="job-btn pill-btn" data-job="decompose" data-provider="doubao">批量拆解</button>
+          <button type="button" class="job-btn pill-btn secondary" data-job="prune" id="pruneMaterialsBtn" title="去重并限额，已拆解/成稿/有脚本默认保留">整理素材库</button>
+          <button type="button" class="job-btn pill-btn" data-job="decompose" data-provider="rule">批量规则拆解（免费）</button>
+          <button type="button" class="job-btn pill-btn secondary" data-job="decompose" data-provider="doubao" title="消耗豆包额度，建议仅对入选爆款使用">豆包精细拆解（限量）</button>
           <button type="button" class="job-btn pill-btn" data-job="templates">更新模板</button>
           <button type="button" class="job-btn pill-btn" data-job="products">同步产品</button>
         </div>
@@ -99,6 +105,15 @@
         <div class="seedance-actions">
           <button type="button" class="secondary pill-btn" id="btnSeedanceTestSettings">测试连接</button>
         </div>
+      </details>
+      <details class="settings-block">
+        <summary>内网部署与备份</summary>
+        <p class="hint">成片自动归档至 <code>03_产出库</code>；用户可通过页面下载 zip，服务器同时保留备份。</p>
+        <div id="deployInfo" class="env-info muted">加载中…</div>
+        <div class="job-grid job-grid-pills job-grid-compact">
+          <button type="button" class="secondary pill-btn" id="runWorkspaceBackupBtn">立即备份工作区</button>
+        </div>
+        <p id="backupStatus" class="job-status muted"></p>
       </details>
       <details class="settings-block" open>
         <summary>环境信息</summary>
@@ -240,38 +255,106 @@
     <div id="seedanceShots" class="sr-only-vis" aria-hidden="true"></div>
   </div>
 
+  <div id="promptSelectFloatBackdrop" class="product-float-backdrop" hidden></div>
+  <div id="promptSelectFloatPanel" class="product-float-panel prompt-select-panel" role="dialog" aria-modal="true" aria-labelledby="promptSelectFloatTitle" aria-hidden="true" hidden style="display:none">
+    <div class="product-float-head">
+      <div>
+        <h2 id="promptSelectFloatTitle" class="product-float-title">提示词选择</h2>
+        <p class="product-float-sub">选用结构模板或常用风格，写入视频生成创作指令</p>
+      </div>
+      <button type="button" class="settings-close" id="promptSelectFloatCloseBtn" aria-label="关闭">×</button>
+    </div>
+    <div class="product-float-body pane-scroll">
+      <div id="promptSelectList" class="prompt-select-list"></div>
+    </div>
+    <footer class="product-float-foot">
+      <p id="promptSelectFloatStatus" class="product-float-status muted">请选择一条提示词</p>
+      <button type="button" class="primary primary-dark" id="promptSelectFloatConfirmBtn">确认</button>
+    </footer>
+  </div>
+
+  <div id="starterGuideBackdrop" class="product-float-backdrop starter-guide-backdrop" hidden></div>
+  <div id="starterGuidePanel" class="product-float-panel starter-guide-panel" role="dialog" aria-modal="true" aria-labelledby="starterGuideTitle" aria-hidden="true" hidden style="display:none">
+    <div class="product-float-head">
+      <div>
+        <h2 id="starterGuideTitle" class="product-float-title">新手使用指引</h2>
+        <p class="product-float-sub">首次使用建议按以下顺序完成配置</p>
+      </div>
+      <button type="button" class="settings-close" id="starterGuideCloseBtn" aria-label="跳过指引">×</button>
+    </div>
+    <div class="product-float-body starter-guide-float-body">
+      <p class="starter-guide-lead">推荐顺序：先抓 TikTok 对标，再看素材库，最后进入视频生成或爆款模仿。</p>
+      <ol class="starter-guide-steps starter-guide-steps-simple">
+        <li>点右上角「设置」，在 TikTok 采集里输入关键词开始抓取。</li>
+        <li>抓完后打开素材库，确认哪些视频值得保留、拆解和复用。</li>
+        <li>回到当前页选择产品、对标和场景，继续生成脚本与视频任务。</li>
+      </ol>
+    </div>
+    <footer class="product-float-foot starter-guide-foot">
+      <div class="starter-guide-actions">
+        <button type="button" class="secondary pill-btn" id="guideGoCollectorBtn">打开 TikTok 采集</button>
+        <button type="button" class="secondary pill-btn" id="guideGoLibraryBtn">打开素材库</button>
+      </div>
+      <button type="button" class="secondary pill-btn starter-guide-skip" id="starterGuideSkipBtn">跳过，不再提示</button>
+    </footer>
+  </div>
+
   <div class="content-shell">
     <main id="viewWorkspace" class="view active view-script">
       <div class="module-studio" data-module="generate">
         <div class="module-studio-scroll">
-          <header class="module-studio-head">
-            <nav class="module-studio-tabs" aria-label="视频生成视图">
-              <button type="button" class="active" data-studio-tab="featured">精选</button>
-              <button type="button" data-studio-tab="examples">示例</button>
-            </nav>
-            <button type="button" class="secondary pill-btn module-studio-back hidden" id="generateBackHomeBtn">← 返回首页</button>
-          </header>
+          <div class="studio-page-layout">
+            <section class="studio-major-block" aria-labelledby="decomposeBlockTitle">
+              <header class="studio-major-head">
+                <div class="studio-major-head-text">
+                  <h2 class="studio-major-title" id="decomposeBlockTitle">爆款拆解</h2>
+                  <p class="studio-major-desc">采集对标、筛选入库并拆解爆款结构，供下方创作复用</p>
+                </div>
+                <div class="studio-major-actions">
+                  <button type="button" class="secondary pill-btn" id="decomposeCollectorBtn" title="打开 TikTok 采集">素材收集</button>
+                  <button type="button" class="secondary pill-btn" id="decomposeLibraryBtn" title="打开素材库">素材库</button>
+                </div>
+              </header>
 
-          <section class="module-feature-section" id="generateFeatureSection">
-            <h2 class="module-feature-title">爆款参考</h2>
-            <p class="module-feature-desc" id="generateViralGridDesc">从已抓取对标视频中选择参考，点击卡片即可设为对标</p>
-            <div class="feature-grid feature-grid-viral" id="generateFeatureGrid"></div>
-          </section>
+              <header class="module-studio-head">
+                <nav class="module-studio-tabs" aria-label="爆款拆解视图">
+                  <button type="button" class="active" data-studio-tab="featured">精选</button>
+                  <button type="button" data-studio-tab="examples">示例</button>
+                </nav>
+                <button type="button" class="secondary pill-btn module-studio-back hidden" id="generateBackHomeBtn" aria-hidden="true" tabindex="-1">← 返回</button>
+              </header>
 
-          <section class="module-studio-panel hidden" id="generateExamplesPanel" data-studio-panel="examples">
-            <h2 class="module-feature-title">示例参考</h2>
-            <p class="module-feature-desc muted">同品类对标爆款结构，点击可在工作台选用</p>
-            <div id="generateExamplesGrid" class="feature-grid feature-grid-examples"></div>
-          </section>
+              <section class="module-feature-section" id="generateFeatureSection">
+                <h3 class="module-feature-title">爆款参考</h3>
+                <p class="module-feature-desc" id="generateViralGridDesc">配置产品标签后，点击爆款卡片将自动拆解结构、生成脚本并出片</p>
+                <div class="feature-grid feature-grid-viral" id="generateFeatureGrid"></div>
+              </section>
+
+              <section class="module-studio-panel hidden" id="generateExamplesPanel" data-studio-panel="examples">
+                <h3 class="module-feature-title">示例参考</h3>
+                <p class="module-feature-desc muted">同品类对标爆款结构，点击可在工作台选用</p>
+                <div id="generateExamplesGrid" class="feature-grid feature-grid-examples"></div>
+              </section>
+            </section>
+
+            <section class="studio-major-block studio-major-block-generate" aria-labelledby="generateBlockTitle">
+              <header class="studio-major-head studio-major-head-compact">
+                <div class="studio-major-head-text">
+                  <h2 class="studio-major-title" id="generateBlockTitle">视频生成</h2>
+                  <p class="studio-major-desc">配置产品、对标与场景，在底部工作台出脚本并成片</p>
+                </div>
+              </header>
+            </section>
 
           <select id="scriptMaterialSelect" class="sr-only" aria-hidden="true" tabindex="-1"></select>
+          </div>
         </div>
 
         <div class="studio-dock" id="generateDock">
           <div class="studio-dock-head">
             <nav class="studio-dock-modes" aria-label="生成模式">
               <button type="button" class="active" data-gen-mode="imitate">视频模仿</button>
-              <button type="button" data-gen-mode="frames" disabled title="规划中">首尾帧</button>
+              <button type="button" data-gen-mode="generate" title="配场景 · 出脚本 · 成片">视频生成</button>
               <button type="button" data-gen-mode="image-text" disabled title="规划中">图文</button>
             </nav>
           </div>
@@ -281,13 +364,17 @@
                 <span class="dock-upload-icon">📦</span>
                 <span>产品</span>
               </button>
+              <button type="button" class="dock-upload-slot dock-upload-slot-prompt dock-gen-only" id="dockOpenPromptSelectBtn" title="选择创作提示词模板">
+                <span class="dock-upload-icon">✦</span>
+                <span>提示词选择</span>
+              </button>
               <button type="button" class="dock-upload-slot dock-upload-slot-ref" id="dockOpenMaterialsBtn" title="请先配置产品" disabled>
                 <span class="dock-upload-icon">▶</span>
                 <span>对标</span>
               </button>
             </div>
-            <div class="studio-dock-main">
-              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="2" placeholder="① 点击「产品」配置场景标签 → ② 点击「对标」选同品类爆款 → ③ 开始创作生成脚本"></textarea>
+            <div class="studio-dock-main dock-gen-prompt-area">
+              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="3" placeholder="① 点击「产品」配置场景标签 → ② 点击上方爆款卡片（自动拆解+出片）或底部「开始创作」"></textarea>
             </div>
           </div>
           <div id="seedanceProgress" class="seedance-progress hidden" aria-live="polite">
@@ -302,6 +389,7 @@
           </div>
           <footer class="studio-dock-toolbar">
             <span class="dock-chip" id="dockModelChip">SeedDance · 脚本分镜</span>
+            <span class="dock-chip dock-quota-chip hidden" id="dailyScriptQuotaChip" title="今日豆包/Claude 脚本生成次数"></span>
             <div class="dock-gen-actions">
               <div class="dock-gen-popover-wrap" id="dockVideoSettingsWrap">
                 <button type="button" class="dock-gen-action-btn" id="dockVideoSettingsBtn" aria-expanded="false" aria-controls="dockVideoSettingsPanel">
@@ -365,50 +453,87 @@
         <div class="module-studio-scroll">
           <header class="module-studio-head">
             <nav class="module-studio-tabs" aria-label="爆款模仿视图">
-              <button type="button" class="active" data-studio-tab="featured">精选</button>
-              <button type="button" data-studio-tab="templates">模板</button>
+              <button type="button" class="active" data-studio-tab="featured">精选爆款</button>
+              <button type="button" data-studio-tab="templates">结构模板</button>
             </nav>
           </header>
           <section class="module-feature-section" id="imitateFeatureSection">
-            <h2 class="module-feature-title">复刻能力</h2>
-            <p class="module-feature-desc">从对标视频提取结构，套用至品牌脚本与分镜</p>
-            <div class="feature-grid" id="imitateFeatureGrid"></div>
+            <h2 class="module-feature-title">爆款结构复刻</h2>
+            <p class="module-feature-desc" id="imitateViralGridDesc">配置产品标签后，点击爆款卡片自动拆解对标结构并出片</p>
+            <div class="feature-grid feature-grid-viral" id="imitateFeatureGrid"></div>
           </section>
           <section class="module-studio-panel hidden" id="imitateTemplatesPanel" data-studio-panel="templates">
             <h2 class="module-feature-title">结构模板库</h2>
-            <p class="module-feature-desc muted">从已拆解对标中提取的可复用镜头结构（规划中）</p>
-            <div class="module-placeholder-inner compact">
-              <p class="muted">接入对标素材库拆解结果后，可在此浏览与套用模板。</p>
-            </div>
+            <p class="module-feature-desc muted">从已拆解对标提炼的镜头节奏，点击可写入创作指令</p>
+            <div id="imitateTemplatesList" class="imitate-templates-list"></div>
           </section>
         </div>
         <div class="studio-dock" id="imitateDock">
           <div class="studio-dock-head">
-            <nav class="studio-dock-modes" aria-label="输入方式">
-              <button type="button" class="active" data-imitate-input="image">产品图</button>
-              <button type="button" data-imitate-input="link">商品链接</button>
-              <button type="button" data-imitate-input="custom">自定义描述</button>
+            <nav class="studio-dock-modes" aria-label="模仿模式">
+              <button type="button" class="active">结构复刻</button>
+              <button type="button" disabled title="规划中">镜头迁移</button>
             </nav>
           </div>
           <div class="studio-dock-body">
             <div class="studio-dock-uploads">
-              <button type="button" class="dock-upload-slot" disabled title="规划中">
-                <span class="dock-upload-icon">🖼</span>
-                <span>产品图</span>
+              <button type="button" class="dock-upload-slot" id="imitateOpenProductBtn" title="先选产品与场景标签">
+                <span class="dock-upload-icon">📦</span>
+                <span>产品</span>
               </button>
-              <button type="button" class="dock-upload-slot" id="imitateDockRefBtn">
+              <button type="button" class="dock-upload-slot dock-upload-slot-ref" id="imitateOpenMaterialsBtn" title="请先配置产品" disabled>
                 <span class="dock-upload-icon">▶</span>
-                <span>原视频</span>
+                <span>对标</span>
               </button>
             </div>
             <div class="studio-dock-main">
-              <textarea class="studio-dock-prompt" rows="2" placeholder="粘贴商品链接或描述要模仿的爆款结构要点（功能规划中）" disabled></textarea>
+              <textarea id="imitateDockPrompt" class="studio-dock-prompt" rows="2" placeholder="① 配置「产品」标签 → ② 点击上方爆款卡片（自动拆解+出片）"></textarea>
             </div>
           </div>
+          <div id="imitateSeedanceProgress" class="seedance-progress hidden" aria-live="polite">
+            <div class="seedance-progress-row">
+              <span class="seedance-progress-label">AI 分镜</span>
+              <span id="imitateSeedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
+            </div>
+            <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+              <div id="imitateSeedanceProgressFill" class="seedance-progress-fill"></div>
+            </div>
+            <p id="imitateSeedancePipelineCompact" class="seedance-progress-meta muted"></p>
+          </div>
           <footer class="studio-dock-toolbar">
-            <span class="dock-chip muted">原视频提取模块</span>
-            <button type="button" class="primary primary-dark studio-dock-run" disabled>
-              <span class="dock-run-icon">✦</span> 生成模仿稿
+            <span class="dock-chip" id="imitateDockModelChip">爆款模仿 · 结构复刻</span>
+            <span class="dock-chip dock-quota-chip hidden" id="imitateDailyQuotaChip" title="今日豆包/Claude 脚本生成次数"></span>
+            <div class="dock-gen-actions">
+              <div class="dock-gen-popover-wrap" id="imitateVideoSettingsWrap">
+                <button type="button" class="dock-gen-action-btn" id="imitateVideoSettingsBtn" aria-expanded="false" aria-controls="imitateDockVideoSettingsPanel">
+                  <span class="dock-gen-action-icon" aria-hidden="true">☰</span>
+                  <span id="imitateDockVideoSettingsLabel">720P · 9:16</span>
+                </button>
+                <div id="imitateDockVideoSettingsPanel" class="dock-video-settings-panel hidden" role="dialog" aria-label="视频参数" hidden>
+                  <div class="dock-settings-section">
+                    <div class="dock-settings-label">分辨率</div>
+                    <div class="dock-settings-pill-row" id="imitateDockResolutionRow"></div>
+                  </div>
+                  <div class="dock-settings-section">
+                    <div class="dock-settings-label">宽高比</div>
+                    <div class="dock-settings-ratio-row" id="imitateDockAspectRatioRow"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="dock-gen-popover-wrap" id="imitateGenerateCountWrap">
+                <button type="button" class="dock-gen-action-btn" id="imitateGenerateCountBtn" aria-expanded="false" aria-controls="imitateDockGenerateCountMenu">
+                  <span class="dock-gen-action-icon" aria-hidden="true">▭</span>
+                  <span id="imitateDockGenerateCountLabel">生成 1 条</span>
+                </button>
+                <div id="imitateDockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="生成条数" hidden></div>
+              </div>
+              <button type="button" class="dock-gen-action-btn" id="imitatePromptEnhanceBtn" title="结合标签与对标结构强化创作指令">
+                <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
+                <span>提示词增强</span>
+              </button>
+            </div>
+            <button type="button" class="primary primary-dark studio-dock-run" id="imitateDockRun">
+              <span class="dock-run-icon">✦</span> 开始复刻
             </button>
           </footer>
         </div>
@@ -430,10 +555,10 @@
             <div class="feature-grid" id="reverseFeatureGrid"></div>
           </section>
           <section class="module-studio-panel hidden" id="reverseExportsPanel" data-studio-panel="exports">
-            <h2 class="module-feature-title">已导出 Prompt</h2>
-            <p class="module-feature-desc muted">历史反推结果将在此管理（规划中）</p>
-            <div class="module-placeholder-inner compact">
-              <p class="muted">完成反推后可复制英文 Prompt 或写入脚本包。</p>
+            <h2 class="module-feature-title">提示词库</h2>
+            <p class="module-feature-desc muted">反推结果自动入库；视频生成「提示词选择」按使用次数动态排序</p>
+            <div class="prompt-select-list reverse-library-list" id="reversePromptLibraryList">
+              <p class="muted">加载中…</p>
             </div>
           </section>
         </div>
@@ -450,18 +575,18 @@
                 <span class="dock-upload-icon">📹</span>
                 <span>上传</span>
               </button>
-              <button type="button" class="dock-upload-slot" id="reverseDockMaterialBtn">
+              <button type="button" class="dock-upload-slot" id="reverseDockMaterialBtn" title="从素材库选择对标视频">
                 <span class="dock-upload-icon">▶</span>
-                <span>素材库</span>
+                <span id="reverseDockMaterialLabel">素材库</span>
               </button>
             </div>
             <div class="studio-dock-main">
-              <textarea class="studio-dock-prompt" rows="2" placeholder="选择对标视频后，自动拆解镜头并生成可编辑英文 Prompt（功能规划中）" disabled></textarea>
+              <textarea class="studio-dock-prompt" id="reverseDockPrompt" rows="4" placeholder="选择对标视频后点击「开始反推」——分镜/结构将写入提示词库，并同步到视频生成"></textarea>
             </div>
           </div>
           <footer class="studio-dock-toolbar">
-            <span class="dock-chip muted">拆解 · 反推分析</span>
-            <button type="button" class="primary primary-dark studio-dock-run" disabled>
+            <span class="dock-chip muted" id="reverseDockStatusChip">拆解 · 反推入库</span>
+            <button type="button" class="primary primary-dark studio-dock-run" id="reverseDockRun">
               <span class="dock-run-icon">✦</span> 开始反推
             </button>
           </footer>
@@ -503,15 +628,15 @@
               </div>
             </div>
             <div id="draftFeedbackPanelFeedback" class="draft-feedback-panel hidden">
-              <div class="studio-mega-card">
-                <div class="split-2 split-narrow studio-split-body">
-                  <section class="studio-inner-pane pane-scroll">
+              <div class="studio-mega-card feedback-split-card">
+                <div class="split-2 split-narrow studio-split-body feedback-split-body">
+                  <section class="studio-inner-pane feedback-list-pane">
                     <div class="pane-title">成稿列表</div>
-                    <div id="feedbackList" class="list compact"></div>
+                    <div id="feedbackList" class="list compact feedback-pane-body"></div>
                   </section>
-                  <section class="studio-inner-pane pane-scroll feedback-editor-pane">
+                  <section class="studio-inner-pane feedback-editor-pane">
                     <div class="pane-title">反馈填写</div>
-                    <div id="feedbackEditor" class="detail-empty">← 选择左侧成稿</div>
+                    <div id="feedbackEditor" class="detail-empty feedback-pane-body">← 选择左侧成稿</div>
                   </section>
                 </div>
               </div>
@@ -520,13 +645,14 @@
           <section class="module-history-section" id="draftFeedbackHistorySection" aria-label="历史成片">
             <h2 class="module-feature-title">历史成片</h2>
             <p class="module-feature-desc muted">最近归档于 <code>03_产出库</code> 的项目（进入工作台可继续编辑）</p>
-            <div id="draftFeedbackHistoryList" class="feature-history-list detail-empty">加载中…</div>
+            <div id="draftFeedbackHistoryList" class="feature-history-list">加载中…</div>
           </section>
         </div>
       </div>
     </main>
   </div>
 
+  <script>window.__WB_TOKEN__={{WORKBENCH_TOKEN_JS}};</script>
   <script src="/static/app.js?v={{UI_VERSION}}"></script>
 </body>
 </html>

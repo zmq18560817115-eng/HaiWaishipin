@@ -18,6 +18,8 @@ from .feedback_loop import (
     build_feedback_constraints,
     format_constraints_for_llm,
 )
+from .doubao_config import script_llm_config
+from .doubao_script import call_doubao_script
 from .product_tags import validate_delivery_selection
 from .output_standards import enrich_pack_with_standards
 from .scene_script import (
@@ -222,10 +224,12 @@ def _extract_json(text: str) -> dict[str, Any]:
 
 
 def _call_anthropic(user_prompt: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    from .doubao_config import _env
+
+    api_key = (_env().get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("未配置 ANTHROPIC_API_KEY")
-    model = os.getenv("OVERSEAS_LOC_MODEL", "claude-sonnet-4-6")
+    model = (_env().get("OVERSEAS_LOC_MODEL") or os.getenv("OVERSEAS_LOC_MODEL") or "claude-sonnet-4-6").strip()
     payload = {
         "model": model,
         "max_tokens": 4096,
@@ -252,6 +256,40 @@ def _call_anthropic(user_prompt: str) -> tuple[dict[str, Any], dict[str, Any]]:
         "generated_at": utc_now(),
     }
     return pack, meta
+
+
+def _call_script_llm(user_prompt: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """按 SCRIPT_LLM_PROVIDER 调用豆包 / Claude；auto 时豆包优先。"""
+    cfg = script_llm_config()
+    provider = str(cfg.get("provider") or "auto")
+    errors: list[str] = []
+
+    def _try_doubao() -> tuple[dict[str, Any], dict[str, Any]]:
+        return call_doubao_script(system_prompt=SYSTEM_PROMPT, user_prompt=user_prompt)
+
+    if provider == "rule":
+        raise RuntimeError("SCRIPT_LLM_PROVIDER=rule")
+
+    if provider == "doubao":
+        if not cfg.get("doubao_enabled"):
+            raise RuntimeError("豆包脚本未配置或已关闭 DOUBAO_SCRIPT_ENABLED")
+        return _try_doubao()
+
+    if provider == "anthropic":
+        return _call_anthropic(user_prompt)
+
+    # auto
+    if cfg.get("doubao_enabled"):
+        try:
+            return _try_doubao()
+        except Exception as exc:
+            errors.append(f"doubao: {exc}")
+    if cfg.get("anthropic_available"):
+        try:
+            return _call_anthropic(user_prompt)
+        except Exception as exc:
+            errors.append(f"anthropic: {exc}")
+    raise RuntimeError("; ".join(errors) or "未配置 ARK_API_KEY 或 ANTHROPIC_API_KEY")
 
 
 def _is_thermos_product(product: dict[str, str]) -> bool:
@@ -415,7 +453,7 @@ def generate_script_pack(
         feedback_block=feedback_block,
     )
     try:
-        pack, meta = _call_anthropic(user_prompt)
+        pack, meta = _call_script_llm(user_prompt)
         pack = normalize_pack(pack)
         pack["inputs"] = {
             "product_name": product.get("product_name", ""),

@@ -18,7 +18,7 @@ if "%ARG%"=="" (
 
 cd /d "%~dp0overseas-loc-mvp"
 if not exist ".venv\Scripts\python.exe" (
-  echo [失败] 未找到 overseas-loc-mvp\.venv，请先运行「安装并检查开发环境.cmd」
+  echo [失败] 未找到 overseas-loc-mvp\.venv，请先运行「检查开发环境.cmd」
   pause
   exit /b 1
 )

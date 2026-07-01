@@ -136,12 +136,14 @@ def material_already_analyzed(link_id: str, detail: dict[str, Any] | None = None
 
 def needs_doubao_analysis(link_id: str, detail: dict[str, Any] | None = None) -> bool:
     """是否需自动跑豆包精细拆解。"""
-    from .doubao_config import doubao_config, video_analysis_policy
+    from .doubao_config import _env, _env_flag, doubao_config, video_analysis_policy
 
     policy = video_analysis_policy()
     if not policy.get("llm_enabled"):
         return False
     if not policy.get("auto_enabled"):
+        return False
+    if not _env_flag(_env().get("VIDEO_ANALYSIS_ON_VIEW"), default=False):
         return False
     if not doubao_config().get("configured"):
         return False

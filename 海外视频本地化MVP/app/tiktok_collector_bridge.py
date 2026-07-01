@@ -136,7 +136,13 @@ def import_reviewed_records(
     clean_csv_path: str | None,
     review_json_path: str | None,
     output_dir: str,
+    product_id: str = "",
 ) -> CollectorImportResult:
+    from app.brand_policy import product_material_match
+    from app.material_scope import material_dict_matches_product, scope_for_product, trim_material_library_to_product
+
+    product_id = (product_id or "").strip()
+    scoped = scope_for_product(product_id) if product_id else None
     raw_links = _read_csv(RAW_LINKS_CSV)
     videos_meta = _read_csv(VIDEOS_META_CSV)
 
@@ -147,12 +153,28 @@ def import_reviewed_records(
     max_link_id = max((int(row.get("link_id") or 0) for row in raw_links), default=0)
     imported_new_links = 0
     updated_existing_links = 0
+    skipped_other_category = 0
 
     for record in records:
+        category, subcategory = _guess_category(record.source_keyword)
+        if scoped:
+            category = scoped["category"]
+            subcategory = scoped["subcategory"]
+        preview = {
+            "title": record.caption,
+            "author": record.author_name,
+            "hashtags": record.hashtags,
+            "category": category,
+            "subcategory": subcategory,
+        }
+        if product_id and not product_material_match(product_id, preview) and not material_dict_matches_product(preview, product_id):
+            skipped_other_category += 1
+            continue
         raw_row = raw_by_url.get(record.video_url)
         if raw_row is None:
             max_link_id += 1
-            category, subcategory = _guess_category(record.source_keyword)
+            if not scoped:
+                category, subcategory = _guess_category(record.source_keyword)
             raw_row = {
                 "link_id": str(max_link_id),
                 "url": record.video_url,
@@ -206,6 +228,9 @@ def import_reviewed_records(
     _write_csv(RAW_LINKS_CSV, raw_links, RAW_LINK_FIELDS)
     _write_csv(VIDEOS_META_CSV, videos_meta, VIDEO_META_FIELDS)
 
+    if product_id:
+        trim_material_library_to_product(product_id)
+
     return CollectorImportResult(
         total_collected=total_collected,
         total_cleaned=len(records),
@@ -221,7 +246,12 @@ def import_reviewed_records(
     )
 
 
-def run_collector_import(keywords: list[str], *, limit_per_keyword: int = 20) -> CollectorImportResult:
+def run_collector_import(
+    keywords: list[str],
+    *,
+    limit_per_keyword: int = 20,
+    product_id: str = "",
+) -> CollectorImportResult:
     service = TikTokCollectorService()
     request = CollectRequest(
         keywords=keywords,
@@ -240,6 +270,7 @@ def run_collector_import(keywords: list[str], *, limit_per_keyword: int = 20) ->
         clean_csv_path=str(run.clean_csv_file) if run.clean_csv_file else None,
         review_json_path=str(run.review_json_file) if run.review_json_file else None,
         output_dir=str(service.settings.output_dir),
+        product_id=product_id,
     )
 
 
@@ -279,6 +310,7 @@ def sync_collector_database_to_workflow(
     source_keyword: str = "",
     processing_status: str = "",
     limit: int = 20,
+    product_id: str = "",
 ) -> CollectorDatabaseSyncResult:
     service = TikTokCollectorService()
     if not service.db.enabled:
@@ -316,6 +348,7 @@ def sync_collector_database_to_workflow(
         clean_csv_path=None,
         review_json_path=None,
         output_dir=str(service.settings.output_dir),
+        product_id=product_id,
     )
     return CollectorDatabaseSyncResult(
         db_enabled=True,

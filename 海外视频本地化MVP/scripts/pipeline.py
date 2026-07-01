@@ -214,10 +214,22 @@ def _fetch_one(
     }, "oembed"
 
 
-def cmd_fetch(sleep: float = 0.4, engine: str = "oembed") -> int:
+def cmd_fetch(sleep: float = 0.4, engine: str = "oembed", product_id: str = "") -> int:
+    from app.material_scope import active_product_id, link_row_matches_product, trim_material_library_to_product
+
+    product_id = (product_id or active_product_id()).strip()
     if not RAW_LINKS_CSV.exists():
         cmd_links()
     links = _read_csv(RAW_LINKS_CSV)
+    if product_id:
+        before = len(links)
+        links = [link for link in links if link_row_matches_product(link, product_id)]
+        safe_print(f"品类过滤「{product_id}」: {before} → {len(links)} 条待抓取")
+    if not links:
+        safe_print("无同品类链接可抓取")
+        return 1
+
+    existing_meta = {str(r.get("link_id")): r for r in _read_csv(VIDEOS_META_CSV) if r.get("link_id")}
     rows: list[dict[str, Any]] = []
     ok = 0
     pw_ctx = None
@@ -253,6 +265,7 @@ def cmd_fetch(sleep: float = 0.4, engine: str = "oembed") -> int:
                         pass
                 except Exception as exc:  # noqa: BLE001
                     row["error_message"] = str(exc)
+                existing_meta[str(row["link_id"])] = row
                 rows.append(row)
                 safe_print(f"[{i}/{len(links)}] id={row['link_id']} {row['fetch_status']} ({row.get('fetch_provider') or '-'})")
                 if i < len(links):
@@ -261,12 +274,18 @@ def cmd_fetch(sleep: float = 0.4, engine: str = "oembed") -> int:
         if pw_ctx is not None:
             pw_ctx.close()
     VIDEOS_META_CSV.parent.mkdir(parents=True, exist_ok=True)
+    merged = list(existing_meta.values())
+    merged.sort(key=lambda r: int(r.get("link_id") or 0))
     with VIDEOS_META_CSV.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=META_FIELDS)
         w.writeheader()
-        for row in rows:
+        for row in merged:
             w.writerow({k: row.get(k, "") for k in META_FIELDS})
-    safe_print(f"OK {VIDEOS_META_CSV} ({ok}/{len(rows)} ok)")
+    ok = sum(1 for r in rows if r.get("fetch_status") == "ok")
+    safe_print(f"OK {VIDEOS_META_CSV} ({ok}/{len(rows)} fetched, total {len(merged)} in library)")
+    if product_id:
+        trim = trim_material_library_to_product(product_id)
+        safe_print(f"品类收窄：保留 {trim.get('kept', 0)} 条，移除 {trim.get('removed', 0)} 条")
     return 0
 
 
@@ -281,21 +300,28 @@ def cmd_cache_thumbnails(*, force: bool = False) -> int:
 
 # ── discover ───────────────────────────────────────────────────────────────
 
-def cmd_discover(limit_per_query: int = 30, engine: str = "auto") -> int:
+def cmd_discover(limit_per_query: int = 30, engine: str = "auto", product_id: str = "") -> int:
     """低频发现公开候选 URL → discovery_candidates.csv。"""
+    from app.material_scope import active_product_id
     from tiktok_discovery import discover_candidates
 
-    result = discover_candidates(limit_per_query=limit_per_query, engine=engine)
+    product_id = (product_id or active_product_id()).strip()
+    result = discover_candidates(limit_per_query=limit_per_query, engine=engine, product_id=product_id)
     safe_print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("ok") else 1
 
 
-def cmd_promote(limit: int = 20, min_score: float = 0.0) -> int:
+def cmd_promote(limit: int = 20, min_score: float = 0.0, product_id: str = "") -> int:
     """候选池评分筛选 → raw_links.csv。"""
+    from app.material_scope import active_product_id, trim_material_library_to_product
     from tiktok_discovery import promote_candidates
 
-    result = promote_candidates(limit=limit, min_score=min_score)
+    product_id = (product_id or active_product_id()).strip()
+    result = promote_candidates(limit=limit, min_score=min_score, product_id=product_id)
     safe_print(json.dumps(result, ensure_ascii=False, indent=2))
+    if product_id and result.get("ok"):
+        trim = trim_material_library_to_product(product_id)
+        safe_print(f"品类收窄：保留 {trim.get('kept', 0)} 条，移除 {trim.get('removed', 0)} 条")
     return 0 if result.get("ok") else 1
 
 
@@ -903,6 +929,49 @@ def cmd_bridge(ids: list[int], force: bool) -> int:
     return 0 if done else 1
 
 
+def cmd_prune(
+    dry_run: bool = False,
+    max_total: int = 0,
+    max_candidates: int = 0,
+    keep_analyzed: bool = True,
+    product_id: str = "",
+) -> int:
+    from prune_materials import prune_materials, _env_int, _env_bool
+
+    if max_total <= 0:
+        max_total = _env_int("MATERIAL_MAX_TOTAL", 80)
+    if max_candidates <= 0:
+        max_candidates = _env_int("DISCOVERY_CANDIDATE_MAX", 150)
+
+    trim_report: dict | None = None
+    pid = (product_id or os.getenv("ACTIVE_PRODUCT_ID") or os.getenv("MATERIAL_DEFAULT_PRODUCT") or "").strip()
+    if pid:
+        mvp_root = Path(__file__).resolve().parents[1]
+        if str(mvp_root) not in sys.path:
+            sys.path.insert(0, str(mvp_root))
+        from app.material_scope import trim_material_library_to_product
+
+        trim_report = trim_material_library_to_product(pid, dry_run=dry_run)
+        mode = "预览" if dry_run else "完成"
+        safe_print(
+            f"品类收窄{mode}({pid}): 保留 {trim_report.get('kept', 0)}，"
+            f"移除非品类 {trim_report.get('removed', 0)}"
+        )
+
+    report = prune_materials(
+        max_total=max_total,
+        max_candidates=max_candidates,
+        keep_analyzed=keep_analyzed,
+        dry_run=dry_run,
+    )
+    mode = "预览" if dry_run else "完成"
+    safe_print(f"素材库整理{mode}: {report['materials_before']} → {report['materials_after']}（删 {report['materials_removed']}）")
+    safe_print(f"候选池: {report['candidates_before']} → {report['candidates_after']}")
+    if trim_report and trim_report.get("sample_removed"):
+        safe_print(f"品类移除样例 link_id: {', '.join(trim_report['sample_removed'][:10])}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="TikTok 竞品流水线")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -914,12 +983,15 @@ def main() -> int:
         default="oembed",
         help="oembed=官方 API（快）；auto=先 Playwright 再 oEmbed；playwright=仅浏览器",
     )
+    f.add_argument("--product-id", default="", help="仅抓取并保留当前产品品类")
     ds = sub.add_parser("discover", help="发现 TikTok 公开候选 URL → discovery_candidates")
     ds.add_argument("--limit-per-query", type=int, default=30)
     ds.add_argument("--engine", choices=("none", "oembed", "auto", "playwright"), default="auto")
+    ds.add_argument("--product-id", default="", help="仅发现当前产品品类（如 便携恒温杯）")
     pr = sub.add_parser("promote", help="候选评分筛选 → raw_links")
     pr.add_argument("--limit", type=int, default=20)
     pr.add_argument("--min-score", type=float, default=0.0)
+    pr.add_argument("--product-id", default="", help="仅入库当前产品品类")
     sub.add_parser("db", help="导入 MySQL")
     d = sub.add_parser("decompose", help="结构拆解 → video_analysis（规则或豆包）")
     d.add_argument("--limit", type=int, default=0)
@@ -935,6 +1007,12 @@ def main() -> int:
     sub.add_parser("products", help="从 DS223 同步 product_materials")
     ct = sub.add_parser("cache-thumbnails", help="下载封面到本地（修复列表缩略图）")
     ct.add_argument("--force", action="store_true", help="强制重新下载")
+    pm = sub.add_parser("prune", help="素材库瘦身：去重、限额、清候选池")
+    pm.add_argument("--dry-run", action="store_true")
+    pm.add_argument("--product-id", default="", help="先移除非该品类素材（如 便携恒温杯）")
+    pm.add_argument("--max-total", type=int, default=0, help="素材上限，0=读 MATERIAL_MAX_TOTAL")
+    pm.add_argument("--max-candidates", type=int, default=0, help="候选池上限，0=读 DISCOVERY_CANDIDATE_MAX")
+    pm.add_argument("--keep-analyzed", action=argparse.BooleanOptionalAction, default=True)
     k = sub.add_parser("knowledge", help="KRO 知识库检索（默认列出来源）")
     k.add_argument("query", nargs="?", default="", help="检索词，如: 熊猫布布 吸奶器 合规")
     k.add_argument("--limit", type=int, default=6)
@@ -945,16 +1023,21 @@ def main() -> int:
     if args.cmd == "links":
         return cmd_links()
     if args.cmd == "fetch":
-        return cmd_fetch(engine=getattr(args, "engine", "auto"))
+        return cmd_fetch(
+            engine=getattr(args, "engine", "oembed"),
+            product_id=getattr(args, "product_id", "") or "",
+        )
     if args.cmd == "discover":
         return cmd_discover(
             limit_per_query=getattr(args, "limit_per_query", 30),
             engine=getattr(args, "engine", "auto"),
+            product_id=getattr(args, "product_id", "") or "",
         )
     if args.cmd == "promote":
         return cmd_promote(
             limit=getattr(args, "limit", 20),
             min_score=getattr(args, "min_score", 0.0),
+            product_id=getattr(args, "product_id", "") or "",
         )
     if args.cmd == "db":
         return cmd_db()
@@ -972,6 +1055,14 @@ def main() -> int:
         return cmd_products()
     if args.cmd == "cache-thumbnails":
         return cmd_cache_thumbnails(force=getattr(args, "force", False))
+    if args.cmd == "prune":
+        return cmd_prune(
+            dry_run=getattr(args, "dry_run", False),
+            max_total=getattr(args, "max_total", 0),
+            max_candidates=getattr(args, "max_candidates", 0),
+            keep_analyzed=getattr(args, "keep_analyzed", True),
+            product_id=getattr(args, "product_id", "") or "",
+        )
     if args.cmd == "knowledge":
         return cmd_knowledge(args.query, args.limit)
     if args.cmd == "bridge":
