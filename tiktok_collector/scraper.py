@@ -11,12 +11,8 @@ from playwright._impl._errors import Error as PlaywrightError
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 from .browser_launch import (
-    collector_runtime_status,
-    cursor_sandbox_hint,
-    discover_system_browsers,
-    running_in_cursor_sandbox,
-    sanitize_playwright_env,
-    should_skip_bundled_chromium,
+    close_collector_context,
+    launch_collector_context,
 )
 from .config import CollectorSettings
 from .models import TikTokVideoRecord
@@ -28,11 +24,6 @@ LIMIT_TEXT_RE = re.compile(
     re.I,
 )
 ERROR_TEXT_RE = re.compile(r"(something went wrong|try again|server, please try again)", re.I)
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/138.0.0.0 Safari/537.36"
-)
 VIDEOS_TAB_PATTERN = re.compile(r"^(videos|video|视频)$", re.I)
 
 
@@ -230,105 +221,10 @@ class TikTokScraper:
                 urls = self._collect_urls_for_keyword(page, keyword, limit)
                 return self._collect_video_details(context, urls, keyword)
             finally:
-                context.close()
+                close_collector_context(context)
 
     def _launch_context(self, playwright: Any) -> BrowserContext:
-        sanitize_playwright_env()
-        if running_in_cursor_sandbox() and not discover_system_browsers():
-            raise RuntimeError(cursor_sandbox_hint())
-
-        launch_options = {
-            "headless": self.settings.headless,
-            "locale": self.settings.locale,
-            "viewport": {"width": 1440, "height": 1080},
-            "user_agent": DEFAULT_USER_AGENT,
-        }
-        self.settings.user_data_dir.mkdir(parents=True, exist_ok=True)
-        user_data = str(self.settings.user_data_dir)
-        last_error: PlaywrightError | None = None
-        channel_errors: list[str] = []
-
-        def try_launch(
-            *,
-            channel: str | None = None,
-            executable_path: Path | None = None,
-            headless: bool | None = None,
-        ) -> BrowserContext:
-            opts = dict(launch_options)
-            if headless is not None:
-                opts["headless"] = headless
-            if executable_path is not None:
-                opts["executable_path"] = str(executable_path)
-            elif channel:
-                opts["channel"] = channel
-            return playwright.chromium.launch_persistent_context(user_data, **opts)
-
-        def retryable(message: str) -> bool:
-            lower = message.lower()
-            return any(
-                token in lower
-                for token in (
-                    "executable doesn't exist",
-                    "playwright install",
-                    "failed to launch",
-                    "chrome-headless-shell",
-                    "chromium_headless_shell",
-                    "cursor-sandbox-cache",
-                )
-            )
-
-        # 1) 直接指定本机 Chrome/Edge 可执行文件（最可靠）
-        for name, exe in discover_system_browsers():
-            for use_headless in (False, True) if self.settings.headless else (False,):
-                try:
-                    return try_launch(executable_path=exe, headless=use_headless)
-                except PlaywrightError as exc:
-                    last_error = exc
-                    mode = "headless" if use_headless else "headed"
-                    channel_errors.append(f"{name}@{exe.name} ({mode}): {str(exc).splitlines()[0]}")
-                    if use_headless is False and retryable(str(exc)):
-                        break
-                    if use_headless and retryable(str(exc)):
-                        continue
-                    break
-
-        # 2) Playwright channel 回退
-        channels = [c for c in self.settings.browser_channels if c is not None]
-        if not should_skip_bundled_chromium() and None in self.settings.browser_channels:
-            channels.append(None)
-
-        for channel in channels:
-            headless_modes = [self.settings.headless]
-            if self.settings.headless:
-                headless_modes.append(False)
-            for use_headless in headless_modes:
-                label = channel or "chromium"
-                mode = "headless" if use_headless else "headed"
-                try:
-                    return try_launch(channel=channel, headless=use_headless)
-                except PlaywrightError as exc:
-                    last_error = exc
-                    message = str(exc)
-                    channel_errors.append(f"{label} ({mode}): {message.splitlines()[0]}")
-                    if use_headless and retryable(message):
-                        continue
-                    break
-
-        tried = "；".join(channel_errors[-4:]) if channel_errors else str(last_error)
-        browsers = discover_system_browsers()
-        if not browsers:
-            hint = (
-                "未在本机找到 Google Chrome 或 Microsoft Edge。"
-                f"详情：{tried}。"
-                "请先安装 Chrome/Edge，并用「启动页面.cmd」启动工作台。"
-            )
-        else:
-            hint = (
-                "无法启动本机浏览器。"
-                f"详情：{tried}。"
-                "请完全关闭工作台后，双击「启动页面.cmd」重新打开（勿用 Cursor 终端），再试采集。"
-            )
-        raise RuntimeError(hint) from last_error
+        return launch_collector_context(playwright, self.settings)
 
     def _collect_urls_for_keyword(self, page: Page, keyword: str, limit: int) -> list[str]:
         query_url = f"https://www.tiktok.com/search/video?q={quote_plus(keyword)}"

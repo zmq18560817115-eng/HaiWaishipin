@@ -9,6 +9,10 @@ echo  请从本窗口启动，不要用 Cursor 内置终端运行 python。
 echo  若 8788 端口已被占用，请先关闭 Cursor 里的旧服务窗口。
 echo.
 
+REM TikTok 采集必须能调用本机 Chrome；清除 Cursor 沙箱注入的 Playwright 路径
+set PLAYWRIGHT_BROWSERS_PATH=
+set WORKBENCH_LAUNCHER=startup-cmd
+
 if not exist ".venv\Scripts\python.exe" (
   echo [1/2] 创建 Python 环境...
   python -m venv .venv

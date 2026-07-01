@@ -295,6 +295,13 @@ def run_collector_import(
     limit_per_keyword: int = 50,
     product_id: str = "",
 ) -> CollectorImportResult:
+    from tiktok_collector.browser_launch import collector_launch_blocked_reason, sanitize_playwright_env
+
+    sanitize_playwright_env()
+    blocked = collector_launch_blocked_reason()
+    if blocked:
+        raise RuntimeError(blocked)
+
     service = TikTokCollectorService()
     request = CollectRequest(
         keywords=keywords,

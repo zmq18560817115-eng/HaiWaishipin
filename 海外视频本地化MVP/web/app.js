@@ -2275,6 +2275,11 @@ async function refreshCollectorRuntimeHint() {
   try {
     const health = await api("/api/health");
     const runtime = health.tiktok_collector?.runtime || {};
+    if (runtime.launch_blocked) {
+      hint.classList.remove("hidden");
+      hint.textContent = runtime.launch_blocked;
+      return;
+    }
     if (runtime.cursor_sandbox || (runtime.playwright_sandbox_path && !runtime.collector_ready)) {
       hint.classList.remove("hidden");
       hint.textContent =
@@ -2331,6 +2336,23 @@ function collectorErrorHint(message) {
       "2. 打开文件夹：海外视频本地化工作流\\海外视频本地化MVP",
       "3. 双击「启动页面.cmd」",
       "4. 浏览器打开 http://127.0.0.1:8788 后再采集",
+    ].join("\n");
+  }
+  if (/不是通过「启动页面\.cmd」启动|WORKBENCH_LAUNCHER|常见于 Cursor/i.test(raw)) {
+    return [
+      "工作台必须从 cmd 窗口启动，不能从 Cursor 终端启动：",
+      "1. 关掉 Cursor 里运行 python 的终端（以及占用 8788 的旧服务）",
+      "2. 双击根目录「启动工作台.cmd」或 海外视频本地化MVP\\启动页面.cmd",
+      "3. 等黑窗口出现「启动本地化工作台」后再采集",
+    ].join("\n");
+  }
+  if (/has been closed|target page, context or browser|profile appears to be in use|singletonlock/i.test(raw)) {
+    return [
+      "浏览器配置目录可能被占用或上次异常退出：",
+      "1. 关闭所有 Chrome / Edge 窗口（含后台）",
+      "2. 关闭工作台黑窗口，双击「启动页面.cmd」重新打开",
+      "3. 再试采集；仍失败可删除文件夹：tiktok_collector\\data\\browser_profile",
+      "4. 不要用 Cursor 终端启动服务",
     ].join("\n");
   }
   if (/playwright|chromium|chrome\.exe|launch_persistent|无法启动/i.test(raw)) {

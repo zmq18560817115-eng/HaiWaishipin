@@ -10,6 +10,17 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+# Cursor 内置终端会注入 Playwright 沙箱路径，导致 TikTok 采集无法启动本机 Chrome
+_workflow_root = ROOT.parent
+if str(_workflow_root) not in sys.path:
+    sys.path.insert(0, str(_workflow_root))
+try:
+    from tiktok_collector.browser_launch import sanitize_playwright_env
+
+    sanitize_playwright_env()
+except Exception:
+    pass
+
 from ensure_legacy_paths import ensure_legacy_junctions
 
 ensure_legacy_junctions()
@@ -82,7 +93,7 @@ from .seedance_bridge import (
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 133
+UI_VERSION = 135
 
 
 def _render_index() -> HTMLResponse:
