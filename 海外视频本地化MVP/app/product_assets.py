@@ -6,14 +6,22 @@ from pathlib import Path
 
 from paths import PRODUCT_MATERIALS_DIR, WORKFLOW_ROOT
 
-HERO_CANDIDATES = (
-    "主图/倒出口参考.png",
-    "主图/倒出口参考.jpg",
+WHITE_HERO_CANDIDATES = (
     "主图/白底主图.png",
     "主图/白底主图.jpg",
+    "主图/白底八背景.png",
+    "主图/白底八背景.jpg",
+)
+
+USAGE_POUR_CANDIDATES = (
+    "主图/倒出口参考.png",
+    "主图/倒出口参考.jpg",
+)
+
+# 仅作白底主图缺失时的兜底，不得优先于白底主图
+FALLBACK_HERO_CANDIDATES = (
     "A+/KV.jpg",
     "副图/主图.jpg",
-    "副图/白底八背景.jpg",
     "M端/KV.jpg",
     "M图/KV.jpg",
 )
@@ -63,31 +71,52 @@ def list_product_images(product_id: str) -> list[Path]:
     ]
 
 
-def get_product_hero_image(product_id: str) -> Path | None:
+def get_product_white_hero_image(product_id: str) -> Path | None:
+    """白底主图：产品外观唯一锚点（SeedDance 默认垫图）。"""
     root = product_listing_dir(product_id)
     if not root.is_dir():
         return None
-    for rel in HERO_CANDIDATES:
+    for rel in WHITE_HERO_CANDIDATES:
+        path = root / rel
+        if path.is_file():
+            return path
+    main_dir = root / "主图"
+    if main_dir.is_dir():
+        for path in sorted(main_dir.glob("*")):
+            if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES:
+                name = path.name
+                if "白底" in name and "倒出口" not in name:
+                    return path
+    for rel in FALLBACK_HERO_CANDIDATES:
         path = root / rel
         if path.is_file():
             return path
     hero = _pick_clear_hero(root)
-    if hero:
+    if hero and "倒出口" not in hero.name:
         return hero
-    for folder in ("M端", "M图", "副图", "主图", "A+"):
-        sub = root / folder
-        if not sub.is_dir():
-            continue
-        for path in sorted(sub.glob("*.jpg")):
-            if path.is_file():
-                return path
-    images = list_product_images(product_id)
-    return images[0] if images else None
+    return None
+
+
+def get_product_usage_pour_image(product_id: str) -> Path | None:
+    """倒出口参考：用法/倾倒演示锚点，不作产品身份垫图。"""
+    root = product_listing_dir(product_id)
+    if not root.is_dir():
+        return None
+    for rel in USAGE_POUR_CANDIDATES:
+        path = root / rel
+        if path.is_file():
+            return path
+    return None
+
+
+def get_product_hero_image(product_id: str) -> Path | None:
+    """兼容旧调用：等同于白底主图锚点。"""
+    return get_product_white_hero_image(product_id)
 
 
 def stage_seedance_source_image(project: Path, product_id: str) -> Path | None:
-    """将产品主图复制到交付项目 inputs/seedance-source.jpg，供 SeedDance 图生视频。"""
-    hero = get_product_hero_image(product_id)
+    """将白底主图复制到交付项目 inputs/seedance-source.*，供 SeedDance 图生视频。"""
+    hero = get_product_white_hero_image(product_id)
     if not hero:
         return None
     inputs = project / "inputs"

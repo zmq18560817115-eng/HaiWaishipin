@@ -81,10 +81,10 @@ THERMOS_USAGE_EN = (
 )
 
 THERMOS_PRODUCT_EN = (
-    "portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, "
-    "flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, "
-    "light-purple lid release button, nurture wise band, vertical digital Fahrenheit °F display showing ~98°F, "
-    "pour-spout reference photo"
+    "portable rechargeable milk-warming thermos cup — match approved white-background hero product photo exactly "
+    "for matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole, "
+    "light-purple lid release button, nurture wise band, vertical digital Fahrenheit °F display showing ~98°F; "
+    "no redesign, recolor, or simplification"
 )
 
 # 策划/分镜 visual 一行汇总

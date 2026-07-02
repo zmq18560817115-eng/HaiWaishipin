@@ -92,6 +92,13 @@ def _safe_suffix(character: dict[str, Any] | None, role: str) -> str:
     return "no person face, no medical claim, vertical 9:16, TikTok product ad style"
 
 
+def _product_hero_lock() -> str:
+    return (
+        "match approved white-background product hero photo exactly for color, silhouette, lid, display, logo zone; "
+        "no redesign or recolor"
+    )
+
+
 def build_shot_video_prompt(
     *,
     role: str,
@@ -105,6 +112,9 @@ def build_shot_video_prompt(
     story_shot = story_shot or {}
     explicit = str(pack_shot.get("seedance_prompt") or story_shot.get("notes") or "").strip()
     if len(explicit) >= 10:
+        hero_lock = _product_hero_lock()
+        if "white-background" not in explicit.lower() and "hero product photo" not in explicit.lower():
+            explicit = f"{explicit} {hero_lock}"
         if character and shot_needs_person(role) and "approved caregiver" not in explicit:
             person = build_character_prompt_block(character)
             return _clamp_prompt(f"{explicit} {person}")
@@ -118,18 +128,19 @@ def build_shot_video_prompt(
     person = build_character_prompt_block(character) if character and shot_needs_person(role) else ""
     cup = THERMOS_PRODUCT_EN
     usage = _usage_compact()
+    hero_lock = _product_hero_lock()
 
     role_key = (role or "").strip()
     if role_key == "钩子":
         if character and shot_needs_person(role_key):
             return _clamp_prompt(
                 f"Hook opening, {scene_en}, {person}, medium shot with {cup} beside separate baby bottle, "
-                f"cinematic soft light, subtle push-in, {safe}. {usage}. "
+                f"cinematic soft light, subtle push-in, {safe}. {usage}. {hero_lock}. "
                 f"Voiceover mood: {vo or 'attention grabbing'}"
             )
         return _clamp_prompt(
             f"Hook shot opening, {scene_en}, sharp close-up of {cup} on table, baby bottle beside, "
-            f"cinematic soft light, subtle push-in, {safe}. {usage}. "
+            f"cinematic soft light, subtle push-in, {safe}. {usage}. {hero_lock}. "
             f"Voiceover mood: {vo or 'attention grabbing'}"
         )
     if role_key == "痛点":
@@ -147,30 +158,30 @@ def build_shot_video_prompt(
             return _clamp_prompt(
                 f"Product demo, {scene_en}, {person}, side angle — flip-top lid open, pour milk INTO {cup}, "
                 f"then tilt to pour warm milk OUT from lid spout into baby feeding bottle, realistic pour physics, "
-                f"vertical display visible, {safe}. {usage}. {vo}"
+                f"vertical display visible, {safe}. {usage}. {hero_lock}. {vo}"
             )
         return _clamp_prompt(
             f"Product demo, {scene_en}, flip-top lid open — pour milk INTO {cup}; tilt to pour warm milk OUT "
-            f"from lid spout into baby feeding bottle, {safe}. {usage}. {vo}"
+            f"from lid spout into baby feeding bottle, {safe}. {usage}. {hero_lock}. {vo}"
         )
     if role_key == "证明":
         return _clamp_prompt(
             f"Proof detail shot, {scene_en}, macro of body-warm milk pouring OUT from lid spout of {cup} "
-            f"into baby feeding bottle, no steam plume or boiling bubbles, hinged lid open, {safe}. {usage}. {vo}"
+            f"into baby feeding bottle, no steam plume or boiling bubbles, hinged lid open, {safe}. {usage}. {hero_lock}. {vo}"
         )
     if role_key == "行动号召":
         if character and shot_needs_person(role_key):
             return _clamp_prompt(
                 f"CTA closing, {scene_en}, {person}, smiling with {cup} and baby bottle on clean surface, "
-                f"flip-top lid closed, digital display visible, {safe}. {usage}. {vo}"
+                f"flip-top lid closed, digital display visible, {safe}. {usage}. {hero_lock}. {vo}"
             )
         return _clamp_prompt(
             f"CTA closing shot, {scene_en}, {cup} with flip-top lid closed, baby bottle beside, "
-            f"digital display visible, {safe}. {usage}. {vo}"
+            f"digital display visible, {safe}. {usage}. {hero_lock}. {vo}"
         )
 
     return _clamp_prompt(
-        f"{scene_en}, {cup}, {_clean_en(visual, 80)}, cinematic product b-roll, {safe}. {usage}. {vo}"
+        f"{scene_en}, {cup}, {_clean_en(visual, 80)}, cinematic product b-roll, {safe}. {usage}. {hero_lock}. {vo}"
     )
 
 

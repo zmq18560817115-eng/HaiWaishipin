@@ -76,6 +76,22 @@ For shots where the product is visible, the white-background hero reference is m
 
 Do not let AI “interpret” or “improve” product design. If the hero image does not show a detail, do not invent it.
 
+## SeedDance / AI video image binding
+
+| Runtime file | Source asset | When |
+| --- | --- | --- |
+| `runs/ref-*/inputs/seedance-source.*` | `主图/白底主图` | Default I2V reference for any product-visible AI shot |
+| `runs/ref-*/inputs/seedance-usage-ref.*` | `主图/倒出口参考` | Proof / pour-demo shots only |
+| Person staged refs | `01_素材库/人像角色/` | Person-only pain shots without product in frame; person likeness stays in prompt when white hero is used |
+
+If generated product shape/color drifts, verify: (1) `白底主图` exists and is staged to `seedance-source`, (2) regenerate with `--force` after updating assets, (3) do not use pour reference as the only product image.
+
+## Syncing assets to GitHub
+
+- **Push only on the developer's local machine** (`git add` / `commit` / `push workflow main`). Product images under `01_素材库/产品资料/` should be committed from there.
+- **Intranet / LAN servers: pull only** (`git pull workflow main`). Do not run `git push`, `git commit`, or change git config on the deployment server.
+- Do not commit `.env`, `03_产出库` videos, or `overseas-loc-mvp/runs/`. See workspace `README_使用说明.md` for the full checklist.
+
 ## Scene consistency rules
 
 Choose one main scene for each short video unless the script has a clear transition reason.

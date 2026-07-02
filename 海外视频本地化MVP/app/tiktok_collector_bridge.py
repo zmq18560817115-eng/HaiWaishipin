@@ -66,14 +66,14 @@ class CollectorImportResult:
     total_dropped: int
     imported_new_links: int
     updated_existing_links: int
-    skipped_other_category: int = 0
-    imported_total: int = 0
     json_path: str | None
     csv_path: str | None
     clean_json_path: str | None
     clean_csv_path: str | None
     review_json_path: str | None
     output_dir: str
+    skipped_other_category: int = 0
+    imported_total: int = 0
 
 
 @dataclass(slots=True)

@@ -10,6 +10,8 @@
 
 `overseas-video-output-standards/` + `.cursor/rules/overseas-video-output-standards.mdc`
 
+**产品外观**：`主图/白底主图.png` 为 SeedDance 默认垫图。Git：**本机 push，内网只 pull**（见 `README_使用说明.md`）。
+
 ## 数据（勿写 legacy 路径）
 
 | 路径 | 用途 |

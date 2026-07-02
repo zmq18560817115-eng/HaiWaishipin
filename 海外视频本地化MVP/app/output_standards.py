@@ -12,7 +12,12 @@ from .character_assets import (
     pick_shot_reference_path,
     resolve_character,
 )
-from .product_assets import get_product_hero_image, list_product_images, product_listing_dir
+from .product_assets import (
+    get_product_usage_pour_image,
+    get_product_white_hero_image,
+    list_product_images,
+    product_listing_dir,
+)
 from .scene_script import resolve_scenario_profile, scenario_conflict_note
 
 KNOWLEDGE_PRODUCTS = WORKFLOW_ROOT / "overseas-loc-mvp" / "knowledge" / "products"
@@ -47,7 +52,8 @@ def build_product_sources(product_id: str) -> list[dict[str, str]]:
 
 def build_asset_manifest(product_id: str) -> list[dict[str, Any]]:
     listing = product_listing_dir(product_id)
-    hero = get_product_hero_image(product_id)
+    white = get_product_white_hero_image(product_id)
+    pour = get_product_usage_pour_image(product_id)
     manifest: list[dict[str, Any]] = []
 
     def add(path: Path | None, asset_type: str, allowed: str, forbidden: str = "") -> None:
@@ -63,21 +69,12 @@ def build_asset_manifest(product_id: str) -> list[dict[str, Any]]:
             "forbidden_use": forbidden,
         })
 
-    add(hero, "product_identity", "SeedDance 垫图、产品外观锚点（严格对照白底主图，禁止改造型）", "私自改色、改结构、简化外观")
-    pour = listing / "主图" / "倒出口参考.png"
-    if not pour.is_file():
-        pour = listing / "主图" / "倒出口参考.jpg"
-    add(pour, "usage_step", "倒出口/翻盖/倾斜出液演示（物理逻辑锚点）", "宽口直倒、奶瓶入杯、违反重力/流向")
-    white = listing / "主图" / "白底主图.png"
-    if not white.is_file():
-        white = listing / "主图" / "白底主图.jpg"
-    add(white, "product_identity", "白底主图：产品身份与外观唯一锚点", "任何与白底主图不一致的改型、改色、改比例")
+    add(white, "product_identity", "白底主图：产品身份与外观唯一锚点；SeedDance 默认垫图", "任何与白底主图不一致的改型、改色、改比例")
+    add(pour, "usage_step", "倒出口/翻盖/倾斜出液演示（物理逻辑锚点）", "宽口直倒、奶瓶入杯、违反重力/流向；禁止替代白底主图作外观垫图")
 
     scene_dirs = ("M端", "副图", "A+")
     for path in list_product_images(product_id):
-        if hero and path.resolve() == hero.resolve():
-            continue
-        if white.is_file() and path.resolve() == white.resolve():
+        if white and path.resolve() == white.resolve():
             continue
         sub = path.parent.name
         if sub in scene_dirs:
@@ -266,8 +263,8 @@ def build_delivery_risks(
 ) -> dict[str, Any]:
     blockers: list[str] = []
     warnings: list[str] = []
-    if any(a.get("approval_status") == "needs_review" for a in asset_manifest):
-        blockers.append("缺少已批准产品主图/垫图")
+    if not any(a.get("asset_type") == "product_identity" and a.get("source_path") for a in asset_manifest):
+        blockers.append("缺少已批准白底主图（主图/白底主图.png）")
     if any(s.get("asset_path_or_status") == "missing" for s in shot_asset_map):
         blockers.append("部分镜头缺少素材路径")
     if scene_continuity.get("conflict_note"):

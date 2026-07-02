@@ -39,7 +39,24 @@ def main() -> int:
         results.append(check(f"skill:{rel}", p.is_file(), str(p)))
 
     pour = PRODUCT_MATERIALS_DIR / "便携恒温杯" / "listing-0602-nw" / "主图" / "倒出口参考.png"
+    white = PRODUCT_MATERIALS_DIR / "便携恒温杯" / "listing-0602-nw" / "主图" / "白底主图.png"
     results.append(check("asset:倒出口参考.png", pour.is_file(), str(pour)))
+    results.append(check("asset:白底主图.png", white.is_file(), str(white)))
+
+    from app.product_assets import get_product_hero_image, get_product_usage_pour_image, get_product_white_hero_image  # noqa: E402
+
+    hero = get_product_white_hero_image("便携恒温杯")
+    pour_img = get_product_usage_pour_image("便携恒温杯")
+    hero_ok = hero is not None and "白底" in hero.name
+    results.append(check("code:white_hero resolves", hero_ok, str(hero) if hero else "missing"))
+    results.append(
+        check(
+            "code:hero != pour",
+            hero is not None and pour_img is not None and hero.resolve() != pour_img.resolve(),
+            f"hero={hero.name if hero else '-'} pour={pour_img.name if pour_img else '-'}",
+        )
+    )
+    results.append(check("code:get_product_hero_image alias", get_product_hero_image("便携恒温杯") == hero, "white hero alias"))
 
     skill_text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8", errors="ignore")
     fidelity_keywords = ("白底主图", "production_fidelity", "physics", "hero lock")

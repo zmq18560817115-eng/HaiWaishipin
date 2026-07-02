@@ -78,8 +78,8 @@ Preferred scenes:
 
 High-value reference images:
 
-- `主图\白底主图.png` — **mandatory** product identity anchor; all visible product shots must match this appearance.
-- `主图\倒出口参考.png` — **mandatory** for pour/demo shots; correct pouring-spout/lid behavior and physics.
+- `主图\白底主图.png` — **mandatory** product identity anchor; all visible product shots must match this appearance. **SeedDance default image-to-video reference** (`inputs/seedance-source.*`). Never substitute `倒出口参考` for appearance lock.
+- `主图\倒出口参考.png` — **mandatory** for pour/demo shots only; correct pouring-spout/lid behavior and physics. Used as `inputs/seedance-usage-ref.*` for proof/solution shots — not for general product identity.
 - Listing `M端` and `副图` scene images — **mandatory** for the selected scenario; usage flow and environment must follow the matching scene ref.
 - Detail images — battery, heating, waterproof, anti-leak, size, or structural inserts; only when the product doc supports the wording.
 

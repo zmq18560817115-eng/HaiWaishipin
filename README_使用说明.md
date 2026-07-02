@@ -44,6 +44,74 @@
 | `本地生成视频.cmd` | 命令行 SeedDance 出片 |
 | `运行TikTok抓取工作流.cmd` | 同步竞品元数据（可选） |
 
+## 产品资料与 GitHub 同步
+
+### 白底主图（产品外观唯一锚点）
+
+AI 出片时，**产品可见镜头**必须严格对照白底主图，不得改造型、改色、改盖型或改倒出口布局。
+
+| 文件 | 用途 | SeedDance 垫图 |
+|------|------|----------------|
+| `主图/白底主图.png` | 产品身份、颜色、比例、Logo、数显 | **默认垫图** → `inputs/seedance-source.*` |
+| `主图/倒出口参考.png` | 倾倒/翻盖演示、物理流向 | 仅「证明」「方案」镜 → `inputs/seedance-usage-ref.*` |
+| `M端/`、`副图/` | 场景用法与环境 | 场景锚点，不作外观垫图 |
+
+目录示例：
+
+```text
+01_素材库/产品资料/便携恒温杯/listing-0602-nw/
+  主图/白底主图.png      ← 必传
+  主图/倒出口参考.png    ← 演示镜必传
+  M端/…                  ← 按场景选用
+  副图/…
+```
+
+更新白底图后：
+
+1. 替换 `01_素材库/产品资料/{产品}/listing-*/主图/白底主图.png`
+2. 在 8788 重新「生成脚本」或执行 `refresh_project_seedance_source` 刷新垫图
+3. 用 `本地生成视频.cmd {编号} --force` 强制重跑分镜
+
+详细规则见 `overseas-video-output-standards/references/product-rules.md`。
+
+### 推送到 GitHub（仅开发者本机，内网服务器不操作）
+
+> **分工：** `git push` 只在你的开发电脑上做；内网部署机**只做** `git pull`，**不要**在内网服务器上 `git push`、`git commit` 或改 Git 配置。
+
+仓库：`https://github.com/zmq18560817115-eng/-Overseas-Video-Localization-Workflow`（远程名 `workflow`）
+
+**建议提交（会进 Git）：**
+
+| 类型 | 路径示例 |
+|------|----------|
+| 代码与脚本 | `海外视频本地化MVP/`、`overseas-loc-mvp/`、`*.cmd` |
+| 出稿 Skill | `overseas-video-output-standards/` |
+| 产品资料 | `01_素材库/产品资料/**/*.png`、`.md` |
+| 人像角色 | `01_素材库/人像角色/` |
+| 竞品索引 | `01_素材库/竞品对标/数据表/` |
+
+**不要提交（已在 .gitignore 或应保留各机本地）：**
+
+| 路径 | 原因 |
+|------|------|
+| `overseas-loc-mvp/.env`、`海外视频本地化MVP/.env` | API 密钥 |
+| `03_产出库/**/*.mp4`、`overseas-loc-mvp/runs/` | 运行时成片 |
+| `01_素材库/脚本快照/` | 本地快照 |
+| `06_备份库/` | 备份 |
+
+**开发者本机推送（示例）：**
+
+```powershell
+cd C:\Users\bu\Documents\海外视频本地化工作流
+git status
+git add 01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/白底主图.png
+git add 海外视频本地化MVP/app/product_assets.py
+git commit -m "fix: 白底主图作 SeedDance 默认垫图，更新便携恒温杯主图"
+git push workflow main
+```
+
+推送完成后，由内网管理员在服务器上 `git pull`（见下文「内网更新」），**无需在内网机器上重复 push**。
+
 ## 内网部署（团队）
 
 1. `git clone` 本仓库到服务器（如 `D:\vl-workflow`）
@@ -55,21 +123,16 @@
 
 用户可在页面下载成片 zip；服务器同时保留 `03_产出库` 版本归档。
 
-### 内网更新（开发者 push 之后）
+### 内网更新（开发者本机 push 之后）
 
-**推送到 GitHub 不会自动改内网。** 内网服务器是独立副本，需要手动拉代码并重启服务。
+**GitHub 不会自动改内网。** 流程是：开发电脑 `push` → 内网服务器 `pull` → 重启服务。
 
-**开发者（本机）：**
+| 角色 | 机器 | Git 操作 |
+|------|------|----------|
+| 开发者 | 本机（如 `C:\Users\bu\Documents\…`） | `git add` / `commit` / **`push workflow main`** |
+| 运维 / 管理员 | 内网服务器（如 `D:\vl-workflow`） | **仅** `git pull workflow main`，**不要 push** |
 
-```text
-git add …
-git commit -m "…"
-git push workflow main
-```
-
-仓库地址：https://github.com/zmq18560817115-eng/-Overseas-Video-Localization-Workflow
-
-**内网服务器（运维 / 管理员）：**
+**内网服务器操作步骤：**
 
 1. 关闭正在运行的工作台窗口（标题含「本地化工作台-内网」）
 2. 在工作区目录执行：
@@ -81,18 +144,19 @@ git pull workflow main
 
 3. 若 `requirements.txt` 等有变动，再运行一次 `检查开发环境.cmd`
 4. 双击 **`部署内网.cmd`** 重新启动
-5. 浏览器访问 `http://<服务器IP>:8788`，确认页面正常（设置页可看版本/健康检查）
+5. 浏览器访问 `http://<服务器IP>:8788`，确认页面正常
 
-**会随 `git pull` 更新：** 页面 UI、后端逻辑、`.cmd` 脚本、`.env.example` 模板。
+**会随 `git pull` 落到内网：** 代码、`.cmd` 脚本、出稿 Skill、**已 push 的产品资料与人像素材**、竞品 CSV 等。
 
-**不会随 Git 同步（保留在服务器本地）：**
+**不会从 GitHub 覆盖、保留在各自机器本地：**
 
 | 路径 | 说明 |
 |------|------|
-| `overseas-loc-mvp/.env` | API 密钥，每台服务器单独配置 |
+| `overseas-loc-mvp/.env` | API 密钥，每台机器单独配置 |
 | `海外视频本地化MVP/.env` | 内网监听地址、访问 Token |
-| `01_素材库/` ~ `05_反馈库/` | 业务数据与成片 |
-| `06_备份库/` | 定时备份 |
+| `03_产出库/`、`04_成稿库/`、`05_反馈库/` | 业务成片与索引（内网产出，不回推 Git） |
+| `overseas-loc-mvp/runs/` | 工作副本 |
+| `06_备份库/` | 备份 |
 
 更新前若有进行中的出片任务，建议等任务结束再重启，避免中断。
 

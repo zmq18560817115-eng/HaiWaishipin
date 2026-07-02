@@ -8,7 +8,7 @@ from typing import Any
 
 from paths import MATERIAL_LIBRARY_DIR, WORKFLOW_ROOT
 
-from .product_assets import get_product_hero_image, product_listing_dir
+from .product_assets import get_product_usage_pour_image, get_product_white_hero_image, product_listing_dir
 
 CHARACTER_LIBRARY_DIR = MATERIAL_LIBRARY_DIR / "人像角色"
 MANIFEST_PATH = CHARACTER_LIBRARY_DIR / "characters.json"
@@ -97,6 +97,36 @@ def shot_needs_person(role: str, footage_type: str | None = None) -> bool:
     return ft in ("AI_VIDEO",) and role not in PRODUCT_FOCUS_ROLES
 
 
+PRODUCT_VISIBLE_ROLES = frozenset({"钩子", "方案", "证明", "行动号召"})
+
+
+def _staged_path(project: Path | None, pattern: str) -> Path | None:
+    if not project:
+        return None
+    inputs = project / "inputs"
+    if not inputs.is_dir():
+        return None
+    if "*" in pattern:
+        for path in sorted(inputs.glob(pattern)):
+            if path.is_file():
+                return path
+        return None
+    path = inputs / pattern
+    return path if path.is_file() else None
+
+
+def shot_includes_product(role: str, visual: str = "", footage_type: str | None = None) -> bool:
+    role = (role or "").strip()
+    if role in PRODUCT_FOCUS_ROLES | PRODUCT_VISIBLE_ROLES:
+        return True
+    ft = (footage_type or "").strip()
+    if ft == "AI_BROLL":
+        return True
+    blob = f"{visual} {role}".lower()
+    keys = ("thermos", "cup", "bottle warmer", "杯", "奶瓶", "恒温", "倒", "握", "warm milk", "product")
+    return any(k in blob or k in (visual or "") for k in keys)
+
+
 def pick_shot_reference_path(
     *,
     product_id: str,
@@ -112,22 +142,35 @@ def pick_shot_reference_path(
     """
     role = (role or "").strip()
     listing = product_listing_dir(product_id)
-    pour = listing / "主图" / "倒出口参考.png"
-    if not pour.is_file():
-        pour = listing / "主图" / "倒出口参考.jpg"
+    pour = get_product_usage_pour_image(product_id)
+    white = get_product_white_hero_image(product_id)
 
     if role in PRODUCT_FOCUS_ROLES:
-        if project:
-            for name in ("seedance-usage-ref.png", "seedance-usage-ref.jpg"):
-                staged = project / "inputs" / name
-                if staged.is_file():
-                    return staged, "usage_step"
-        if pour.is_file():
+        staged = _staged_path(project, "seedance-usage-ref.*")
+        if staged:
+            return staged, "usage_step"
+        if pour:
             return pour, "usage_step"
-        hero = get_product_hero_image(product_id)
-        return hero, "product_identity"
+        staged_white = _staged_path(project, "seedance-source.*")
+        if staged_white:
+            return staged_white, "product_identity"
+        return white, "product_identity"
 
-    if character and shot_needs_person(role, footage_type):
+    if role in ("方案", "证明") and pour:
+        staged = _staged_path(project, "seedance-usage-ref.*")
+        if staged:
+            return staged, "usage_step"
+        return pour, "usage_step"
+
+    ft = (footage_type or "").strip()
+    if shot_includes_product(role, visual, footage_type) and ft in ("AI_BROLL", "AI_VIDEO", "LIVE_ACTION", ""):
+        staged_white = _staged_path(project, "seedance-source.*")
+        if staged_white:
+            return staged_white, "product_identity"
+        if white:
+            return white, "product_identity"
+
+    if character and shot_needs_person(role, footage_type) and not shot_includes_product(role, visual, footage_type):
         view = pick_character_view(role, visual=visual)
         cref = character_view_path(character, view)
         if project:
@@ -136,24 +179,11 @@ def pick_shot_reference_path(
                 return staged, "person"
         if cref:
             return cref, "person"
-        if role in ("方案", "证明") and pour.is_file():
-            return pour, "usage_step"
 
-    if role in ("方案", "证明") and pour.is_file():
-        if project:
-            for name in ("seedance-usage-ref.png", "seedance-usage-ref.jpg"):
-                staged = project / "inputs" / name
-                if staged.is_file():
-                    return staged, "usage_step"
-        return pour, "usage_step"
-    hero = get_product_hero_image(product_id)
-    if project:
-        inputs = project / "inputs"
-        if inputs.is_dir():
-            for path in sorted(inputs.glob("seedance-source.*")):
-                if path.is_file():
-                    return path, "product_identity"
-    return hero, "product_identity"
+    staged_white = _staged_path(project, "seedance-source.*")
+    if staged_white:
+        return staged_white, "product_identity"
+    return white, "product_identity"
 
 
 def build_character_prompt_block(character: dict[str, Any] | None) -> str:
@@ -260,17 +290,14 @@ def stage_project_production_assets(
     product_id: str,
     market: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """交付前注入产品垫图 + 倒出口参考 + 角色三视图。"""
-    from .product_assets import stage_seedance_source_image
+    """交付前注入白底主图垫图 + 倒出口参考 + 角色三视图。"""
+    from .product_assets import get_product_usage_pour_image, stage_seedance_source_image
 
     character = resolve_character(market)
     product_ref = stage_seedance_source_image(project, product_id)
-    listing = product_listing_dir(product_id)
+    pour = get_product_usage_pour_image(product_id)
     usage_ref = ""
-    pour = listing / "主图" / "倒出口参考.png"
-    if not pour.is_file():
-        pour = listing / "主图" / "倒出口参考.jpg"
-    if pour.is_file():
+    if pour:
         inputs = project / "inputs"
         inputs.mkdir(parents=True, exist_ok=True)
         usage_dest = inputs / f"seedance-usage-ref{pour.suffix.lower()}"
