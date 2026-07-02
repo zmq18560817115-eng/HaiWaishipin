@@ -274,6 +274,19 @@
       <div id="seedanceFinalPreview" class="seedance-final-preview hidden"></div>
     </div>
     <footer class="product-float-foot script-float-foot">
+      <div id="scriptGenProgress" class="seedance-progress script-gen-progress hidden" aria-live="polite">
+        <div class="seedance-progress-row">
+          <span class="seedance-progress-label">脚本生成</span>
+          <div class="seedance-progress-status-wrap">
+            <span id="scriptGenProgressStatus" class="seedance-progress-status muted">准备中…</span>
+            <span id="scriptGenProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div id="scriptGenProgressFill" class="seedance-progress-fill"></div>
+        </div>
+        <p id="scriptGenProgressMeta" class="seedance-progress-meta muted"></p>
+      </div>
       <a class="btn-link hidden js-script-download" id="scriptDownloadBtnBottom" href="#" download>下载成片 zip</a>
       <div class="script-float-actions">
         <button type="button" class="secondary pill-btn" id="scriptFloatRegenBtn">重新生成脚本</button>

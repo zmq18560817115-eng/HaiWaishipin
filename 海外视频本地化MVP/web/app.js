@@ -283,6 +283,53 @@ function refreshTagGroupsUI() {
   }
 }
 
+function hasActiveTagSelection() {
+  return ["audience", "scenarios", "selling", "pains"].some(
+    (k) => (state.tagSelection?.[k] || []).length > 0,
+  );
+}
+
+function syncProductTagPanelFromPreview(p, deliveryTags, savedTags) {
+  const pool = buildTagPool(p, deliveryTags || {});
+  state.currentTagPool = pool;
+  if (!hasActiveTagSelection()) {
+    renderProductPanel(p, deliveryTags || {}, savedTags || {});
+  } else {
+    refreshTagGroupsUI();
+  }
+}
+
+function packMatchesCurrentTags(pack) {
+  const m = pack?.inputs?.market || pack?.inputs?.personalization || {};
+  const cur = readAllSelectedTags();
+  const same = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+  return same(m.audience_tags || m.audience, cur.audience)
+    && same(m.scenario_tags || m.scenarios, cur.scenarios)
+    && same(m.selling_tags || m.selling, cur.selling)
+    && same(m.pain_tags || m.pains, cur.pains);
+}
+
+function formatPersonalizationBanner(pack) {
+  const p = pack?.inputs?.personalization;
+  const summary = pack?.personalization_summary || "";
+  const lines = [];
+  if (p) {
+    if (p.audience_tags?.length) lines.push(`<span class="pack-pers-chip">人群 ${esc(p.audience_tags.join("、"))}</span>`);
+    if (p.scenario_tags?.length) lines.push(`<span class="pack-pers-chip pack-pers-chip-scene">场景 ${esc(p.primary_scene || p.scenario_tags[0])}</span>`);
+    if (p.selling_tags?.length) lines.push(`<span class="pack-pers-chip">卖点 ${esc(p.selling_tags.join("、"))}</span>`);
+    if (p.pain_tags?.length) lines.push(`<span class="pack-pers-chip">痛点 ${esc(p.pain_tags.join("、"))}</span>`);
+  } else if (summary) {
+    lines.push(`<span class="pack-pers-chip">${esc(summary)}</span>`);
+  }
+  if (!lines.length) return "";
+  const stale = !packMatchesCurrentTags(pack);
+  return `<div class="pack-personalization${stale ? " pack-personalization-stale" : ""}">
+    <div class="pack-personalization-head">个性化定制${stale ? " · 与当前产品定义不一致" : ""}</div>
+    <div class="pack-personalization-chips">${lines.join("")}</div>
+    ${stale ? '<p class="workflow-warn pack-personalization-warn">产品标签已变更，请点击「重新生成脚本」同步场景/卖点/痛点。</p>' : ""}
+  </div>`;
+}
+
 function formatStoryboardHtml(storyboard) {
   const shots = storyboard || [];
   if (!shots.length) return '<p class="muted">暂无分镜</p>';
@@ -330,6 +377,7 @@ function formatPackResult(pack, meta) {
   const voiceover = String(pack.voiceover_20s || "").trim();
   return `
     <h3>脚本已生成</h3>
+    ${formatPersonalizationBanner(pack)}
     ${providerLine ? `<p class="pack-summary-line">${providerLine}</p>` : ""}
     ${tagSummary ? `<p class="pack-summary-line">${esc(tagSummary)}</p>` : ""}
     ${sceneNote ? `<p class="pack-summary-line">${esc(sceneNote)}</p>` : ""}
@@ -500,6 +548,110 @@ const SEEDANCE_COUNTDOWN_PHASE_SEC = {
   delivery: 60,
 };
 
+let scriptGenCountdownTimer = null;
+let scriptGenCountdownRemaining = 0;
+let scriptGenCountdownTotal = 0;
+
+function stopScriptGenCountdown() {
+  if (scriptGenCountdownTimer) {
+    clearInterval(scriptGenCountdownTimer);
+    scriptGenCountdownTimer = null;
+  }
+  scriptGenCountdownRemaining = 0;
+  scriptGenCountdownTotal = 0;
+  const countdown = document.getElementById("scriptGenProgressCountdown");
+  if (countdown) {
+    countdown.textContent = "";
+    countdown.classList.add("hidden");
+  }
+}
+
+function syncScriptGenCountdownProgressFill() {
+  if (!scriptGenCountdownTotal) return;
+  const fill = document.getElementById("scriptGenProgressFill");
+  const bar = document.getElementById("scriptGenProgress");
+  if (!fill || !bar || bar.classList.contains("hidden")) return;
+  const pct = scriptGenCountdownRemaining > 0
+    ? Math.min(92, Math.round((1 - scriptGenCountdownRemaining / scriptGenCountdownTotal) * 100))
+    : 95;
+  fill.classList.remove("indeterminate");
+  fill.style.width = `${pct}%`;
+  bar.querySelector(".seedance-progress-track")?.setAttribute("aria-valuenow", String(pct));
+}
+
+function syncScriptGenCountdownUi() {
+  const label = scriptGenCountdownRemaining > 0
+    ? `预计剩余 ${formatCountdownMmSs(scriptGenCountdownRemaining)}`
+    : "比预计稍久，继续生成中…";
+  const countdown = document.getElementById("scriptGenProgressCountdown");
+  const bar = document.getElementById("scriptGenProgress");
+  if (countdown && bar && !bar.classList.contains("hidden")) {
+    countdown.textContent = label;
+    countdown.classList.remove("hidden");
+  }
+  const regenBtn = document.getElementById("scriptFloatRegenBtn");
+  if (regenBtn?.dataset.busy === "1") {
+    regenBtn.textContent = scriptGenCountdownRemaining > 0
+      ? `生成中 ${formatCountdownMmSs(scriptGenCountdownRemaining)}…`
+      : "生成中，继续等待…";
+  }
+  syncScriptGenCountdownProgressFill();
+}
+
+function startScriptGenCountdown(seconds) {
+  stopScriptGenCountdown();
+  scriptGenCountdownTotal = Math.max(30, Math.round(seconds));
+  scriptGenCountdownRemaining = scriptGenCountdownTotal;
+  syncScriptGenCountdownUi();
+  scriptGenCountdownTimer = setInterval(() => {
+    scriptGenCountdownRemaining = Math.max(0, scriptGenCountdownRemaining - 1);
+    syncScriptGenCountdownUi();
+  }, 1000);
+}
+
+function showScriptProgress(show, { status, percent, indeterminate, pipeline, countdownSec } = {}) {
+  const bar = document.getElementById("scriptGenProgress");
+  const statusEl = document.getElementById("scriptGenProgressStatus");
+  const fill = document.getElementById("scriptGenProgressFill");
+  const meta = document.getElementById("scriptGenProgressMeta");
+  const track = bar?.querySelector(".seedance-progress-track");
+  if (!bar) return;
+
+  if (show && countdownSec != null && countdownSec > 0) startScriptGenCountdown(countdownSec);
+  if (!show) stopScriptGenCountdown();
+
+  bar.classList.toggle("hidden", !show);
+  if (!show) {
+    fill?.classList.remove("indeterminate");
+    if (fill) fill.style.width = "";
+    if (statusEl) statusEl.textContent = "准备中…";
+    if (meta) meta.textContent = "";
+    return;
+  }
+
+  if (status && statusEl) statusEl.textContent = status;
+  if (pipeline != null && meta) meta.textContent = pipeline;
+  if (fill) {
+    fill.classList.toggle("indeterminate", Boolean(indeterminate));
+    if (percent != null) fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+  }
+  if (track && percent != null) track.setAttribute("aria-valuenow", String(Math.round(percent)));
+}
+
+function resetScriptProgress() {
+  stopScriptGenCountdown();
+  const fill = document.getElementById("scriptGenProgressFill");
+  if (fill) {
+    fill.classList.remove("indeterminate");
+    fill.style.width = "";
+  }
+  const meta = document.getElementById("scriptGenProgressMeta");
+  if (meta) meta.textContent = "";
+  const statusEl = document.getElementById("scriptGenProgressStatus");
+  if (statusEl) statusEl.textContent = "准备中…";
+  showScriptProgress(false);
+}
+
 let seedanceCountdownTimer = null;
 let seedanceCountdownRemaining = 0;
 let seedanceCountdownTotal = 0;
@@ -629,6 +781,31 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
   else if (visible && !wasVisible) syncDockScrollPadding();
 }
 
+function resetSeedanceProgressDock() {
+  stopSeedanceCountdown();
+  state.seedanceProgressPersist = false;
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const fill = document.getElementById(ids.fill);
+    if (fill) {
+      fill.classList.remove("indeterminate");
+      fill.style.width = "";
+    }
+    const meta = document.getElementById(ids.meta);
+    if (meta) {
+      meta.textContent = "";
+      meta.innerHTML = "";
+    }
+    const statusEl = document.getElementById(ids.status);
+    if (statusEl) statusEl.textContent = "准备中…";
+    const countdown = document.getElementById(ids.countdown);
+    if (countdown) {
+      countdown.textContent = "";
+      countdown.classList.add("hidden");
+    }
+  }
+  showSeedanceProgress(false);
+}
+
 function renderSeedanceFinalPreview(slug, seedance) {
   const box = document.getElementById("seedanceFinalPreview");
   if (!box) return;
@@ -685,19 +862,10 @@ async function runStartCreate() {
 }
 
 function renderDockProduceComplete(slug, message) {
-  stopSeedanceCountdown();
-  showSeedanceProgress(true, {
-    status: message || "成片已就绪",
-    percent: 100,
-    persist: true,
-  });
-  const linkHtml = slug
-    ? `<a class="seedance-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`)}" download>下载成片 zip</a>`
-    : "";
-  for (const id of ["seedancePipelineCompact", "imitateSeedancePipelineCompact"]) {
-    const meta = document.getElementById(id);
-    if (meta && linkHtml) meta.innerHTML = linkHtml;
-  }
+  const msg = message || "视频生成完成，可下载 zip 或预览成片";
+  if (slug) syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+  setScriptActionStatus(msg);
+  resetSeedanceProgressDock();
 }
 
 async function runConfirmProduceVideo() {
@@ -736,7 +904,7 @@ async function runConfirmProduceVideo() {
     }
   } finally {
     state.createPipelineActive = false;
-    if (!state.seedanceProgressPersist) showSeedanceProgress(false);
+    resetSeedanceProgressDock();
     if (produceBtn) {
       delete produceBtn.dataset.busy;
       produceBtn.disabled = false;
@@ -1105,7 +1273,7 @@ async function runViralBenchmarkPipeline(linkId) {
     if (ok && slug && finalReady) {
       syncDownloadLinks(`/api/delivery/${slug}/zip`, true);
       renderDockProduceComplete(slug, "对标流水线完成：可下载 zip 或预览成片");
-      setScriptActionStatus("对标视频已用于生成，成片见底部进度条");
+      setScriptActionStatus("视频生成完成，可下载 zip 或预览成片");
     } else if (slug && !finalReady) {
       setScriptActionStatus("分镜已生成，成片拼接未完成；请检查 ffmpeg 或重新生成");
     }
@@ -1116,7 +1284,7 @@ async function runViralBenchmarkPipeline(linkId) {
   } finally {
     state.viralPipelineBusy = false;
     state.createPipelineActive = false;
-    if (!state.seedanceProgressPersist) showSeedanceProgress(false);
+    resetSeedanceProgressDock();
     forEachDockRunBtn((runBtn) => {
       delete runBtn.dataset.busy;
       runBtn.disabled = false;
@@ -1698,11 +1866,12 @@ function initModuleStudios() {
       await runViralBenchmarkPipeline(pendingViral);
       return;
     }
-    await refreshScriptPreview();
     if (hadScript && (tagsChanged || productChanged)) {
       await runScriptGenerate();
+      await refreshScriptPreview();
       openScriptFloatPanel();
     } else {
+      await refreshScriptPreview();
       updateLoopBarFromForm(state.lastPreview || {});
       syncDockProductSlot();
       syncDockRefSlot();
@@ -2232,7 +2401,9 @@ function updateLoopBarFromForm(prev = {}) {
   const hasScript = Boolean(prev.has_script) || Boolean(prev.delivery_ready);
   syncScriptProduceEmpty(hasScript);
   if (hint) {
-    if (state.scriptStep === "produce" && prev.delivery_ready) {
+    if (tagsChangedSinceScript() && hasScript) {
+      hint.textContent = "产品定义已更新（场景/卖点/痛点），请重新生成脚本以同步个性化内容。";
+    } else if (state.scriptStep === "produce" && prev.delivery_ready) {
       hint.textContent = "成片已完成：可下载 zip 或预览视频。";
     } else if (state.scriptStep === "produce" && hasScript) {
       hint.textContent = "请检查脚本与分镜，确认无误后点击「确认生成视频」。";
@@ -3673,7 +3844,7 @@ async function refreshScriptPreview() {
       <div class="field-compact"><label>字幕布局</label><p>${esc(a.subtitle_layout)}</p></div>
     </div>`;
     const p = prev.product || {};
-    renderProductPanel(p, prev.delivery_tags || {}, prev.selected_tags || {});
+    syncProductTagPanelFromPreview(p, prev.delivery_tags || {}, prev.selected_tags || {});
     updateLoopBarFromForm(prev);
     if (prev.delivery_ready) {
       syncDownloadLinks(`/api/delivery/${prev.slug}/zip`, true);
@@ -3778,8 +3949,24 @@ async function runScriptGenerate() {
     return;
   }
   setScriptStep("produce");
+  openScriptFloatPanel();
   genBtns.forEach((b) => { b.disabled = true; });
-  if (resultEl) resultEl.innerHTML = "正在生成脚本…";
+  const regenBtn = document.getElementById("scriptFloatRegenBtn");
+  const produceBtn = document.getElementById("scriptFloatProduceBtn");
+  if (regenBtn) {
+    regenBtn.disabled = true;
+    regenBtn.dataset.busy = "1";
+  }
+  if (produceBtn) produceBtn.disabled = true;
+  showScriptProgress(true, {
+    status: "正在根据产品标签与对标结构生成脚本…",
+    indeterminate: true,
+    pipeline: state.healthCache?.llm?.label || "",
+    countdownSec: SEEDANCE_COUNTDOWN_PHASE_SEC.script,
+  });
+  if (resultEl) {
+    resultEl.innerHTML = '<p class="muted script-gen-placeholder">LLM 正在撰写分镜与旁白，底部进度条显示预计剩余时间。</p>';
+  }
   setScriptActionStatus("");
   try {
     const vs = currentVideoSettings();
@@ -3828,7 +4015,14 @@ async function runScriptGenerate() {
     if (resultEl) resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
     if (String(err.message || "").includes("配额")) syncDailyScriptQuota();
   } finally {
+    showScriptProgress(false);
+    if (regenBtn) {
+      regenBtn.disabled = false;
+      delete regenBtn.dataset.busy;
+      regenBtn.textContent = "重新生成脚本";
+    }
     genBtns.forEach((b) => { b.disabled = false; });
+    syncDockRunButtonsDisabled();
     syncDailyScriptQuota();
   }
 }
@@ -3913,9 +4107,20 @@ async function runSeedanceGenerate(options = {}) {
   });
   setScriptActionStatus(force ? "强制重生成中…" : "正在生成分镜视频，请耐心等待…");
   const hintEl = document.getElementById("seedanceHint");
+  const vs = currentVideoSettings();
   try {
     const qs = force ? "?force=1" : "";
-    const data = await api(`/api/delivery/${encodeURIComponent(slug)}/seedance/run${qs}`, { method: "POST" });
+    const data = await api(`/api/delivery/${encodeURIComponent(slug)}/seedance/run${qs}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resolution: vs.resolution,
+        aspect_ratio: vs.aspectRatio,
+        duration_sec: vs.durationSec,
+        generate_count: vs.generateCount,
+        edit_mode: vs.editMode,
+      }),
+    });
     renderSeedance(slug, data.seedance, state.healthCache);
     const failed = (data.results || []).filter((r) => r.status === "error");
     const skipped = (data.results || []).filter((r) => r.status === "skipped");
@@ -3927,9 +4132,13 @@ async function runSeedanceGenerate(options = {}) {
         ? `火山方舟密钥失效：${failed[0].message}。请到「设置」→ 测试连接，或更新 overseas-loc-mvp/.env 中的 ARK_API_KEY 后重启工作台。`
         : `部分失败：${failed.map((r) => `镜${r.number} ${r.message}`).join("；")}`;
     } else if (finalReady) {
+      const prod = data.video_production || {};
+      const spec = prod.resolution_ui && prod.aspect_ratio
+        ? `（${prod.resolution_ui} · ${prod.aspect_ratio}）`
+        : `（${vs.resolution} · ${vs.aspectRatio}）`;
       msg = force
-        ? `已强制重生成 ${okCount || "5"} 镜并拼接成片，可预览 mp4 或下载 zip`
-        : "视频生成完成，可预览 mp4 或下载 zip";
+        ? `已强制重生成 ${okCount || "5"} 镜并拼接成片${spec}，可预览 mp4 或下载 zip`
+        : `视频生成完成${spec}，可预览 mp4 或下载 zip`;
     } else if (okCount > 0) {
       const asm = data.assemble?.message || "分镜已生成，但成片拼接未完成";
       msg = `${asm}。请确认 ffmpeg 可用后重试；zip 内仅有分镜 mp4。`;
@@ -3942,12 +4151,14 @@ async function runSeedanceGenerate(options = {}) {
     }
     if (hintEl) hintEl.textContent = msg;
     stopSeedanceCountdown();
-    showSeedanceProgress(true, {
-      status: finalReady ? "成片已就绪" : msg,
-      pipeline: data.seedance?.pipeline || "",
-      percent: finalReady ? 100 : undefined,
-      indeterminate: !finalReady && !failed.length,
-    });
+    if (!background) {
+      showSeedanceProgress(true, {
+        status: finalReady ? "成片已就绪" : msg,
+        pipeline: data.seedance?.pipeline || "",
+        percent: finalReady ? 100 : undefined,
+        indeterminate: !finalReady && !failed.length,
+      });
+    }
     setScriptActionStatus(msg);
     if (finalReady) {
       syncDownloadLinks(`/api/delivery/${slug}/zip?ts=${Date.now()}`, true);

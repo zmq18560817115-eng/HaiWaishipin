@@ -25,7 +25,7 @@ from ensure_legacy_paths import ensure_legacy_junctions
 
 ensure_legacy_junctions()
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -77,6 +77,7 @@ from .olm_bridge import (
     ensure_delivery_project,
     finish_project,
     project_exists,
+    sync_project_video_settings,
 )
 from .product_tags import normalize_selected_tags, product_delivery_tags
 from .products import get_product, list_products, update_product
@@ -101,7 +102,7 @@ from .seedance_bridge import (
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 140
+UI_VERSION = 144
 
 
 def _render_index() -> HTMLResponse:
@@ -166,6 +167,14 @@ class GenerateRequest(BaseModel):
     generate_count: int = 1
     creative_brief: str = ""
     prompt_enhanced: bool = False
+
+
+class SeedanceRunRequest(BaseModel):
+    resolution: str = "720P"
+    aspect_ratio: str = "9:16"
+    duration_sec: int = Field(default=5, ge=4, le=20)
+    generate_count: int = Field(default=1, ge=1, le=4)
+    edit_mode: str = "multi_shot"
 
 
 class ProductUpdateRequest(BaseModel):
@@ -904,7 +913,11 @@ async def delivery_seedance(slug: str) -> dict:
 
 
 @app.post("/api/delivery/{slug}/seedance/run")
-async def delivery_seedance_run(slug: str, force: bool = Query(False)) -> dict:
+async def delivery_seedance_run(
+    slug: str,
+    force: bool = Query(False),
+    body: SeedanceRunRequest = Body(default_factory=SeedanceRunRequest),
+) -> dict:
     if not project_exists(slug):
         raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
     try:
@@ -912,12 +925,14 @@ async def delivery_seedance_run(slug: str, force: bool = Query(False)) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
     try:
+        video_settings = sync_project_video_settings(slug, body.model_dump())
         status = project_status(slug)
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
         if force:
             refresh_project_seedance_source(slug)
         payload = run_all(slug, force=force)
+        payload["video_production"] = video_settings
         assemble = payload.get("assemble") if isinstance(payload.get("assemble"), dict) else {}
         final_ready = bool(
             assemble.get("ok")

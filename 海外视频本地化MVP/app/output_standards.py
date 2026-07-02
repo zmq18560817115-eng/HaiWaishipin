@@ -100,7 +100,7 @@ def build_asset_manifest(product_id: str) -> list[dict[str, Any]]:
 
 
 def build_scene_continuity(market: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
-    scene_zh = profile.get("zh") or profile.get("primary_tag") or "日常喂养"
+    scene_zh = profile.get("primary_tag") or profile.get("zh") or "日常喂养"
     scene_en = profile.get("en") or "daily baby feeding"
     tags = market.get("scenario_tags") or []
     note = scenario_conflict_note(tags)

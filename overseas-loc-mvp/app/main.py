@@ -777,15 +777,18 @@ async def seedance_broll(request: SeedanceRequest) -> dict:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not image_path.exists():
             raise HTTPException(status_code=404, detail="图片文件不存在")
+    from .video_production import read_project_video_settings
+
+    prod = read_project_video_settings(project)
     preview = {
         "provider": "fal.ai",
         "model": settings.seedance_image_model_resolved if image_path else settings.seedance_text_model_resolved,
         "shot_number": request.shot_number,
         "prompt": request.prompt,
         "image_ref": request.image_ref,
-        "duration": "5",
-        "resolution": "720p",
-        "aspect_ratio": "9:16",
+        "duration": str(prod.duration_sec),
+        "resolution": prod.resolution,
+        "aspect_ratio": prod.aspect_ratio,
         "generate_audio": False,
         "status": "preview",
         "requested_at": utc_now(),
@@ -801,7 +804,7 @@ async def seedance_broll(request: SeedanceRequest) -> dict:
             detail="未配置 ARK_API_KEY / FAL_KEY；请求预览已保存，请配置后再提交",
         )
     try:
-        return await call_seedance(project, request.prompt, image_path, request.shot_number)
+        return await call_seedance(project, request.prompt, image_path, request.shot_number, prod_settings=prod)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 

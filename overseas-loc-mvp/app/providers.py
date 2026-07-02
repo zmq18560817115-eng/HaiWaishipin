@@ -118,12 +118,17 @@ async def call_seedance(
     prompt: str,
     image_path: Path | None,
     shot_number: int,
+    *,
+    prod_settings=None,
 ) -> dict[str, Any]:
+    from .video_production import VideoProductionSettings, read_project_video_settings
+
+    prod: VideoProductionSettings = prod_settings or read_project_video_settings(project)
     provider = settings.seedance_provider_resolved
     if provider == "ark":
-        return await _call_seedance_ark(project, prompt, image_path, shot_number)
+        return await _call_seedance_ark(project, prompt, image_path, shot_number, prod_settings=prod)
     if provider == "fal":
-        return await _call_seedance_fal(project, prompt, image_path, shot_number)
+        return await _call_seedance_fal(project, prompt, image_path, shot_number, prod_settings=prod)
     raise RuntimeError(
         "未配置 SeedDance 密钥：在 overseas-loc-mvp/.env 填写 ARK_API_KEY（火山方舟）或 FAL_KEY（fal.ai）"
     )
@@ -209,6 +214,7 @@ async def _ark_create_task(
     image_path: Path | None,
     duration: int,
     resolution: str,
+    aspect_ratio: str,
 ) -> str:
     model_id = (
         settings.ark_image_model_resolved if image_path else settings.ark_text_model_resolved
@@ -229,7 +235,7 @@ async def _ark_create_task(
         "model": model_id,
         "content": content,
         "resolution": resolution,
-        "ratio": "9:16",
+        "ratio": aspect_ratio,
         "duration": duration,
         "watermark": False,
         "generate_audio": False,
@@ -300,7 +306,12 @@ async def _call_seedance_ark(
     prompt: str,
     image_path: Path | None,
     shot_number: int,
+    *,
+    prod_settings=None,
 ) -> dict[str, Any]:
+    from .video_production import read_project_video_settings
+
+    prod = prod_settings or read_project_video_settings(project)
     if not settings.ark_api_key:
         raise RuntimeError("未配置 ARK_API_KEY")
     start = time.perf_counter()
@@ -313,7 +324,12 @@ async def _call_seedance_ark(
             model_id = settings.ark_image_model_resolved if candidate else settings.ark_text_model_resolved
             try:
                 task_id = await _ark_create_task(
-                    client, prompt=prompt, image_path=candidate, duration=5, resolution="720p"
+                    client,
+                    prompt=prompt,
+                    image_path=candidate,
+                    duration=prod.duration_sec,
+                    resolution=prod.resolution,
+                    aspect_ratio=prod.aspect_ratio,
                 )
                 used_image = candidate
                 used_model = model_id
@@ -345,6 +361,9 @@ async def _call_seedance_ark(
         "image_fallback": bool(image_path and used_image != image_path),
         "remote_video_url": video_url,
         "local_file": output_path.relative_to(project).as_posix(),
+        "resolution": prod.resolution,
+        "aspect_ratio": prod.aspect_ratio,
+        "duration_sec": prod.duration_sec,
         "status": "success",
     }
     write_json(broll_dir / f"shot-{shot_number}-seedance-meta.json", meta)
@@ -356,7 +375,12 @@ async def _call_seedance_fal(
     prompt: str,
     image_path: Path | None,
     shot_number: int,
+    *,
+    prod_settings=None,
 ) -> dict[str, Any]:
+    from .video_production import read_project_video_settings
+
+    prod = prod_settings or read_project_video_settings(project)
     if not settings.fal_key:
         raise RuntimeError("未配置 FAL_KEY，请在 overseas-loc-mvp/.env 填写 fal.ai 密钥")
     os.environ["FAL_KEY"] = settings.fal_key
@@ -369,9 +393,9 @@ async def _call_seedance_fal(
     )
     arguments: dict[str, Any] = {
         "prompt": prompt,
-        "duration": "5",
-        "resolution": "720p",
-        "aspect_ratio": "9:16",
+        "duration": str(prod.duration_sec),
+        "resolution": prod.resolution,
+        "aspect_ratio": prod.aspect_ratio,
         "generate_audio": False,
     }
     uploaded_url = None
@@ -411,6 +435,9 @@ async def _call_seedance_fal(
         "uploaded_image_url": uploaded_url,
         "remote_video_url": video_url,
         "local_file": output_path.relative_to(project).as_posix(),
+        "resolution": prod.resolution,
+        "aspect_ratio": prod.aspect_ratio,
+        "duration_sec": prod.duration_sec,
         "status": "success",
     }
     write_json(broll_dir / f"shot-{shot_number}-seedance-meta.json", meta)
@@ -446,7 +473,7 @@ async def _test_seedance_ark() -> dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=300) as client:
             task_id = await _ark_create_task(
-                client, prompt=prompt, image_path=None, duration=4, resolution="480p"
+                client, prompt=prompt, image_path=None, duration=4, resolution="480p", aspect_ratio="9:16"
             )
             video_url = await _ark_wait_video_url(
                 client, task_id, timeout_s=float(settings.ark_seedance_wait_timeout)

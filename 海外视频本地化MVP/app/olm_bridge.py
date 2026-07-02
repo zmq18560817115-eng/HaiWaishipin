@@ -68,8 +68,14 @@ def ensure_delivery_project(link_id: int) -> str:
             pack = raw.get("pack") or raw
             payload = raw.get("payload") or {}
             proj.mkdir(parents=True, exist_ok=True)
+            pack_doc = raw if isinstance(raw.get("pack"), dict) and isinstance(raw.get("payload"), dict) else {
+                "pack": pack,
+                "payload": payload,
+            }
+            if raw.get("meta") and "meta" not in pack_doc:
+                pack_doc["meta"] = raw["meta"]
             (proj / "script-pack.json").write_text(
-                json.dumps(pack, ensure_ascii=False, indent=2) + "\n",
+                json.dumps(pack_doc, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
             shots = payload.get("shots") or pack.get("storyboard") or []
@@ -133,6 +139,13 @@ def _sync_brief_tags(project: Path, payload: dict[str, Any]) -> None:
         brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
         brief["audience_tags"] = payload.get("audience_tags") or []
         brief["scenario_tags"] = payload.get("scenario_tags") or []
+        vp = {
+            k: payload[k]
+            for k in ("resolution", "aspect_ratio", "duration_sec", "generate_count", "edit_mode")
+            if payload.get(k) is not None
+        }
+        if vp:
+            brief["video_production"] = vp
         brief_path.write_text(yaml.safe_dump(brief, allow_unicode=True, sort_keys=False), encoding="utf-8")
     except Exception:
         pass
@@ -242,3 +255,43 @@ def delivery_ready(slug: str) -> bool:
     if not project.exists():
         return False
     return any((project / name).exists() for name in USER_DELIVERABLES)
+
+
+def sync_project_video_settings(slug: str, settings: dict[str, Any]) -> dict[str, Any]:
+    """将工作台底部选取的分辨率/画幅写入 runs 项目，供 SeedDance 出片严格读取。"""
+    import sys
+
+    olm_root = OVERSEAS_MVP_DIR
+    if str(olm_root) not in sys.path:
+        sys.path.insert(0, str(olm_root))
+    from app.video_production import normalize_video_settings
+
+    project = OVERSEAS_RUNS_DIR / slug
+    if not project.is_dir():
+        raise FileNotFoundError(f"项目不存在: {slug}")
+    normalized = normalize_video_settings(settings)
+    payload_patch = normalized.as_dict()
+
+    pack_path = project / "script-pack.json"
+    if pack_path.is_file():
+        try:
+            raw = json.loads(pack_path.read_text(encoding="utf-8"))
+            payload = raw.get("payload") if isinstance(raw.get("payload"), dict) else {}
+            payload.update(payload_patch)
+            raw["payload"] = payload
+            pack_path.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        except (json.JSONDecodeError, OSError) as exc:
+            raise RuntimeError(f"更新 script-pack 出片参数失败: {exc}") from exc
+
+    brief_path = project / "localization-brief.yaml"
+    if brief_path.is_file():
+        try:
+            import yaml
+
+            brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+            brief["video_production"] = payload_patch
+            brief_path.write_text(yaml.safe_dump(brief, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        except Exception:
+            pass
+
+    return payload_patch

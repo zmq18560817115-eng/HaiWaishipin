@@ -877,6 +877,9 @@ def seedance_status(project: Path) -> dict[str, Any]:
     }
     character = resolve_character(market)
 
+    from .video_production import read_project_video_settings
+
+    prod = read_project_video_settings(project)
     shots: list[dict[str, Any]] = []
     for shot in storyboard_shots:
         number = int(shot["number"])
@@ -892,6 +895,7 @@ def seedance_status(project: Path) -> dict[str, Any]:
             scene_en=scene_en,
             product_name=product_id,
             character=character,
+            aspect_ratio=prod.aspect_ratio,
         )
         ref_path, asset_type = pick_shot_reference_path(
             product_id=product_id,

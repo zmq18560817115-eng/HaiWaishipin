@@ -86,10 +86,13 @@ def _usage_compact() -> str:
     )
 
 
-def _safe_suffix(character: dict[str, Any] | None, role: str) -> str:
+def _safe_suffix(character: dict[str, Any] | None, role: str, *, aspect_ratio: str = "9:16") -> str:
+    from .video_production import aspect_ratio_prompt
+
+    ratio_hint = aspect_ratio_prompt(aspect_ratio)
     if character and shot_needs_person(role):
-        return "vertical 9:16, TikTok product ad style, no medical claim, match approved person reference"
-    return "no person face, no medical claim, vertical 9:16, TikTok product ad style"
+        return f"{ratio_hint}, TikTok product ad style, no medical claim, match approved person reference"
+    return f"no person face, no medical claim, {ratio_hint}, TikTok product ad style"
 
 
 def _product_hero_lock() -> str:
@@ -107,6 +110,7 @@ def build_shot_video_prompt(
     scene_en: str = "daily baby feeding",
     product_name: str = "portable milk-warming thermos cup",
     character: dict[str, Any] | None = None,
+    aspect_ratio: str = "9:16",
 ) -> str:
     """从脚本镜位合成 SeedDance 英文 Prompt。"""
     story_shot = story_shot or {}
@@ -124,7 +128,7 @@ def build_shot_video_prompt(
         str(pack_shot.get("voiceover_en") or pack_shot.get("subtitle_en") or story_shot.get("copy") or "")
     )
     visual = str(pack_shot.get("visual_prompt") or pack_shot.get("visual") or story_shot.get("visual") or "")
-    safe = _safe_suffix(character, role)
+    safe = _safe_suffix(character, role, aspect_ratio=aspect_ratio)
     person = build_character_prompt_block(character) if character and shot_needs_person(role) else ""
     cup = THERMOS_PRODUCT_EN
     usage = _usage_compact()

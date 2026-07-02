@@ -23,6 +23,7 @@ from .doubao_script import call_doubao_script
 from .product_tags import validate_delivery_selection
 from .output_standards import enrich_pack_with_standards
 from .scene_script import (
+    align_pack_to_market_tags,
     build_storyboard,
     pump_voiceovers,
     resolve_scenario_profile,
@@ -167,6 +168,19 @@ def build_user_prompt(
     scene_note = scenario_conflict_note(tags["scenario_tags"])
     scene_warn = f"\n- 场景一致性说明: {scene_note}" if scene_note else ""
     profile = resolve_scenario_profile(tags["scenario_tags"])
+    primary_scene = profile.get("primary_tag") or scenario_line
+    personalization_block = f"""
+## 个性化执行清单（必须逐镜体现，口播/画面/构图均不得偏离）
+- 目标人群（全片语气与出镜设定）: {audience_line}
+- 投放场景（全片唯一场景，禁止混入卧室/车内/机场等其他未选场景）: {primary_scene}
+- 用户痛点（镜2「痛点」必须具象化，口播可英译但语义一致）: {pain_line}
+- 核心卖点（镜3「方案」必须演示，口播可英译但语义一致）: {selling_line}
+- 镜1 钩子: 在「{primary_scene}」提出与「{pain_line}」相关的痛点反问
+- 镜2 痛点: 在「{primary_scene}」放大「{pain_line}」
+- 镜3 方案: 在「{primary_scene}」演示产品如何解决，突出「{selling_line}」
+- 镜4 证明: 在「{primary_scene}」给出效果/细节证明
+- 镜5 行动号召: 在「{primary_scene}」口播收束并引导收藏/购买
+"""
     creative = (market.get("creative_brief") or "").strip()
     creative_block = f"\n## 创作指令（对话框）\n{creative}\n" if creative else ""
     specs_block = f"""
@@ -193,7 +207,8 @@ def build_user_prompt(
 - 投放场景: {scenario_line}
 - 核心卖点: {selling_line}
 - 用户痛点: {pain_line}
-- 首要场景（全片统一）: {profile.get("primary_tag", scenario_line)}{scene_warn}
+- 首要场景（全片统一）: {primary_scene}{scene_warn}
+{personalization_block}
 {creative_block}{specs_block}{feedback_block_text}
 
 ## 合规禁词（禁止出现在口播/字幕）
@@ -424,6 +439,8 @@ def _attach_feedback_and_standards(
     feedback_block: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     pid = str(product.get("product_id") or "")
+    product_name = display_product_name(pid, product.get("product_name", OUR_BRAND))
+    align_pack_to_market_tags(pack, market=market, product_name=product_name)
     fb = feedback_block or build_feedback_constraints(pid, market.get("scenario_tags") or [])
     apply_feedback_to_pack(pack, fb)
     enrich_pack_with_standards(pack, product=product, market=market, analysis=analysis)
@@ -465,6 +482,9 @@ def generate_script_pack(
             "structure_source": "competitor_analysis",
             "reference_url": source_url,
             "feedback_matched": feedback_block.get("matched_count", 0),
+            "scenario_profile": resolve_scenario_profile(market.get("scenario_tags") or []).get("id"),
+            "scenario_primary": (market.get("scenario_tags") or [""])[0],
+            "scenario_conflict_note": scenario_conflict_note(market.get("scenario_tags") or []),
         }
         meta["template_id"] = template.get("template_id", "")
         meta["template_label"] = template.get("label", "")

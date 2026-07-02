@@ -158,7 +158,19 @@ def _bridge(
 
     proj = OVERSEAS_RUNS_DIR / slug
     if proj.exists():
-        pack_text = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"
+        gen_pack_path = GENERATED_SCRIPTS_DIR / str(link_id) / "script-pack.json"
+        if gen_pack_path.is_file():
+            try:
+                raw = json.loads(gen_pack_path.read_text(encoding="utf-8"))
+                pack_doc = raw if isinstance(raw.get("pack"), dict) and isinstance(raw.get("payload"), dict) else {
+                    "pack": pack,
+                    "payload": raw.get("payload") if isinstance(raw.get("payload"), dict) else {},
+                }
+                pack_text = json.dumps(pack_doc, ensure_ascii=False, indent=2) + "\n"
+            except (json.JSONDecodeError, OSError):
+                pack_text = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"
+        else:
+            pack_text = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"
         (proj / "script-pack.json").write_text(pack_text, encoding="utf-8")
         # Keep delivery pack in sync so SeedDance reads the latest scenario prompts.
         (proj / "交付脚本包.json").write_text(pack_text, encoding="utf-8")
