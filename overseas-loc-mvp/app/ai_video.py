@@ -94,8 +94,8 @@ def _safe_suffix(character: dict[str, Any] | None, role: str) -> str:
 
 def _product_hero_lock() -> str:
     return (
-        "match approved white-background product hero photo exactly for color, silhouette, lid, display, logo zone; "
-        "no redesign or recolor"
+        "match approved white-background product hero photo (白底主图) exactly for color, silhouette, lid, display, logo zone; "
+        "do NOT copy product shape from lifestyle/scenario listing images; no redesign or recolor"
     )
 
 

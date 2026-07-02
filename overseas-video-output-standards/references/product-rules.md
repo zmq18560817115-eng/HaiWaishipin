@@ -5,9 +5,9 @@
 Before scripting, storyboarding, or generating AI video for any product:
 
 1. **Script lock**: The approved script-pack is the execution contract. Shot order, dialogue, subtitles, timing, and CTA must not change during generation or editing unless a human explicitly revises the script.
-2. **White-background hero lock**: Product appearance and overall structure must match `白底主图` (or approved product identity render). Do not alter shape, color, lid type, display layout, logo zone, proportions, or materials.
-3. **Scenario lock**: Usage flow, environment, props, and product placement must match the selected scenario image (`场景图`, listing `M端` / `副图`, or equivalent approved scene reference).
-4. **Detail lock**: Functional details — spout, hinge, button, port, accessory, size insert — must match detail / usage-step images (`细节图`, `倒出口参考`, etc.).
+2. **White-background hero lock (highest priority)**: Product appearance must match `白底主图` exactly. **Never** use scenario images (`M端`/`副图`), lifestyle KV, or `倒出口参考` as SeedDance image-to-video reference. Those assets may only appear in prompt text for environment/usage physics.
+3. **Scenario lock (prompt only)**: Usage flow, environment, props, and placement must match the selected scenario image in **written prompts** — scenario images do not define product shape or color.
+4. **Detail lock**: Functional details — spout, hinge, button, port — are described in prompts using detail / usage-step images (`倒出口参考`, etc.); I2V reference remains white hero.
 5. **Physics & usage logic**: Demonstrations must obey real-world physics and approved usage steps. Reject outputs with obvious pour-direction errors, wrong container relationships, impossible hand poses, or scene/use-case mismatches.
 6. **Person lock**: If a person appears in multiple shots of one video, keep the same identity profile across all of them. Prefer hands-only or product-only shots when identity cannot be held.
 7. **Lighting realism**: Enhance motivated lighting, soft shadows, and natural reflections to make the scene believable — without changing product identity or inventing unsupported scene elements.
@@ -78,18 +78,18 @@ Preferred scenes:
 
 High-value reference images:
 
-- `主图\白底主图.png` — **mandatory** product identity anchor; all visible product shots must match this appearance. **SeedDance default image-to-video reference** (`inputs/seedance-source.*`). Never substitute `倒出口参考` for appearance lock.
-- `主图\倒出口参考.png` — **mandatory** for pour/demo shots only; correct pouring-spout/lid behavior and physics. Used as `inputs/seedance-usage-ref.*` for proof/solution shots — not for general product identity.
-- Listing `M端` and `副图` scene images — **mandatory** for the selected scenario; usage flow and environment must follow the matching scene ref.
+- `主图\白底主图.png` — **mandatory** product identity anchor; **the only** SeedDance I2V reference (`inputs/seedance-source.*`) whenever the product is visible.
+- `主图\倒出口参考.png` — pour/lid physics guidance in **prompt text only**; never I2V垫图; never substitutes white hero for appearance.
+- Listing `M端` and `副图` scene images — **prompt-only** for environment/usage flow for the selected scenario; **never** I2V垫图; **never** lock product shape/color.
 - Detail images — battery, heating, waterproof, anti-leak, size, or structural inserts; only when the product doc supports the wording.
 
 Asset binding for this product:
 
 | Shot need | Required reference |
 | --- | --- |
-| Product visible (any angle) | `白底主图` |
-| Open lid / pour / tilt demo | `倒出口参考` + matching `场景图` |
-| Bedroom / car / travel / office / mall scene | corresponding `M端` or `副图` for that scenario |
+| Product visible (any angle, any role) | `白底主图` only (I2V) |
+| Open lid / pour / tilt demo | `白底主图` (I2V) + `倒出口参考` + matching `场景图` in **prompt** |
+| Bedroom / car / travel / office / mall scene | corresponding `M端` or `副图` in **prompt** for environment only |
 | Port / display / hinge / spout close-up | matching `细节图` |
 
 Do not say or show:

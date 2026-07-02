@@ -58,6 +58,24 @@ def main() -> int:
     )
     results.append(check("code:get_product_hero_image alias", get_product_hero_image("便携恒温杯") == hero, "white hero alias"))
 
+    from app.character_assets import pick_shot_reference_path  # noqa: E402
+
+    for role in ("证明", "方案", "钩子", "行动号召"):
+        _ref, typ = pick_shot_reference_path(
+            product_id="便携恒温杯",
+            role=role,
+            character=None,
+            visual="产品特写",
+            footage_type="AI_VIDEO",
+        )
+        results.append(
+            check(
+                f"code:I2V垫图 {role}=白底主图",
+                typ == "product_identity",
+                f"role={role} type={typ}",
+            )
+        )
+
     skill_text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8", errors="ignore")
     fidelity_keywords = ("白底主图", "production_fidelity", "physics", "hero lock")
     missing_fidelity = [k for k in fidelity_keywords if k.lower() not in skill_text.lower()]

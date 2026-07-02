@@ -10,7 +10,7 @@
 
 `overseas-video-output-standards/` + `.cursor/rules/overseas-video-output-standards.mdc`
 
-**产品外观**：`主图/白底主图.png` 为 SeedDance 默认垫图。Git：**本机 push，内网只 pull**（见 `README_使用说明.md`）。
+**产品外观（非协商）**：凡画面出现产品，**只能**对照 `主图/白底主图.png` 锁外观；SeedDance I2V 垫图固定为 `inputs/seedance-source.*`。**禁止**用 M端/副图场景图、KV、倒出口参考作垫图或外观依据（场景图/倒出口仅写入 Prompt）。Git：**本机 push，内网只 pull**（见 `README_使用说明.md`）。
 
 ## 数据（勿写 legacy 路径）
 

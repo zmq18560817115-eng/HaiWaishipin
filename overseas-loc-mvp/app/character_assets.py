@@ -56,22 +56,7 @@ def get_product_white_hero_image(product_id: str) -> Path | None:
             if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES:
                 if "白底" in path.name and "倒出口" not in path.name:
                     return path
-    for rel in FALLBACK_HERO_CANDIDATES:
-        path = root / rel
-        if path.is_file():
-            return path
-    for folder in ("M端", "M图", "副图", "主图", "A+"):
-        sub = root / folder
-        if not sub.is_dir():
-            continue
-        for path in sorted(sub.glob("*.jpg")):
-            if path.is_file() and "倒出口" not in path.name:
-                return path
-    images = [
-        p for p in sorted(root.rglob("*"))
-        if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES and "倒出口" not in p.name
-    ]
-    return images[0] if images else None
+    return None
 
 
 def get_product_usage_pour_image(product_id: str) -> Path | None:
@@ -217,26 +202,21 @@ def pick_shot_reference_path(
     footage_type: str | None = None,
     project: Path | None = None,
 ) -> tuple[Path | None, str]:
+    """产品可见镜头 I2V 垫图只能是白底主图；场景图/倒出口参考仅 Prompt。"""
     role = (role or "").strip()
-    pour = get_product_usage_pour_image(product_id)
     white = get_product_white_hero_image(product_id)
 
     if role in PRODUCT_FOCUS_ROLES:
-        staged = _staged_path(project, "seedance-usage-ref.*")
-        if staged:
-            return staged, "usage_step"
-        if pour:
-            return pour, "usage_step"
         staged_white = _staged_path(project, "seedance-source.*")
         if staged_white:
             return staged_white, "product_identity"
         return white, "product_identity"
 
-    if role in ("方案", "证明") and pour:
-        staged = _staged_path(project, "seedance-usage-ref.*")
-        if staged:
-            return staged, "usage_step"
-        return pour, "usage_step"
+    if role in ("方案", "证明"):
+        staged_white = _staged_path(project, "seedance-source.*")
+        if staged_white:
+            return staged_white, "product_identity"
+        return white, "product_identity"
 
     ft = (footage_type or "").strip()
     if shot_includes_product(role, visual, footage_type) and ft in ("AI_BROLL", "AI_VIDEO", "LIVE_ACTION", ""):
@@ -300,7 +280,7 @@ def build_character_continuity(market: dict[str, Any] | None, product_id: str) -
         "relationship_to_product": character.get("relationship_to_product"),
         "allowed_scene_changes": [],
         "source_refs": refs,
-        "notes": "SeedDance 按镜选用三视图垫图；证明镜以产品倒出口参考为主",
+        "notes": "人像镜头用三视图垫图；产品可见镜头一律白底主图垫图，场景图/倒出口参考仅写入 Prompt",
     }
 
 

@@ -138,29 +138,24 @@ def pick_shot_reference_path(
 ) -> tuple[Path | None, str]:
     """
     返回 (本地绝对路径, 资产类型)。
-    资产类型: person | product_identity | usage_step
+    资产类型: person | product_identity
+
+    硬性规定：产品可见镜头的 SeedDance I2V 垫图只能是白底主图；场景图/倒出口参考仅 Prompt。
     """
     role = (role or "").strip()
-    listing = product_listing_dir(product_id)
-    pour = get_product_usage_pour_image(product_id)
     white = get_product_white_hero_image(product_id)
 
     if role in PRODUCT_FOCUS_ROLES:
-        staged = _staged_path(project, "seedance-usage-ref.*")
-        if staged:
-            return staged, "usage_step"
-        if pour:
-            return pour, "usage_step"
         staged_white = _staged_path(project, "seedance-source.*")
         if staged_white:
             return staged_white, "product_identity"
         return white, "product_identity"
 
-    if role in ("方案", "证明") and pour:
-        staged = _staged_path(project, "seedance-usage-ref.*")
-        if staged:
-            return staged, "usage_step"
-        return pour, "usage_step"
+    if role in ("方案", "证明"):
+        staged_white = _staged_path(project, "seedance-source.*")
+        if staged_white:
+            return staged_white, "product_identity"
+        return white, "product_identity"
 
     ft = (footage_type or "").strip()
     if shot_includes_product(role, visual, footage_type) and ft in ("AI_BROLL", "AI_VIDEO", "LIVE_ACTION", ""):
@@ -223,7 +218,7 @@ def build_character_continuity(market: dict[str, Any] | None, product_id: str) -
         "relationship_to_product": character.get("relationship_to_product"),
         "allowed_scene_changes": [],
         "source_refs": refs,
-        "notes": "SeedDance 按镜选用三视图垫图；证明镜以产品倒出口参考为主",
+        "notes": "人像镜头用三视图垫图；产品可见镜头一律白底主图垫图，场景图/倒出口参考仅写入 Prompt",
     }
 
 

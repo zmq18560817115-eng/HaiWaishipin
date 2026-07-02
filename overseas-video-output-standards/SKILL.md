@@ -50,8 +50,8 @@ When generating or reviewing product videos, treat approved assets as hard const
 | Dimension | Source of truth | Rule |
 | --- | --- | --- |
 | Script | Approved script-pack / storyboard | Execute shot order, dialogue, timing, and CTA exactly. Do not improvise new beats, claims, or scenes. |
-| Product appearance & structure | White-background hero image (`白底主图`) | Match color, silhouette, lid type, ports, display, logo zone, and proportions exactly. Never redesign, recolor, simplify, or “beautify” the product. |
-| Usage flow & scene behavior | Matching scenario image (`场景图` / listing `M端` / `副图`) | Pouring, opening, placement, props, and environment must follow the selected scenario reference. |
+| Product appearance & structure | White-background hero image (`白底主图`) | Match color, silhouette, lid, ports, display, logo zone, and proportions exactly. **Only** approved SeedDance I2V reference when product is visible. Never use scenario/lifestyle images as垫图. |
+| Usage flow & scene behavior | Matching scenario image (`场景图` / `M端` / `副图`) | Environment, props, and usage steps in **prompt text** only — do not derive product shape from scene photos. |
 | Structural & functional details | Detail / proof images (`细节图`, usage-step refs such as `倒出口参考`) | Spout, hinge, buttons, charging port, accessories, and assembly must match detail assets. |
 | Physics & usage logic | Product docs + usage-step refs | No impossible pours, wrong container relationships, reversed gravity, wrong hand grip, or usage that contradicts the product type. |
 | Person continuity | Person reference or stable profile | Same role, age range, wardrobe, hair, skin tone, and hands across all person-visible shots in one video. |

@@ -11,7 +11,13 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from paths import GENERATED_SCRIPTS_DIR, MVP_ROOT, OVERSEAS_MVP_DIR, OVERSEAS_RUNS_DIR
+from paths import (
+    GENERATED_SCRIPTS_DIR,
+    MVP_ROOT,
+    OVERSEAS_MVP_DIR,
+    OVERSEAS_RUNS_DIR,
+    PRODUCTION_ARCHIVE_DIR,
+)
 
 from .llm_script import pack_to_bridge_shots
 from .character_assets import stage_project_production_assets
@@ -160,10 +166,53 @@ print(json.dumps({"ok": True, "slug": slug, "delivery_ready": result.get("delive
     return json.loads(line)
 
 
+def _valid_mp4(path: Path) -> bool:
+    return path.is_file() and path.stat().st_size > 1000
+
+
+def _latest_archived_final(slug: str) -> Path | None:
+    base = PRODUCTION_ARCHIVE_DIR / slug
+    if not base.is_dir():
+        return None
+    for folder in sorted((p for p in base.iterdir() if p.is_dir()), reverse=True):
+        final = folder / "final-video.mp4"
+        if _valid_mp4(final):
+            return final
+    return None
+
+
+def _try_assemble_final(slug: str) -> None:
+    """分镜已齐但 runs 无成片时，下载 zip 前再尝试拼接一次。"""
+    from .seedance_bridge import assemble_project
+
+    project = OVERSEAS_RUNS_DIR / slug
+    final = project / "broll" / "final-video.mp4"
+    if _valid_mp4(final):
+        return
+    broll = project / "broll"
+    if not broll.is_dir() or not list(broll.glob("shot-*.mp4")):
+        return
+    try:
+        assemble_project(slug)
+    except (RuntimeError, OSError):
+        pass
+
+
+def resolve_final_video_path(slug: str, *, try_assemble: bool = True) -> Path | None:
+    project = OVERSEAS_RUNS_DIR / slug
+    final = project / "broll" / "final-video.mp4"
+    if try_assemble:
+        _try_assemble_final(slug)
+    if _valid_mp4(final):
+        return final
+    return _latest_archived_final(slug)
+
+
 def build_delivery_zip(slug: str) -> tuple[bytes, str]:
     project = OVERSEAS_RUNS_DIR / slug
     if not project.exists():
         raise FileNotFoundError("项目不存在")
+    final_path = resolve_final_video_path(slug)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for name in USER_DELIVERABLES:
@@ -174,9 +223,13 @@ def build_delivery_zip(slug: str) -> tuple[bytes, str]:
         if broll.exists():
             for mp4 in sorted(broll.glob("shot-*.mp4")):
                 zf.write(mp4, mp4.relative_to(project).as_posix())
-            final = broll / "final-video.mp4"
-            if final.is_file():
-                zf.write(final, final.relative_to(project).as_posix())
+        if final_path and _valid_mp4(final_path):
+            zf.write(final_path, "final-video.mp4")
+            runs_final = project / "broll" / "final-video.mp4"
+            if _valid_mp4(runs_final):
+                zf.write(runs_final, runs_final.relative_to(project).as_posix())
+            else:
+                zf.write(final_path, "broll/final-video.mp4")
     return buf.getvalue(), f"{slug}-delivery.zip"
 
 

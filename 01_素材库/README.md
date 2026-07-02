@@ -12,9 +12,9 @@
 
 ```text
 产品资料/便携恒温杯/listing-0602-nw/
-  主图/白底主图.png       ← 外观唯一锚点；SeedDance 默认垫图
-  主图/倒出口参考.png     ← 倾倒演示镜专用，不可替代白底主图
-  M端/、副图/、A+/        ← 场景与细节参考
+  主图/白底主图.png       ← 外观唯一锚点；SeedDance **唯一** I2V 垫图（凡产品入镜）
+  主图/倒出口参考.png     ← 仅 Prompt 约束倾倒物理，禁止作垫图
+  M端/、副图/、A+/        ← 仅 Prompt 约束场景/用法，禁止作垫图、禁止锁产品外观
 ```
 
 更新图片后：在**开发者本机** `git add` 并 `git push workflow main`；内网服务器**只** `git pull`，不在内网做 push。说明见 `README_使用说明.md` →「产品资料与 GitHub 同步」。

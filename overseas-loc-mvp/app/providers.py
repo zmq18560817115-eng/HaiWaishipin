@@ -167,7 +167,7 @@ def _project_image_fallbacks(project: Path, primary: Path | None) -> list[Path |
     add(primary)
     inputs = project / "inputs"
     if inputs.is_dir():
-        for pattern in ("seedance-usage-ref.*", "seedance-source.*"):
+        for pattern in ("seedance-source.*",):
             for path in sorted(inputs.glob(pattern)):
                 if path.is_file():
                     add(path)

@@ -18,13 +18,8 @@ USAGE_POUR_CANDIDATES = (
     "主图/倒出口参考.jpg",
 )
 
-# 仅作白底主图缺失时的兜底，不得优先于白底主图
-FALLBACK_HERO_CANDIDATES = (
-    "A+/KV.jpg",
-    "副图/主图.jpg",
-    "M端/KV.jpg",
-    "M图/KV.jpg",
-)
+# 已废弃：白底主图缺失时不得用 KV/场景图兜底，生成应 BLOCKED
+FALLBACK_HERO_CANDIDATES: tuple[str, ...] = ()
 
 
 def _pick_clear_hero(root: Path) -> Path | None:
@@ -72,7 +67,7 @@ def list_product_images(product_id: str) -> list[Path]:
 
 
 def get_product_white_hero_image(product_id: str) -> Path | None:
-    """白底主图：产品外观唯一锚点（SeedDance 默认垫图）。"""
+    """白底主图：产品外观唯一锚点（SeedDance 默认垫图）。禁止用场景图/KV 替代。"""
     root = product_listing_dir(product_id)
     if not root.is_dir():
         return None
@@ -87,13 +82,6 @@ def get_product_white_hero_image(product_id: str) -> Path | None:
                 name = path.name
                 if "白底" in name and "倒出口" not in name:
                     return path
-    for rel in FALLBACK_HERO_CANDIDATES:
-        path = root / rel
-        if path.is_file():
-            return path
-    hero = _pick_clear_hero(root)
-    if hero and "倒出口" not in hero.name:
-        return hero
     return None
 
 

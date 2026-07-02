@@ -727,9 +727,12 @@ async function runConfirmProduceVideo() {
     await refreshScriptPreview();
     updateLoopBarFromForm(state.lastPreview || {});
     const finalSlug = currentScriptSlug();
-    if (ok !== false && finalSlug) {
+    const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
+    if (ok && finalSlug && finalReady) {
       syncDownloadLinks(`/api/delivery/${finalSlug}/zip`, true);
       renderDockProduceComplete(finalSlug, "视频生成完成，可下载 zip 或预览成片");
+    } else if (finalSlug && !finalReady) {
+      setScriptActionStatus("分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试");
     }
   } finally {
     state.createPipelineActive = false;
@@ -1098,10 +1101,13 @@ async function runViralBenchmarkPipeline(linkId) {
     const ok = await runProduceVideo({ background: true });
     await refreshScriptPreview();
     const slug = currentScriptSlug();
-    if (ok !== false && slug) {
+    const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
+    if (ok && slug && finalReady) {
       syncDownloadLinks(`/api/delivery/${slug}/zip`, true);
       renderDockProduceComplete(slug, "对标流水线完成：可下载 zip 或预览成片");
       setScriptActionStatus("对标视频已用于生成，成片见底部进度条");
+    } else if (slug && !finalReady) {
+      setScriptActionStatus("分镜已生成，成片拼接未完成；请检查 ffmpeg 或重新生成");
     }
   } catch (err) {
     stopSeedanceCountdown();
@@ -3920,10 +3926,13 @@ async function runSeedanceGenerate(options = {}) {
       msg = failed.every((r) => (r.message || "").includes("ARK_API_KEY"))
         ? `火山方舟密钥失效：${failed[0].message}。请到「设置」→ 测试连接，或更新 overseas-loc-mvp/.env 中的 ARK_API_KEY 后重启工作台。`
         : `部分失败：${failed.map((r) => `镜${r.number} ${r.message}`).join("；")}`;
-    } else if (finalReady || okCount > 0) {
+    } else if (finalReady) {
       msg = force
         ? `已强制重生成 ${okCount || "5"} 镜并拼接成片，可预览 mp4 或下载 zip`
         : "视频生成完成，可预览 mp4 或下载 zip";
+    } else if (okCount > 0) {
+      const asm = data.assemble?.message || "分镜已生成，但成片拼接未完成";
+      msg = `${asm}。请确认 ffmpeg 可用后重试；zip 内仅有分镜 mp4。`;
     } else if (skipped.length) {
       msg = force
         ? "本次未覆盖旧视频：请重启工作台（启动页面.cmd）后再勾选强制重生成，或运行 本地生成视频.cmd <编号> --force"
@@ -3940,7 +3949,7 @@ async function runSeedanceGenerate(options = {}) {
       indeterminate: !finalReady && !failed.length,
     });
     setScriptActionStatus(msg);
-    if (!document.getElementById("scriptDownloadBtnBottom")?.classList.contains("hidden")) {
+    if (finalReady) {
       syncDownloadLinks(`/api/delivery/${slug}/zip?ts=${Date.now()}`, true);
     }
     if (data.daily_video_quota && state.healthCache?.production) {
@@ -3948,7 +3957,7 @@ async function runSeedanceGenerate(options = {}) {
       syncDailyVideoQuota(data.daily_video_quota);
     }
     if (!background) openScriptFloatPanel();
-    return !failed.length;
+    return !failed.length && finalReady;
   } catch (err) {
     stopSeedanceCountdown();
     showSeedanceProgress(true, { status: `失败：${err.message}`, percent: 0 });

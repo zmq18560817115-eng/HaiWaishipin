@@ -69,8 +69,8 @@ def build_asset_manifest(product_id: str) -> list[dict[str, Any]]:
             "forbidden_use": forbidden,
         })
 
-    add(white, "product_identity", "白底主图：产品身份与外观唯一锚点；SeedDance 默认垫图", "任何与白底主图不一致的改型、改色、改比例")
-    add(pour, "usage_step", "倒出口/翻盖/倾斜出液演示（物理逻辑锚点）", "宽口直倒、奶瓶入杯、违反重力/流向；禁止替代白底主图作外观垫图")
+    add(white, "product_identity", "白底主图：产品外观唯一锚点；SeedDance 唯一 I2V 垫图", "禁止用场景图/KV/倒出口参考替代白底主图作垫图或改型改色")
+    add(pour, "usage_step", "倒出口/翻盖演示：仅写入 Prompt 约束物理流向", "禁止作为 SeedDance I2V 垫图；禁止替代白底主图锁外观")
 
     scene_dirs = ("M端", "副图", "A+")
     for path in list_product_images(product_id):
@@ -78,7 +78,7 @@ def build_asset_manifest(product_id: str) -> list[dict[str, Any]]:
             continue
         sub = path.parent.name
         if sub in scene_dirs:
-            add(path, "scene", f"场景图参考（{sub}）：用法流程与环境锚点", "未选场景标签对应的场景、跨场景混用")
+            add(path, "scene", f"场景图（{sub}）：仅约束环境/道具/用法流程（Prompt）", "禁止作 SeedDance I2V 垫图；禁止替代白底主图锁产品外观")
         elif sub == "主图" and path.name.startswith("倒出口"):
             continue
         else:
@@ -142,9 +142,9 @@ def build_production_fidelity(product_id: str, asset_manifest: list[dict[str, An
     base = {
         "script_lock": "Execute approved storyboard shot order, dialogue, timing, and CTA exactly; no silent rewrites during generation.",
         "hero_image_lock": hero.get("source_path", "") if hero else "",
-        "hero_rule": "Product appearance must match white-background hero exactly; never redesign, recolor, or simplify.",
+        "hero_rule": "Product appearance MUST match 白底主图 only. Scene images and pour reference NEVER substitute as SeedDance I2V reference.",
         "scenario_lock": [a.get("source_path", "") for a in scenes[:6]],
-        "scenario_rule": "Usage flow and environment must match the selected scenario reference image.",
+        "scenario_rule": "Scene images guide environment/props/usage in prompt text only — not product shape/color.",
         "detail_lock": [a.get("source_path", "") for a in details[:6]],
         "usage_step_lock": usage.get("source_path", "") if usage else "",
         "detail_rule": "Spout, hinge, port, and structural inserts must match detail/usage-step images.",
@@ -192,7 +192,7 @@ def build_shot_asset_map(
         )
         asset_path = _rel(ref_path) if ref_path else "missing"
         if asset_path == "missing":
-            asset_path = (usage_path or hero_path or "missing")
+            asset_path = hero_path or "missing"
         method = "SeedDance" if is_ai else "live_action_or_edit"
         guard = shot.get("seedance_prompt") or shot.get("visual_prompt", "")
         guard = (

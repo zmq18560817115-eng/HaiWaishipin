@@ -72,17 +72,17 @@ When building a shot or AI-video prompt, choose references in this order:
 5. **Person or hands reference**: locks demographic and visual consistency for the whole video.
 6. **AI-generated continuation**: only after the above references are bound to the shot.
 
-For shots where the product is visible, the white-background hero reference is mandatory. Usage demos also require the matching scenario image and usage-step/detail reference when available.
+For shots where the product is visible, the white-background hero is the **only** SeedDance I2V reference. Scenario and usage-step images inform prompts (environment, pour physics) but must not replace the hero as垫图.
 
-Do not let AI “interpret” or “improve” product design. If the hero image does not show a detail, do not invent it.
+Do not let AI “interpret” or “improve” product design from lifestyle/scenario photos. If the hero image does not show a detail, do not invent it.
 
 ## SeedDance / AI video image binding
 
 | Runtime file | Source asset | When |
 | --- | --- | --- |
-| `runs/ref-*/inputs/seedance-source.*` | `主图/白底主图` | Default I2V reference for any product-visible AI shot |
-| `runs/ref-*/inputs/seedance-usage-ref.*` | `主图/倒出口参考` | Proof / pour-demo shots only |
-| Person staged refs | `01_素材库/人像角色/` | Person-only pain shots without product in frame; person likeness stays in prompt when white hero is used |
+| `runs/ref-*/inputs/seedance-source.*` | `主图/白底主图` | **Only** I2V reference when product is visible in frame |
+| `runs/ref-*/inputs/seedance-usage-ref.*` | `主图/倒出口参考` | Staged for traceability; **prompt-only** physics hint — never I2V垫图 |
+| Person staged refs | `01_素材库/人像角色/` | Person-only shots without product in frame |
 
 If generated product shape/color drifts, verify: (1) `白底主图` exists and is staged to `seedance-source`, (2) regenerate with `--force` after updating assets, (3) do not use pour reference as the only product image.
 
