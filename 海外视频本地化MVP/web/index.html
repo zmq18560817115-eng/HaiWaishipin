@@ -128,6 +128,17 @@
         </div>
       </details>
       <details class="settings-block">
+        <summary>飞书 CLI</summary>
+        <p class="hint">同步飞书/Lark 文档、表格、消息和日程。首次使用先运行根目录 <code>配置飞书CLI.cmd</code> 完成应用配置。</p>
+        <div id="feishuSettingsStatus" class="seedance-status">加载中…</div>
+        <div id="feishuAuthOutput" class="job-log hidden"></div>
+        <div class="seedance-actions">
+          <button type="button" class="secondary pill-btn" id="btnFeishuStatusSettings">检测状态</button>
+          <button type="button" class="secondary pill-btn" id="btnFeishuAuthUrlSettings">生成授权链接</button>
+          <button type="button" class="secondary pill-btn" id="btnFeishuDoctorSettings">运行 doctor</button>
+        </div>
+      </details>
+      <details class="settings-block">
         <summary>内网部署与备份</summary>
         <p class="hint">成片自动归档至 <code>03_产出库</code>；用户可通过页面下载 zip，服务器同时保留备份。</p>
         <div id="deployInfo" class="env-info muted">加载中…</div>
@@ -410,7 +421,8 @@
           </div>
           <footer class="studio-dock-toolbar">
             <span class="dock-chip" id="dockModelChip">SeedDance · 脚本分镜</span>
-            <span class="dock-chip dock-quota-chip hidden" id="dailyScriptQuotaChip" title="今日豆包/Claude 脚本生成次数"></span>
+            <span class="dock-chip dock-quota-chip hidden" id="dailyScriptQuotaChip" title="今日 LLM 脚本生成次数"></span>
+            <span class="dock-chip dock-quota-chip hidden" id="dailyVideoQuotaChip" title="今日成片产出次数"></span>
             <div class="dock-gen-actions">
               <div class="dock-gen-popover-wrap" id="dockVideoSettingsWrap">
                 <button type="button" class="dock-gen-action-btn" id="dockVideoSettingsBtn" aria-expanded="false" aria-controls="dockVideoSettingsPanel">
@@ -523,7 +535,8 @@
           </div>
           <footer class="studio-dock-toolbar">
             <span class="dock-chip" id="imitateDockModelChip">爆款模仿 · 结构复刻</span>
-            <span class="dock-chip dock-quota-chip hidden" id="imitateDailyQuotaChip" title="今日豆包/Claude 脚本生成次数"></span>
+            <span class="dock-chip dock-quota-chip hidden" id="imitateDailyQuotaChip" title="今日 LLM 脚本生成次数"></span>
+            <span class="dock-chip dock-quota-chip hidden" id="imitateDailyVideoQuotaChip" title="今日成片产出次数"></span>
             <div class="dock-gen-actions">
               <div class="dock-gen-popover-wrap" id="imitateVideoSettingsWrap">
                 <button type="button" class="dock-gen-action-btn" id="imitateVideoSettingsBtn" aria-expanded="false" aria-controls="imitateDockVideoSettingsPanel">

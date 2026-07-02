@@ -55,7 +55,15 @@ from .archive_delivery import build_archive_zip, list_archive_versions
 from .auth_middleware import WorkbenchAuthMiddleware
 from .deploy_config import public_status as deployment_status, workbench_host, workbench_port
 from .doubao_config import doubao_config, script_llm_config, video_analysis_policy
-from .daily_quota import assert_script_quota, production_profile, quota_status, record_script_generation
+from .daily_quota import (
+    assert_script_quota,
+    assert_video_quota,
+    production_profile,
+    quota_status,
+    record_script_generation,
+    record_video_output,
+    video_quota_status,
+)
 from .doubao_script import test_script_connection
 from .doubao_video_analysis import test_connection as test_doubao_connection
 from .jobs import job_status, start_job
@@ -93,7 +101,7 @@ from .seedance_bridge import (
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 137
+UI_VERSION = 138
 
 
 def _render_index() -> HTMLResponse:
@@ -900,12 +908,26 @@ async def delivery_seedance_run(slug: str, force: bool = Query(False)) -> dict:
     if not project_exists(slug):
         raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
     try:
+        assert_video_quota()
+    except ValueError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    try:
         status = project_status(slug)
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
         if force:
             refresh_project_seedance_source(slug)
-        return run_all(slug, force=force)
+        payload = run_all(slug, force=force)
+        assemble = payload.get("assemble") if isinstance(payload.get("assemble"), dict) else {}
+        final_ready = bool(
+            assemble.get("ok")
+            or (payload.get("seedance") or {}).get("final_video", {}).get("ready")
+        )
+        if final_ready:
+            payload["daily_video_quota"] = record_video_output(slug, note="seedance/run")
+        else:
+            payload["daily_video_quota"] = video_quota_status()
+        return payload
     except HTTPException:
         raise
     except RuntimeError as exc:

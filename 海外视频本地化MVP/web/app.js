@@ -1644,6 +1644,7 @@ function syncDockChipsFromHealth() {
   const imitateChip = document.getElementById("imitateDockModelChip");
   if (imitateChip) imitateChip.textContent = modelText ? `爆款模仿 · ${mode}` : "爆款模仿 · 结构复刻";
   syncDailyScriptQuota();
+  syncDailyVideoQuota();
   syncDockVideoSettingsLabel();
   syncDockProductSlot();
 }
@@ -1656,19 +1657,54 @@ function syncDailyScriptQuota(quotaOverride) {
   ].filter(Boolean);
   if (!q?.enabled || !q.limit) {
     chips.forEach((chip) => chip.classList.add("hidden"));
-    return;
+  } else {
+    const blocked = q.remaining <= 0;
+    const label = `脚本 ${q.used}/${q.limit}`;
+    chips.forEach((chip) => {
+      chip.classList.remove("hidden", "quota-warn", "quota-full");
+      chip.textContent = label;
+      if (blocked) chip.classList.add("quota-full");
+      else if (q.remaining <= 2) chip.classList.add("quota-warn");
+    });
   }
-  const label = `今日脚本 ${q.used}/${q.limit}`;
-  const blocked = q.remaining <= 0;
-  chips.forEach((chip) => {
-    chip.classList.remove("hidden", "quota-warn", "quota-full");
-    chip.textContent = label;
-    if (blocked) chip.classList.add("quota-full");
-    else if (q.remaining <= 2) chip.classList.add("quota-warn");
+  syncDockRunButtonsDisabled();
+}
+
+function syncDailyVideoQuota(quotaOverride) {
+  const q = quotaOverride || state.healthCache?.production?.daily_video_quota;
+  const chips = [
+    document.getElementById("dailyVideoQuotaChip"),
+    document.getElementById("imitateDailyVideoQuotaChip"),
+  ].filter(Boolean);
+  if (!q?.enabled || !q.limit) {
+    chips.forEach((chip) => chip.classList.add("hidden"));
+  } else {
+    const blocked = q.remaining <= 0;
+    const label = `成片 ${q.used}/${q.limit}`;
+    chips.forEach((chip) => {
+      chip.classList.remove("hidden", "quota-warn", "quota-full");
+      chip.textContent = label;
+      if (blocked) chip.classList.add("quota-full");
+      else if (q.remaining <= 2) chip.classList.add("quota-warn");
+    });
+  }
+  syncDockRunButtonsDisabled();
+}
+
+function syncDockRunButtonsDisabled() {
+  const scriptQ = state.healthCache?.production?.daily_script_quota;
+  const videoQ = state.healthCache?.production?.daily_video_quota;
+  const scriptBlocked = scriptQ?.enabled && scriptQ.remaining <= 0;
+  const videoBlocked = videoQ?.enabled && videoQ.remaining <= 0;
+  document.querySelectorAll(".js-script-generate").forEach((btn) => {
+    btn.disabled = scriptBlocked;
+    btn.title = scriptBlocked ? "今日 LLM 脚本配额已满，明日再试或调高 DAILY_SCRIPT_QUOTA" : "";
   });
-  document.querySelectorAll(".js-script-generate, #generateDockRun, #imitateDockRun").forEach((btn) => {
-    btn.disabled = blocked;
-    btn.title = blocked ? "今日 LLM 脚本配额已满，明日再试或调高 DAILY_SCRIPT_QUOTA" : "";
+  document.querySelectorAll("#generateDockRun, #imitateDockRun, #scriptFloatProduceBtn").forEach((btn) => {
+    btn.disabled = scriptBlocked || videoBlocked;
+    btn.title = videoBlocked
+      ? "今日成片产出配额已满，明日再试或调高 DAILY_VIDEO_QUOTA"
+      : (scriptBlocked ? "今日 LLM 脚本配额已满" : "");
   });
 }
 
@@ -3745,6 +3781,11 @@ async function runScriptFinish(options = {}) {
 async function runSeedanceGenerate(options = {}) {
   const force = options.force ?? document.getElementById("seedanceForceRegen")?.checked;
   const background = Boolean(options.background);
+  const videoQ = state.healthCache?.production?.daily_video_quota;
+  if (videoQ?.enabled && videoQ.remaining <= 0) {
+    setScriptActionStatus(`今日成片产出配额已用完（${videoQ.used}/${videoQ.limit}），请明日再试。`);
+    return false;
+  }
   const slug = currentScriptSlug();
   if (!slug) {
     setScriptActionStatus("请先生成脚本");
@@ -3794,6 +3835,10 @@ async function runSeedanceGenerate(options = {}) {
     setScriptActionStatus(msg);
     if (!document.getElementById("scriptDownloadBtnBottom")?.classList.contains("hidden")) {
       syncDownloadLinks(`/api/delivery/${slug}/zip?ts=${Date.now()}`, true);
+    }
+    if (data.daily_video_quota && state.healthCache?.production) {
+      state.healthCache.production.daily_video_quota = data.daily_video_quota;
+      syncDailyVideoQuota(data.daily_video_quota);
     }
     if (!background) openScriptFloatPanel();
     return !failed.length;
@@ -4222,9 +4267,13 @@ async function loadSettingsView() {
   const prod = h.production || {};
   const dep = h.deployment || {};
   const quota = prod.daily_script_quota || {};
+  const videoQuota = prod.daily_video_quota || {};
   const quotaLine = quota.enabled
-    ? `<br>量产配额：今日 LLM 脚本 <strong>${quota.used}/${quota.limit}</strong>（${prod.script_mode || "pro"} · ${prod.decompose_mode || "pro"} · 最多 ${prod.ai_video_max_shots || "?"} 镜/条）`
+    ? `<br>量产配额：脚本 <strong>${quota.used}/${quota.limit}</strong>`
     : "";
+  const videoQuotaLine = videoQuota.enabled
+    ? `${quota.enabled ? " · " : "<br>量产配额："}成片 <strong>${videoQuota.used}/${videoQuota.limit}</strong>（${prod.script_mode || "pro"} · 最多 ${prod.ai_video_max_shots || "?"} 镜/条）`
+    : (quota.enabled ? `（${prod.script_mode || "pro"} · 最多 ${prod.ai_video_max_shots || "?"} 镜/条）` : "");
   const deployEl = document.getElementById("deployInfo");
   if (deployEl) {
     deployEl.innerHTML = `
@@ -4240,7 +4289,7 @@ async function loadSettingsView() {
     结构拆解：${h.decompose?.label || "规则模板"}${policyNote}<br>
     脚本生成：${h.llm.label || (h.llm.available ? h.llm.doubao_model || h.llm.anthropic_model : h.llm.fallback)}<br>
     交付引擎：${h.delivery_engine?.label || "overseas-loc-mvp"}<br>
-    SeedDance：${h.seedance?.configured ? `已配置 ${h.seedance.provider}` : "未配置"}${quotaLine}`;
+    SeedDance：${h.seedance?.configured ? `已配置 ${h.seedance.provider}` : "未配置"}${quotaLine}${videoQuotaLine}`;
   await pollJobStatus();
 }
 

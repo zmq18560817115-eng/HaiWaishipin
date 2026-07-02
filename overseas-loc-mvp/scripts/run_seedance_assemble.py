@@ -7,16 +7,46 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+MVP_ROOT = ROOT.parent / "海外视频本地化MVP"
 sys.path.insert(0, str(ROOT))
 
 from app.main import _maybe_assemble_final_video, _seedance_generate_all
 from app.storage import project_dir
 from app.workflow import seedance_status
+
+
+def _load_workbench_daily_quota():
+    path = MVP_ROOT / "app" / "daily_quota.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("workbench_daily_quota", path)
+    if not spec or not spec.loader:
+        return None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_quota_mod = _load_workbench_daily_quota()
+if _quota_mod:
+    assert_video_quota = _quota_mod.assert_video_quota
+    record_video_output = _quota_mod.record_video_output
+    video_quota_status = _quota_mod.video_quota_status
+else:
+    def assert_video_quota() -> None:
+        return None
+
+    def record_video_output(slug: str, *, note: str = "") -> dict:
+        return {}
+
+    def video_quota_status() -> dict:
+        return {}
 
 
 def normalize_slug(raw: str) -> str:
@@ -53,6 +83,12 @@ async def main() -> int:
         print("请先在 8788 工作台生成脚本，或运行: 演示长视频.cmd")
         return 1
 
+    try:
+        assert_video_quota()
+    except ValueError as exc:
+        print(f"[失败] {exc}")
+        return 1
+
     print(f"项目: {slug}")
     print(f"目录: {project}")
     if force:
@@ -73,12 +109,16 @@ async def main() -> int:
     final = st.get("final_video") or {}
 
     out_copy = copy_to_workspace_output(slug, project, asm)
+    video_quota = video_quota_status()
+    if out_copy or asm.get("ok") or final.get("ready"):
+        video_quota = record_video_output(slug, note="cli/run_seedance_assemble")
     payload = {
         "slug": slug,
         "ready": f"{ready}/{total}",
         "final": final,
         "assemble": asm,
         "workspace_output": str(out_copy) if out_copy else None,
+        "daily_video_quota": video_quota,
         "results": results,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
