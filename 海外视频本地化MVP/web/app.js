@@ -311,14 +311,19 @@ function packMatchesCurrentTags(pack) {
 
 function formatPersonalizationBanner(pack) {
   const p = pack?.inputs?.personalization;
+  const m = pack?.inputs?.market || {};
   const summary = pack?.personalization_summary || "";
   const lines = [];
-  if (p) {
-    if (p.audience_tags?.length) lines.push(`<span class="pack-pers-chip">人群 ${esc(p.audience_tags.join("、"))}</span>`);
-    if (p.scenario_tags?.length) lines.push(`<span class="pack-pers-chip pack-pers-chip-scene">场景 ${esc(p.primary_scene || p.scenario_tags[0])}</span>`);
-    if (p.selling_tags?.length) lines.push(`<span class="pack-pers-chip">卖点 ${esc(p.selling_tags.join("、"))}</span>`);
-    if (p.pain_tags?.length) lines.push(`<span class="pack-pers-chip">痛点 ${esc(p.pain_tags.join("、"))}</span>`);
-  } else if (summary) {
+  const audience = p?.audience_tags || m.audience_tags || [];
+  const scenarios = p?.scenario_tags || m.scenario_tags || [];
+  const selling = p?.selling_tags || m.selling_tags || [];
+  const pains = p?.pain_tags || m.pain_tags || [];
+  const primaryScene = p?.primary_scene || pack?.inputs?.scenario_primary || scenarios[0] || "";
+  if (audience.length) lines.push(`<span class="pack-pers-chip">人群 ${esc(audience.join("、"))}</span>`);
+  if (scenarios.length) lines.push(`<span class="pack-pers-chip pack-pers-chip-scene">场景 ${esc(primaryScene || scenarios.join("、"))}</span>`);
+  if (selling.length) lines.push(`<span class="pack-pers-chip">卖点 ${esc(selling.join("、"))}</span>`);
+  if (pains.length) lines.push(`<span class="pack-pers-chip">痛点 ${esc(pains.join("、"))}</span>`);
+  if (!lines.length && summary) {
     lines.push(`<span class="pack-pers-chip">${esc(summary)}</span>`);
   }
   if (!lines.length) return "";
@@ -403,9 +408,42 @@ function captureTagSnapshot() {
   return JSON.stringify(readAllSelectedTags());
 }
 
+function scriptTagSnapshotFromPack(pack, savedTags) {
+  const m = pack?.inputs?.market || pack?.inputs?.personalization || {};
+  return JSON.stringify({
+    audience: m.audience_tags || savedTags?.audience || [],
+    scenarios: m.scenario_tags || savedTags?.scenarios || [],
+    selling: m.selling_tags || savedTags?.selling || [],
+    pains: m.pain_tags || savedTags?.pains || [],
+  });
+}
+
 function tagsChangedSinceScript() {
-  if (!state.scriptTagSnapshot) return false;
-  return captureTagSnapshot() !== state.scriptTagSnapshot;
+  const cur = captureTagSnapshot();
+  if (state.scriptTagSnapshot) {
+    return cur !== state.scriptTagSnapshot;
+  }
+  const pack = state.lastPreview?.script_pack;
+  if (pack && state.lastPreview?.has_script) {
+    return !packMatchesCurrentTags(pack);
+  }
+  return false;
+}
+
+function scriptNeedsRegenerate(prev = {}) {
+  if (!prev.has_script) return true;
+  if (tagsChangedSinceScript()) return true;
+  if (prev.script_pack && !packMatchesCurrentTags(prev.script_pack)) return true;
+  return false;
+}
+
+function resolveScenarioTagFromFeature(scenarioTag) {
+  const pool = [
+    ...(state.currentTagPool?.scenarios || []),
+    ...(state.tagPoolExtra?.scenarios || []),
+  ];
+  const hit = pool.find((t) => t.includes(scenarioTag) || scenarioTag.includes(t));
+  return hit || scenarioTag;
 }
 
 function openFloatPanel(panelId, backdropId) {
@@ -843,7 +881,7 @@ async function runStartCreate() {
 
   try {
     const prev = state.lastPreview || {};
-    if (!prev.has_script) {
+    if (scriptNeedsRegenerate(prev)) {
       await runScriptGenerate();
       if (!currentScriptSlug() && !state.lastPreview?.has_script) return;
       openScriptFloatPanel();
@@ -1085,6 +1123,23 @@ function selectGenerateScenario(featureId) {
   document.querySelectorAll("#generateFeatureGrid .feature-card").forEach((c) => {
     c.classList.toggle("selected", c.dataset.featureId === featureId);
   });
+  const feat = GENERATE_FEATURES.find((f) => f.id === featureId);
+  if (feat?.scenarioTag) {
+    state.tagSelection.scenarios = [resolveScenarioTagFromFeature(feat.scenarioTag)];
+    syncDockPromptFromScenarioTags();
+    refreshTagGroupsUI();
+    const warn = document.getElementById("scenarioConflictWarn");
+    if (warn) {
+      const conflict = scenarioConflictNote(state.tagSelection.scenarios);
+      if (conflict) {
+        warn.classList.remove("hidden");
+        warn.textContent = conflict;
+      } else {
+        warn.classList.add("hidden");
+        warn.textContent = "";
+      }
+    }
+  }
 }
 
 function viralVideoCardHtml(item) {
@@ -2402,7 +2457,7 @@ function updateLoopBarFromForm(prev = {}) {
   syncScriptProduceEmpty(hasScript);
   if (hint) {
     if (tagsChangedSinceScript() && hasScript) {
-      hint.textContent = "产品定义已更新（场景/卖点/痛点），请重新生成脚本以同步个性化内容。";
+      hint.textContent = "产品定义已更新（场景/卖点/痛点），点击「开始创作」或「重新生成脚本」同步。";
     } else if (state.scriptStep === "produce" && prev.delivery_ready) {
       hint.textContent = "成片已完成：可下载 zip 或预览视频。";
     } else if (state.scriptStep === "produce" && hasScript) {
@@ -3852,6 +3907,9 @@ async function refreshScriptPreview() {
       syncDownloadLinks("", false);
     }
     if (prev.has_script && prev.script_pack) {
+      if (!state.scriptTagSnapshot) {
+        state.scriptTagSnapshot = scriptTagSnapshotFromPack(prev.script_pack, prev.selected_tags || {});
+      }
       syncScriptProduceEmpty(true);
       scriptResultBody().innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
     }

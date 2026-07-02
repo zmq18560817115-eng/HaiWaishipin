@@ -181,15 +181,16 @@ def thermos_voiceovers(market: dict[str, Any], profile: dict[str, Any]) -> list[
 
     if sid == "travel":
         hook = "No hot water when you're out with baby?"
-        if "机场" in str(profile.get("primary_tag") or ""):
+        primary = str(profile.get("primary_tag") or "")
+        if "机场" in primary:
             hook = "At the airport with baby — still no easy way to warm a bottle?"
         pain = "Waiting forever for milk to warm is stressful on a trip."
         if "微波" in pains:
             pain = "Hunting for a microwave on the road is never easy."
         elif "不便携" in pains or "太大" in pains or "笨重" in pains:
             pain = "A bulky warmer does not fit your travel bag or airport routine."
-        elif "热水" in pains or "没热水" in pains:
-            pain = "No hot water at the airport when baby needs a bottle."
+        elif "热水" in pains or "没热水" in pains or "外出" in pains:
+            pain = "No hot water when you are out — especially at the airport or on the road."
         sell = "This portable warmer heats evenly in minutes."
         if "充电" in selling or "USB" in selling.upper():
             sell = "USB-C rechargeable — warm milk wherever you travel."

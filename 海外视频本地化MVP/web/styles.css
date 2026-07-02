@@ -5872,6 +5872,29 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   max-height: min(88vh, 860px);
 }
 
+.product-float-panel.product-float-product {
+  width: min(960px, calc(100vw - 40px));
+  height: min(86vh, 840px);
+  max-height: min(86vh, 840px);
+}
+
+.product-float-product .product-float-head {
+  padding: 20px 24px 14px;
+}
+
+.product-float-product .product-float-body {
+  padding: 20px 24px 24px;
+}
+
+.product-float-product .product-float-section + .product-float-section {
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.product-float-product .product-float-foot {
+  padding: 14px 24px 18px;
+}
+
 .script-float-body {
   display: flex;
   flex-direction: column;
@@ -5945,17 +5968,50 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 .script-tag-grid-float {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.script-tag-grid-float.detail-empty {
+  display: block;
+  grid-template-columns: none;
+  padding: 28px 20px;
+  text-align: center;
 }
 
 .script-tag-grid-float .tag-panel-compact {
-  padding: 12px 14px;
+  padding: 16px 18px;
+  min-height: 210px;
+  gap: 12px;
 }
 
 .script-tag-grid-float .tag-panel-head {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.script-tag-grid-float .tag-section-selected {
+  min-height: 52px;
+  padding: 10px 12px;
+}
+
+.script-tag-grid-float .tag-library-block {
+  max-height: 112px;
+}
+
+.script-tag-grid-float .tag-add-row .tag-input {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.script-tag-grid-float .tag-add-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.script-tag-grid-float .tag-chip {
+  padding: 7px 13px;
+  font-size: 13px;
 }
 
 .product-float-foot {
@@ -5980,8 +6036,24 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   padding: 8px 22px;
 }
 
+@media (max-width: 720px) {
+  .product-float-panel.product-float-product {
+    width: calc(100vw - 16px);
+    height: min(92vh, 900px);
+    max-height: min(92vh, 900px);
+  }
+
+  .script-tag-grid-float {
+    grid-template-columns: 1fr;
+  }
+
+  .script-tag-grid-float .tag-panel-compact {
+    min-height: 0;
+  }
+}
+
 @media (max-width: 640px) {
-  .product-float-panel {
+  .product-float-panel:not(.product-float-product):not(.studio-float-script) {
     bottom: 180px;
     max-height: min(65vh, 480px);
   }
