@@ -30,6 +30,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from paths import OVERSEAS_RUNS_DIR, WEB_DIR
 
@@ -100,9 +102,26 @@ from .seedance_bridge import (
 )
 
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
+
+
+class StaticNoCacheMiddleware(BaseHTTPMiddleware):
+    """避免浏览器长期缓存 app.js/styles.css，导致 UI 更新不生效。"""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path == "/" or (
+            path.startswith("/static/")
+            and path.rsplit(".", 1)[-1].lower() in ("js", "css", "html")
+        ):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+
+app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 148
+UI_VERSION = 149
 
 
 def _render_index() -> HTMLResponse:

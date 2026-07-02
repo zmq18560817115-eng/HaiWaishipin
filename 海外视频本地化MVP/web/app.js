@@ -655,6 +655,7 @@ function syncScriptGenCountdownUi() {
     countdown.textContent = label;
     countdown.classList.remove("hidden");
   }
+  enforceStaticBusyButtonLabels();
   syncScriptGenCountdownProgressFill();
 }
 
@@ -723,6 +724,32 @@ function formatCountdownMmSs(sec) {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
+const BUSY_BTN_TIME_RE = /\d+:\d{2}/;
+
+/** 倒计时只显示在进度条，强制去掉按钮上的 mm:ss（含旧版缓存脚本误写） */
+function enforceStaticBusyButtonLabels() {
+  const regenBtn = document.getElementById("scriptFloatRegenBtn");
+  if (regenBtn?.dataset.busy === "1" && BUSY_BTN_TIME_RE.test(regenBtn.textContent)) {
+    regenBtn.textContent = "生成中…";
+  }
+  const produceBtn = document.getElementById("scriptFloatProduceBtn");
+  if (produceBtn?.dataset.busy === "1" && BUSY_BTN_TIME_RE.test(produceBtn.textContent)) {
+    produceBtn.textContent = "生成中…";
+  }
+  forEachDockRunBtn((runBtn) => {
+    if (runBtn.dataset.busy !== "1") return;
+    const text = runBtn.textContent || "";
+    if (!BUSY_BTN_TIME_RE.test(text)) return;
+    if (text.includes("流水线")) {
+      runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 流水线运行中…';
+    } else if (text.includes("创作")) {
+      runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 创作中…';
+    } else {
+      runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 生成中…';
+    }
+  });
+}
+
 function estimateSeedanceVideoSeconds({ force } = {}) {
   const maxShots = parseInt(state.healthCache?.production?.ai_video_max_shots || "5", 10) || 5;
   const perShot = force ? 270 : 210;
@@ -772,6 +799,7 @@ function syncSeedanceCountdownUi() {
     el.textContent = label;
     el.classList.remove("hidden");
   }
+  enforceStaticBusyButtonLabels();
   syncSeedanceCountdownProgressFill();
 }
 
