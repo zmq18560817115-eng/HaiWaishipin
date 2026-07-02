@@ -655,12 +655,6 @@ function syncScriptGenCountdownUi() {
     countdown.textContent = label;
     countdown.classList.remove("hidden");
   }
-  const regenBtn = document.getElementById("scriptFloatRegenBtn");
-  if (regenBtn?.dataset.busy === "1") {
-    regenBtn.textContent = scriptGenCountdownRemaining > 0
-      ? `生成中 ${formatCountdownMmSs(scriptGenCountdownRemaining)}…`
-      : "生成中，继续等待…";
-  }
   syncScriptGenCountdownProgressFill();
 }
 
@@ -777,22 +771,6 @@ function syncSeedanceCountdownUi() {
     if (!el || !bar || bar.classList.contains("hidden")) continue;
     el.textContent = label;
     el.classList.remove("hidden");
-  }
-  forEachDockRunBtn((runBtn) => {
-    if (runBtn.dataset.busy !== "1") return;
-    if (seedanceCountdownRemaining > 0) {
-      const phase = runBtn.innerHTML.includes("流水线") ? "流水线" : "生成中";
-      runBtn.innerHTML = `<span class="dock-run-icon">✦</span> ${phase} ${formatCountdownMmSs(seedanceCountdownRemaining)}…`;
-    } else if (!runBtn.innerHTML.includes("继续等待")) {
-      const phase = runBtn.innerHTML.includes("流水线") ? "流水线" : "生成中";
-      runBtn.innerHTML = `<span class="dock-run-icon">✦</span> ${phase}，继续等待…`;
-    }
-  });
-  const produceBtn = document.getElementById("scriptFloatProduceBtn");
-  if (produceBtn?.disabled && produceBtn.dataset.busy === "1") {
-    produceBtn.textContent = seedanceCountdownRemaining > 0
-      ? `生成中 ${formatCountdownMmSs(seedanceCountdownRemaining)}…`
-      : "生成中，继续等待…";
   }
   syncSeedanceCountdownProgressFill();
 }
@@ -4042,6 +4020,7 @@ async function runScriptGenerate() {
   if (regenBtn) {
     regenBtn.disabled = true;
     regenBtn.dataset.busy = "1";
+    regenBtn.textContent = "生成中…";
   }
   if (produceBtn) produceBtn.disabled = true;
   showScriptProgress(true, {
