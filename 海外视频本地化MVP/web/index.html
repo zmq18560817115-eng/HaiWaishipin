@@ -412,7 +412,10 @@
           <div id="seedanceProgress" class="seedance-progress hidden" aria-live="polite">
             <div class="seedance-progress-row">
               <span class="seedance-progress-label">AI 分镜</span>
-              <span id="seedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
+              <div class="seedance-progress-status-wrap">
+                <span id="seedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
+                <span id="seedanceProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
+              </div>
             </div>
             <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
               <div id="seedanceProgressFill" class="seedance-progress-fill"></div>
@@ -526,7 +529,10 @@
           <div id="imitateSeedanceProgress" class="seedance-progress hidden" aria-live="polite">
             <div class="seedance-progress-row">
               <span class="seedance-progress-label">AI 分镜</span>
-              <span id="imitateSeedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
+              <div class="seedance-progress-status-wrap">
+                <span id="imitateSeedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
+                <span id="imitateSeedanceProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
+              </div>
             </div>
             <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
               <div id="imitateSeedanceProgressFill" class="seedance-progress-fill"></div>

@@ -490,16 +490,114 @@ function syncFinishButton(canFinish, delivered) {
 }
 
 const SEEDANCE_PROGRESS_TARGETS = [
-  { bar: "seedanceProgress", status: "seedanceProgressStatus", fill: "seedanceProgressFill", meta: "seedancePipelineCompact" },
-  { bar: "imitateSeedanceProgress", status: "imitateSeedanceProgressStatus", fill: "imitateSeedanceProgressFill", meta: "imitateSeedancePipelineCompact" },
+  { bar: "seedanceProgress", status: "seedanceProgressStatus", fill: "seedanceProgressFill", meta: "seedancePipelineCompact", countdown: "seedanceProgressCountdown" },
+  { bar: "imitateSeedanceProgress", status: "imitateSeedanceProgressStatus", fill: "imitateSeedanceProgressFill", meta: "imitateSeedancePipelineCompact", countdown: "imitateSeedanceProgressCountdown" },
 ];
 
-function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, persist } = {}) {
+const SEEDANCE_COUNTDOWN_PHASE_SEC = {
+  analysis: 45,
+  script: 120,
+  delivery: 60,
+};
+
+let seedanceCountdownTimer = null;
+let seedanceCountdownRemaining = 0;
+let seedanceCountdownTotal = 0;
+
+function formatCountdownMmSs(sec) {
+  const s = Math.max(0, Math.ceil(sec));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+function estimateSeedanceVideoSeconds({ force } = {}) {
+  const maxShots = parseInt(state.healthCache?.production?.ai_video_max_shots || "5", 10) || 5;
+  const perShot = force ? 270 : 210;
+  return maxShots * perShot + 90;
+}
+
+function stopSeedanceCountdown() {
+  if (seedanceCountdownTimer) {
+    clearInterval(seedanceCountdownTimer);
+    seedanceCountdownTimer = null;
+  }
+  seedanceCountdownRemaining = 0;
+  seedanceCountdownTotal = 0;
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const el = document.getElementById(ids.countdown);
+    if (el) {
+      el.textContent = "";
+      el.classList.add("hidden");
+    }
+  }
+}
+
+function syncSeedanceCountdownProgressFill() {
+  if (!seedanceCountdownTotal) return;
+  const pct = seedanceCountdownRemaining > 0
+    ? Math.min(92, Math.round((1 - seedanceCountdownRemaining / seedanceCountdownTotal) * 100))
+    : 95;
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const bar = document.getElementById(ids.bar);
+    const fill = document.getElementById(ids.fill);
+    if (!bar || bar.classList.contains("hidden") || !fill) continue;
+    fill.classList.remove("indeterminate");
+    fill.style.width = `${pct}%`;
+    const track = bar.querySelector(".seedance-progress-track");
+    track?.setAttribute("aria-valuenow", String(pct));
+  }
+}
+
+function syncSeedanceCountdownUi() {
+  const label = seedanceCountdownRemaining > 0
+    ? `预计剩余 ${formatCountdownMmSs(seedanceCountdownRemaining)}`
+    : "比预计稍久，继续生成中…";
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const el = document.getElementById(ids.countdown);
+    const bar = document.getElementById(ids.bar);
+    if (!el || !bar || bar.classList.contains("hidden")) continue;
+    el.textContent = label;
+    el.classList.remove("hidden");
+  }
+  forEachDockRunBtn((runBtn) => {
+    if (runBtn.dataset.busy !== "1") return;
+    if (seedanceCountdownRemaining > 0) {
+      const phase = runBtn.innerHTML.includes("流水线") ? "流水线" : "生成中";
+      runBtn.innerHTML = `<span class="dock-run-icon">✦</span> ${phase} ${formatCountdownMmSs(seedanceCountdownRemaining)}…`;
+    } else if (!runBtn.innerHTML.includes("继续等待")) {
+      const phase = runBtn.innerHTML.includes("流水线") ? "流水线" : "生成中";
+      runBtn.innerHTML = `<span class="dock-run-icon">✦</span> ${phase}，继续等待…`;
+    }
+  });
+  const produceBtn = document.getElementById("scriptFloatProduceBtn");
+  if (produceBtn?.disabled && produceBtn.dataset.busy === "1") {
+    produceBtn.textContent = seedanceCountdownRemaining > 0
+      ? `生成中 ${formatCountdownMmSs(seedanceCountdownRemaining)}…`
+      : "生成中，继续等待…";
+  }
+  syncSeedanceCountdownProgressFill();
+}
+
+function startSeedanceCountdown(seconds) {
+  stopSeedanceCountdown();
+  seedanceCountdownTotal = Math.max(30, Math.round(seconds));
+  seedanceCountdownRemaining = seedanceCountdownTotal;
+  syncSeedanceCountdownUi();
+  seedanceCountdownTimer = setInterval(() => {
+    seedanceCountdownRemaining = Math.max(0, seedanceCountdownRemaining - 1);
+    syncSeedanceCountdownUi();
+  }, 1000);
+}
+
+function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, persist, countdownSec } = {}) {
   if (persist != null) state.seedanceProgressPersist = Boolean(persist);
   if (!show && persist !== true) state.seedanceProgressPersist = false;
 
   const visible = Boolean(show && (state.createPipelineActive || state.seedanceProgressPersist));
   let wasVisible = false;
+
+  if (visible && countdownSec != null && countdownSec > 0) startSeedanceCountdown(countdownSec);
 
   for (const ids of SEEDANCE_PROGRESS_TARGETS) {
     const bar = document.getElementById(ids.bar);
@@ -526,6 +624,7 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
     if (track && percent != null) track.setAttribute("aria-valuenow", String(Math.round(percent)));
   }
 
+  if (!visible) stopSeedanceCountdown();
   if (!visible && wasVisible) syncDockScrollPadding();
   else if (visible && !wasVisible) syncDockScrollPadding();
 }
@@ -586,6 +685,7 @@ async function runStartCreate() {
 }
 
 function renderDockProduceComplete(slug, message) {
+  stopSeedanceCountdown();
   showSeedanceProgress(true, {
     status: message || "成片已就绪",
     percent: 100,
@@ -612,6 +712,7 @@ async function runConfirmProduceVideo() {
   state.seedanceProgressPersist = false;
   if (produceBtn) {
     produceBtn.disabled = true;
+    produceBtn.dataset.busy = "1";
     produceBtn.textContent = "生成中…";
   }
   forEachDockRunBtn((runBtn) => {
@@ -634,6 +735,7 @@ async function runConfirmProduceVideo() {
     state.createPipelineActive = false;
     if (!state.seedanceProgressPersist) showSeedanceProgress(false);
     if (produceBtn) {
+      delete produceBtn.dataset.busy;
       produceBtn.disabled = false;
       produceBtn.textContent = "确认生成视频";
     }
@@ -914,6 +1016,7 @@ async function ensureMaterialAnalysis(linkId) {
     status: "正在拆解对标视频结构（规则，省 token）…",
     indeterminate: true,
     pipeline: "",
+    countdownSec: SEEDANCE_COUNTDOWN_PHASE_SEC.analysis,
   });
   setScriptActionStatus("正在拆解对标结构…");
   const res = await api(`/api/materials/${linkId}/ensure-analysis`, {
@@ -981,6 +1084,7 @@ async function runViralBenchmarkPipeline(linkId) {
       status: "正在根据对标结构生成品牌脚本…",
       indeterminate: true,
       pipeline: state.healthCache?.llm?.label || "",
+      countdownSec: SEEDANCE_COUNTDOWN_PHASE_SEC.script,
     });
     await runScriptGenerate();
     await refreshScriptPreview();
@@ -1000,6 +1104,7 @@ async function runViralBenchmarkPipeline(linkId) {
       setScriptActionStatus("对标视频已用于生成，成片见底部进度条");
     }
   } catch (err) {
+    stopSeedanceCountdown();
     setScriptActionStatus(err.message);
     showSeedanceProgress(true, { status: `失败：${err.message}`, persist: true });
   } finally {
@@ -3798,6 +3903,7 @@ async function runSeedanceGenerate(options = {}) {
     status: force ? "正在强制重生成…" : "正在生成分镜视频…",
     indeterminate: true,
     pipeline: state.healthCache?.seedance?.label || "",
+    countdownSec: options.keepCountdown ? undefined : estimateSeedanceVideoSeconds({ force }),
   });
   setScriptActionStatus(force ? "强制重生成中…" : "正在生成分镜视频，请耐心等待…");
   const hintEl = document.getElementById("seedanceHint");
@@ -3826,6 +3932,7 @@ async function runSeedanceGenerate(options = {}) {
       msg = "视频生成完成，可预览 mp4 或下载 zip";
     }
     if (hintEl) hintEl.textContent = msg;
+    stopSeedanceCountdown();
     showSeedanceProgress(true, {
       status: finalReady ? "成片已就绪" : msg,
       pipeline: data.seedance?.pipeline || "",
@@ -3843,6 +3950,7 @@ async function runSeedanceGenerate(options = {}) {
     if (!background) openScriptFloatPanel();
     return !failed.length;
   } catch (err) {
+    stopSeedanceCountdown();
     showSeedanceProgress(true, { status: `失败：${err.message}`, percent: 0 });
     setScriptActionStatus(`视频生成失败：${err.message}`);
     return false;
@@ -3862,10 +3970,14 @@ async function runProduceVideo(options = {}) {
     setScriptStep("produce", { scroll: false });
     ensureScriptResultVisible();
   }
+  const forceRegen = document.getElementById("seedanceForceRegen")?.checked;
+  const needsDelivery = !Boolean(state.lastPreview?.delivery_ready);
   showSeedanceProgress(true, {
     status: "正在准备交付与分镜生成…",
     indeterminate: true,
     pipeline: state.healthCache?.seedance?.label || "",
+    countdownSec: estimateSeedanceVideoSeconds({ force: forceRegen })
+      + (needsDelivery ? SEEDANCE_COUNTDOWN_PHASE_SEC.delivery : 0),
   });
   setScriptActionStatus("正在启动：交付包 → AI 分镜视频 → 拼接成片（约 15–30 分钟）…");
   if (!background) openScriptFloatPanel();
@@ -3880,10 +3992,12 @@ async function runProduceVideo(options = {}) {
       await refreshScriptPreview();
     }
     return await runSeedanceGenerate({
-      force: document.getElementById("seedanceForceRegen")?.checked,
+      force: forceRegen,
       background,
+      keepCountdown: true,
     });
   } catch (err) {
+    stopSeedanceCountdown();
     setScriptActionStatus(`产出视频失败：${err.message}`);
     showSeedanceProgress(true, { status: `失败：${err.message}`, persist: true });
     return false;
