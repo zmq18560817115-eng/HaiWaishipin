@@ -29,6 +29,12 @@ USER_DELIVERABLES = (
     "剪辑单.html",
 )
 
+# 用户下载 zip 仅含：脚本文档 + 分镜 mp4 + 成片（不含字幕、剪辑单等内部交付物）
+USER_DOWNLOAD_ZIP_SCRIPT = (
+    "交付脚本包.md",
+    "交付脚本包.json",
+)
+
 
 def _olm_module(module: str):
     """从 overseas-loc-mvp/app 加载模块，避免与工作台 app 包名冲突。"""
@@ -346,27 +352,29 @@ def build_delivery_zip(slug: str) -> tuple[bytes, str]:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         wrote = 0
-        for name in USER_DELIVERABLES:
+        for name in USER_DOWNLOAD_ZIP_SCRIPT:
             path = project / name
-            if path.exists():
+            if path.is_file():
                 zf.write(path, name)
                 wrote += 1
         broll = project / "broll"
-        if broll.exists():
+        if broll.is_dir():
             for mp4 in sorted(broll.glob("shot-*.mp4")):
                 zf.write(mp4, mp4.relative_to(project).as_posix())
                 wrote += 1
-        if final_path and _valid_mp4(final_path):
-            zf.write(final_path, "final-video.mp4")
-            runs_final = project / "broll" / "final-video.mp4"
+            runs_final = broll / "final-video.mp4"
             if _valid_mp4(runs_final):
                 zf.write(runs_final, runs_final.relative_to(project).as_posix())
-            else:
-                zf.write(final_path, "broll/final-video.mp4")
-            wrote += 1
+                wrote += 1
+        if final_path and _valid_mp4(final_path):
+            arc = "broll/final-video.mp4"
+            runs_final = project / "broll" / "final-video.mp4"
+            if not (runs_final.is_file() and runs_final.resolve() == final_path.resolve()):
+                zf.write(final_path, arc)
+                wrote += 1
     data = buf.getvalue()
     if wrote == 0:
-        raise FileNotFoundError("尚无可下载的分镜或成片 mp4")
+        raise FileNotFoundError("尚无可下载的脚本、分镜或成片")
     return data, f"{slug}-delivery.zip"
 
 

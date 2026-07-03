@@ -781,15 +781,20 @@ def write_editor_deliverables(
 
 
 def delivery_zip_entries(project: Path) -> list[str]:
-    """用户 zip 内文件：七项脚本包 + 字幕 + 剪辑单 + 已生成空镜。"""
-    names = list(USER_DELIVERABLES)
+    """用户 zip：脚本文档 + 分镜 mp4 + 成片（不含字幕、剪辑单等）。"""
+    names = [name for name in USER_DOWNLOAD_ZIP_SCRIPT if (project / name).is_file()]
     broll = project / "broll"
-    if broll.exists():
+    if broll.is_dir():
         for mp4 in sorted(broll.glob("shot-*.mp4")):
             rel = mp4.relative_to(project).as_posix()
             if rel not in names:
                 names.append(rel)
-    return [name for name in names if (project / name).exists()]
+        final = broll / "final-video.mp4"
+        if final.is_file() and final.stat().st_size > 1000:
+            rel = final.relative_to(project).as_posix()
+            if rel not in names:
+                names.append(rel)
+    return names
 
 
 def scan_project(project: Path, brief: dict[str, Any]) -> dict[str, Any]:
@@ -835,6 +840,11 @@ USER_DELIVERABLES = (
     "交付脚本包.json",
     "subtitles.srt",
     "剪辑单.html",
+)
+
+USER_DOWNLOAD_ZIP_SCRIPT = (
+    "交付脚本包.md",
+    "交付脚本包.json",
 )
 
 SEEDANCE_PIPELINE = pipeline_label()
