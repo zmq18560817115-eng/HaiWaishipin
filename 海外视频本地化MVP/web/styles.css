@@ -5780,12 +5780,166 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 .studio-float-script .product-float-body {
-  padding: 18px 24px;
+  padding: 14px 20px 16px;
+}
+
+.studio-float-script .script-float-output {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.studio-float-script .output-body.output-body-compact {
+  padding: 0;
+}
+
+.studio-float-script .script-pack-meta-strip {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.studio-float-script .script-pack-warn {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.studio-float-script .script-pack-banner .pack-personalization {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: #f4f7f9;
+}
+
+.studio-float-script .script-pack-banner .pack-personalization-stale {
+  background: #fffbeb;
+}
+
+.studio-float-script .script-pack-banner .pack-pers-chip {
+  border: none;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.studio-float-script .script-edit-form-flat.script-pack {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.studio-float-script .script-pack-fold {
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.studio-float-script .script-pack-fold summary {
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  list-style: none;
+}
+
+.studio-float-script .script-pack-fold summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-float-script .script-shot-list {
+  gap: 0;
+}
+
+.studio-float-script .script-shot-editor {
+  border: none;
+  border-radius: 0;
+  padding: 14px 0;
+  margin: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.studio-float-script .script-shot-editor:last-child {
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+
+.studio-float-script .script-shot-head {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.01em;
+}
+
+.studio-float-script .script-shot-core {
+  display: grid;
+  gap: 8px;
+}
+
+.studio-float-script .script-edit-form .script-edit-field {
+  margin-bottom: 0;
+}
+
+.studio-float-script .script-edit-form .script-edit-field .pack-label {
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.studio-float-script .script-edit-form textarea {
+  border: none;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  min-height: 40px;
+}
+
+.studio-float-script .script-edit-form textarea:focus {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #cbd5e1;
+}
+
+.studio-float-script .script-shot-advanced {
+  margin-top: 8px;
+}
+
+.studio-float-script .script-shot-advanced summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.studio-float-script .script-shot-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-float-script .script-shot-advanced[open] summary {
+  margin-bottom: 6px;
+  color: #64748b;
+}
+
+.studio-float-script .script-action-status {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
 }
 
 .script-float-hint {
   margin: 0;
   font-size: 13px;
+}
+
+.script-float-hint.hidden {
+  display: none;
 }
 
 .script-float-output {
@@ -5795,20 +5949,21 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   overflow: auto;
 }
 
-.studio-float-script .output-body.output-body-compact {
-  padding: 4px 2px 8px;
-}
-
 .script-float-foot {
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
-  padding: 14px 24px 18px;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line-soft);
+  background: #fafbfc;
 }
 
 .script-float-foot .script-gen-progress {
   width: 100%;
   margin: 0;
+  border-top: none;
+  background: #fff;
+  border-radius: 8px;
 }
 
 .script-gen-placeholder {
@@ -5879,6 +6034,12 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   flex: 1;
   min-width: 140px;
   justify-content: center;
+}
+
+.script-float-actions .primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 @media (max-width: 640px) {

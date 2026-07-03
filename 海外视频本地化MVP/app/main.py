@@ -54,6 +54,7 @@ from .data import (
     needs_doubao_analysis,
     shot_count_for,
 )
+from .analyze_jobs import analyze_status, clear_analyze_job, start_material_analyze
 from .archive_delivery import build_archive_zip, list_archive_versions
 from .auth_middleware import WorkbenchAuthMiddleware
 from .deploy_config import public_status as deployment_status, workbench_host, workbench_port
@@ -122,7 +123,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 153
+UI_VERSION = 157
 
 
 def _render_index() -> HTMLResponse:
@@ -592,8 +593,22 @@ async def material_preview(link_id: int, product_id: str = "") -> dict:
         "workflow_note": (
             "仅借鉴本条竞品的钩子/节奏/分镜结构；成片口播与画面统一露出我方品牌，不出现竞品名。"
         ),
-        "seedance": project_status(slug) if project_exists(slug) else None,
+        "seedance": _safe_project_status(slug),
     }
+
+
+def _safe_project_status(slug: str) -> dict[str, Any] | None:
+    if not project_exists(slug):
+        return None
+    try:
+        return project_status(slug)
+    except Exception as exc:
+        return {
+            "available": True,
+            "configured": False,
+            "error": str(exc)[-400:],
+            "shots": [],
+        }
 
 
 @app.post("/api/materials/{link_id}/generate")

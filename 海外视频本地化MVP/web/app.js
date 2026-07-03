@@ -29,6 +29,8 @@ const state = {
   pendingScenarioTag: null,
   createPipelineActive: false,
   seedanceProgressPersist: false,
+  scriptGenActive: false,
+  videoGenActive: false,
   seedanceVideoComplete: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
@@ -498,13 +500,13 @@ function mountScriptPackEditor(container, pack, meta) {
   if (!container || !pack) return;
   container.replaceChildren();
 
-  const h3 = document.createElement("h3");
-  h3.textContent = "脚本已生成";
-  container.appendChild(h3);
+  const loopHint = document.getElementById("loopHint");
+  if (loopHint) loopHint.classList.add("hidden");
 
   const bannerHtml = formatPersonalizationBanner(pack);
   if (bannerHtml) {
     const bannerWrap = document.createElement("div");
+    bannerWrap.className = "script-pack-banner";
     bannerWrap.innerHTML = bannerHtml;
     container.appendChild(bannerWrap);
   }
@@ -513,72 +515,49 @@ function mountScriptPackEditor(container, pack, meta) {
   const provider = meta?.provider || pack.provider || "";
   const model = meta?.model || pack.model || "";
   const providerLine = provider === "doubao"
-    ? `脚本引擎：豆包（${model || "ark"}）`
+    ? `豆包 · ${model || "ark"}`
     : provider === "anthropic"
-      ? `脚本引擎：Claude（${model || "claude"}）`
+      ? `Claude · ${model || "claude"}`
       : provider === "rule_template"
-        ? "脚本引擎：规则模板（LLM 未配置或 API 失败时自动使用）"
+        ? "规则模板"
         : "";
   const tagSummary = [
-    m.audience_tags?.length ? `人群：${m.audience_tags.join("、")}` : "",
-    m.scenario_tags?.length ? `场景：${m.scenario_tags.join("、")}` : "",
-    m.selling_tags?.length ? `卖点：${m.selling_tags.join("、")}` : "",
-    m.pain_tags?.length ? `痛点：${m.pain_tags.join("、")}` : "",
+    m.audience_tags?.length ? m.audience_tags.join("、") : "",
+    m.scenario_tags?.length ? m.scenario_tags.join("、") : "",
   ].filter(Boolean).join(" · ");
-  const sceneNote = pack.inputs?.scenario_primary
-    ? `全片统一场景：${pack.inputs.scenario_primary}`
-    : "";
-  const sceneWarn = pack.inputs?.scenario_conflict_note;
-
-  for (const [text, cls] of [
-    [providerLine, "pack-summary-line"],
-    [tagSummary, "pack-summary-line"],
-    [sceneNote, "pack-summary-line"],
-  ]) {
-    if (!text) continue;
-    const p = document.createElement("p");
-    p.className = cls;
-    p.textContent = text;
-    container.appendChild(p);
+  const metaBits = [providerLine, tagSummary, pack.inputs?.scenario_primary].filter(Boolean);
+  if (metaBits.length) {
+    const metaStrip = document.createElement("p");
+    metaStrip.className = "script-pack-meta-strip muted";
+    metaStrip.textContent = metaBits.join(" · ");
+    container.appendChild(metaStrip);
   }
+  const sceneWarn = pack.inputs?.scenario_conflict_note;
   if (sceneWarn) {
     const p = document.createElement("p");
-    p.className = "workflow-warn";
+    p.className = "workflow-warn script-pack-warn";
     p.textContent = sceneWarn;
     container.appendChild(p);
   }
 
-  const hint = document.createElement("p");
-  hint.className = "script-edit-hint muted";
-  hint.textContent = "可直接修改下方字段；点击「保存修改」或「确认生成视频」时将按当前内容出片。";
-  container.appendChild(hint);
-
   const form = document.createElement("form");
   form.id = "scriptEditForm";
-  form.className = "script-pack script-edit-form";
+  form.className = "script-pack script-edit-form script-edit-form-flat";
   form.autocomplete = "off";
   form.addEventListener("submit", (e) => e.preventDefault());
 
   const metaDetails = document.createElement("details");
-  metaDetails.className = "pack-meta-details";
-  metaDetails.open = true;
+  metaDetails.className = "pack-meta-details script-pack-fold";
   const metaSummary = document.createElement("summary");
-  metaSummary.textContent = "标题与口播全文";
+  metaSummary.textContent = "标题与完整口播";
   metaDetails.appendChild(metaSummary);
   appendScriptEditTextarea(metaDetails, "英文标题", "packField", "title", pack.title, 2);
   appendScriptEditTextarea(metaDetails, "英文副标题", "packField", "subtitle", pack.subtitle, 2);
   appendScriptEditTextarea(metaDetails, "完整口播", "packField", "voiceover_20s", pack.voiceover_20s, 3);
   form.appendChild(metaDetails);
 
-  const shotsLabel = document.createElement("div");
-  shotsLabel.className = "pack-row script-shot-list-head";
-  const shotsTitle = document.createElement("span");
-  shotsTitle.textContent = `分镜脚本（${(pack.storyboard || []).length} 镜，可直接编辑）`;
-  shotsLabel.appendChild(shotsTitle);
-  form.appendChild(shotsLabel);
-
   const shotsWrap = document.createElement("div");
-  shotsWrap.className = "shot-list-compact shot-list-editable";
+  shotsWrap.className = "shot-list-compact shot-list-editable script-shot-list";
   (pack.storyboard || []).forEach((s, idx) => {
     const row = document.createElement("section");
     row.className = "shot-edit-row script-shot-editor";
@@ -590,14 +569,24 @@ function mountScriptPackEditor(container, pack, meta) {
 
     const head = document.createElement("div");
     head.className = "script-shot-head";
-    head.textContent = `第 ${s.number || idx + 1} 镜 · ${s.role || ""}（${s.timing || ""}）`;
+    head.textContent = `第 ${s.number || idx + 1} 镜 · ${s.role || ""} · ${s.timing || ""}`;
     row.appendChild(head);
 
-    appendScriptEditTextarea(row, "画面", "shotField", "visual", s.visual, 2);
-    appendScriptEditTextarea(row, "口播", "shotField", "voiceover_en", s.voiceover_en, 2);
-    appendScriptEditTextarea(row, "字幕", "shotField", "subtitle_en", s.subtitle_en, 2);
-    appendScriptEditTextarea(row, "构图", "shotField", "visual_prompt", s.visual_prompt, 5);
-    appendScriptEditTextarea(row, "空镜", "shotField", "seedance_prompt", s.seedance_prompt, 5);
+    const core = document.createElement("div");
+    core.className = "script-shot-core";
+    appendScriptEditTextarea(core, "画面", "shotField", "visual", s.visual, 2);
+    appendScriptEditTextarea(core, "口播", "shotField", "voiceover_en", s.voiceover_en, 2);
+    appendScriptEditTextarea(core, "字幕", "shotField", "subtitle_en", s.subtitle_en, 2);
+    row.appendChild(core);
+
+    const advanced = document.createElement("details");
+    advanced.className = "script-shot-advanced";
+    const advSummary = document.createElement("summary");
+    advSummary.textContent = "构图 / 空镜 Prompt";
+    advanced.appendChild(advSummary);
+    appendScriptEditTextarea(advanced, "构图", "shotField", "visual_prompt", s.visual_prompt, 4);
+    appendScriptEditTextarea(advanced, "空镜", "shotField", "seedance_prompt", s.seedance_prompt, 4);
+    row.appendChild(advanced);
     shotsWrap.appendChild(row);
   });
   form.appendChild(shotsWrap);
@@ -853,13 +842,31 @@ function startScriptGenCountdown(seconds) {
   }, 1000);
 }
 
+function isWorkbenchProgressActive() {
+  return Boolean(
+    state.createPipelineActive
+    || state.seedanceProgressPersist
+    || state.scriptGenActive
+    || state.videoGenActive,
+  );
+}
+
+function hideSeedanceProgressIfIdle() {
+  if (!isWorkbenchProgressActive()) showSeedanceProgress(false);
+}
+
 function showScriptProgress(show, { status, percent, indeterminate, pipeline, countdownSec } = {}) {
+  state.scriptGenActive = Boolean(show);
   const bar = document.getElementById("scriptGenProgress");
   const statusEl = document.getElementById("scriptGenProgressStatus");
   const fill = document.getElementById("scriptGenProgressFill");
   const meta = document.getElementById("scriptGenProgressMeta");
   const track = bar?.querySelector(".seedance-progress-track");
-  if (!bar) return;
+  if (!bar) {
+    if (show) showSeedanceProgress(true, { status, percent, indeterminate, pipeline, countdownSec });
+    else hideSeedanceProgressIfIdle();
+    return;
+  }
 
   if (show && countdownSec != null && countdownSec > 0) startScriptGenCountdown(countdownSec);
   if (!show) stopScriptGenCountdown();
@@ -870,6 +877,8 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
     if (fill) fill.style.width = "";
     if (statusEl) statusEl.textContent = "准备中…";
     if (meta) meta.textContent = "";
+    hideSeedanceProgressIfIdle();
+    syncDockScrollPadding();
     return;
   }
 
@@ -880,6 +889,9 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
     if (percent != null) fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
   }
   if (track && percent != null) track.setAttribute("aria-valuenow", String(Math.round(percent)));
+
+  showSeedanceProgress(true, { status, percent, indeterminate, pipeline, countdownSec });
+  syncDockScrollPadding();
 }
 
 function resetScriptProgress() {
@@ -1001,7 +1013,7 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
   if (persist != null) state.seedanceProgressPersist = Boolean(persist);
   if (!show && persist !== true) state.seedanceProgressPersist = false;
 
-  const visible = Boolean(show && (state.createPipelineActive || state.seedanceProgressPersist));
+  const visible = Boolean(show && isWorkbenchProgressActive());
   let wasVisible = false;
 
   if (visible && countdownSec != null && countdownSec > 0) startSeedanceCountdown(countdownSec);
@@ -1022,6 +1034,9 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
       continue;
     }
 
+    const labelEl = bar.querySelector(".seedance-progress-label");
+    if (labelEl) labelEl.textContent = state.scriptGenActive ? "脚本生成" : "AI 分镜";
+
     if (status && statusEl) statusEl.textContent = status;
     if (pipeline != null && meta) meta.textContent = pipeline;
     if (fill) {
@@ -1039,6 +1054,8 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
 function resetSeedanceProgressDock() {
   stopSeedanceCountdown();
   state.seedanceProgressPersist = false;
+  state.scriptGenActive = false;
+  state.videoGenActive = false;
   for (const ids of SEEDANCE_PROGRESS_TARGETS) {
     const fill = document.getElementById(ids.fill);
     if (fill) {
@@ -1095,6 +1112,9 @@ async function runStartCreate() {
     runBtn.dataset.busy = "1";
     runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 创作中…';
   });
+  state.createPipelineActive = true;
+  activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+  showSeedanceProgress(true, { status: "准备创作…", indeterminate: true });
 
   try {
     const prev = state.lastPreview || {};
@@ -1107,6 +1127,8 @@ async function runStartCreate() {
     refreshScriptFloatFromPreview(prev);
     openScriptFloatPanel();
   } finally {
+    state.createPipelineActive = false;
+    hideSeedanceProgressIfIdle();
     forEachDockRunBtn((runBtn) => {
       delete runBtn.dataset.busy;
       runBtn.disabled = false;
@@ -1135,12 +1157,35 @@ function setSeedanceVideoComplete(complete, slug) {
 }
 
 async function runConfirmProduceVideo() {
-  const slug = currentScriptSlug();
-  if (!slug) {
-    setScriptActionStatus("请先生成并确认脚本");
+  const produceBtn = document.getElementById("scriptFloatProduceBtn");
+  if (produceBtn?.disabled) {
+    const tip = produceBtn.title || "当前无法生成视频，请检查今日成片配额或 SeedDance 配置";
+    setScriptActionStatus(tip, { forceDock: true });
+    showSeedanceProgress(true, { status: tip, persist: true });
     openScriptFloatPanel();
     return;
   }
+
+  let slug = currentScriptSlug();
+  const linkId = Number(document.getElementById("scriptMaterialSelect")?.value || state.selectedMaterialId);
+  if (!slug && linkId) {
+    slug = slugFor(linkId);
+    state.scriptSlug = slug;
+  }
+  if (!slug) {
+    setScriptActionStatus("请先生成脚本");
+    openScriptFloatPanel();
+    return;
+  }
+
+  const videoQ = state.healthCache?.production?.daily_video_quota;
+  if (videoQ?.enabled && videoQ.remaining <= 0) {
+    const tip = `今日成片产出配额已用完（${videoQ.used}/${videoQ.limit}），请明日再试`;
+    setScriptActionStatus(tip, { forceDock: true });
+    openScriptFloatPanel();
+    return;
+  }
+
   if (scriptEditsDirty()) {
     const saved = await saveScriptEditsIfDirty();
     if (!saved) {
@@ -1148,8 +1193,7 @@ async function runConfirmProduceVideo() {
       return;
     }
   }
-  const produceBtn = document.getElementById("scriptFloatProduceBtn");
-  closeScriptFloatPanel();
+
   state.seedanceProgressPersist = false;
   setSeedanceVideoComplete(false);
   if (produceBtn) {
@@ -1163,21 +1207,52 @@ async function runConfirmProduceVideo() {
     runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 生成中…';
   });
   state.createPipelineActive = true;
+  showSeedanceProgress(true, {
+    status: "正在启动视频生成流水线…",
+    indeterminate: true,
+    pipeline: state.healthCache?.seedance?.label || "",
+  });
+  setScriptActionStatus("正在启动：交付包 → AI 分镜视频 → 拼接成片（约 15–30 分钟）…", { forceDock: true });
+  closeScriptFloatPanel();
   activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+
+  let ok = false;
   try {
-    const ok = await runProduceVideo({ background: true });
+    ok = await runProduceVideo({ background: true, skipScriptSave: true });
     await refreshScriptPreview();
     updateLoopBarFromForm(state.lastPreview || {});
     const finalSlug = currentScriptSlug();
     const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
     if (ok && finalSlug && finalReady) {
       renderDockProduceComplete(finalSlug, "视频生成完成，可下载 zip 或预览成片");
-    } else if (finalSlug && !finalReady) {
-      setScriptActionStatus("分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试");
+      openScriptFloatPanel();
+      return;
     }
+    if (finalSlug && !finalReady) {
+      const msg = "分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试";
+      setScriptActionStatus(msg, { forceDock: true });
+      showSeedanceProgress(true, { status: msg, persist: true });
+      openScriptFloatPanel();
+    } else if (!ok) {
+      const msg = document.getElementById("scriptActionStatus")?.textContent?.trim()
+        || "视频生成未启动，请检查网络、配额与 SeedDance 配置";
+      setScriptActionStatus(msg, { forceDock: true });
+      showSeedanceProgress(true, { status: msg, persist: true });
+      openScriptFloatPanel();
+    }
+  } catch (err) {
+    const msg = `视频生成失败：${err.message}`;
+    setScriptActionStatus(msg, { forceDock: true });
+    showSeedanceProgress(true, { status: msg, persist: true });
+    openScriptFloatPanel();
   } finally {
     state.createPipelineActive = false;
-    resetSeedanceProgressDock();
+    if (!state.seedanceProgressPersist) {
+      resetSeedanceProgressDock();
+    } else {
+      state.videoGenActive = false;
+      state.scriptGenActive = false;
+    }
     if (produceBtn) {
       delete produceBtn.dataset.busy;
       produceBtn.disabled = false;
@@ -1189,6 +1264,7 @@ async function runConfirmProduceVideo() {
       runBtn.innerHTML = dockRunDefaultHtml(runBtn.id === "imitateDockRun" ? "imitate" : "generate");
     });
     syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
+    syncDockRunButtonsDisabled();
   }
 }
 
@@ -1200,16 +1276,30 @@ function refreshScriptFloatFromPreview(prev = {}) {
   } else {
     body.replaceChildren();
     state.scriptEditBaseline = null;
+    document.getElementById("loopHint")?.classList.remove("hidden");
   }
   updateLoopBarFromForm(prev);
 }
 
-function setScriptActionStatus(msg) {
+function isScriptFloatPanelOpen() {
+  const panel = document.getElementById("scriptFloatPanel");
+  return Boolean(panel?.classList.contains("open"));
+}
+
+function mirrorStatusToDock(msg) {
+  if (!msg) return;
+  for (const id of ["seedanceProgressStatus", "imitateSeedanceProgressStatus"]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  }
+}
+
+function setScriptActionStatus(msg, { forceDock = false } = {}) {
   const el = document.getElementById("scriptActionStatus");
   if (el) el.textContent = msg || "";
-  if ((state.createPipelineActive || state.seedanceProgressPersist) && msg) {
-    const dockSt = document.getElementById("seedanceProgressStatus");
-    if (dockSt) dockSt.textContent = msg;
+  if (!msg) return;
+  if (forceDock || !isScriptFloatPanelOpen() || isWorkbenchProgressActive()) {
+    mirrorStatusToDock(msg);
   }
 }
 
@@ -2197,7 +2287,10 @@ function initModuleStudios() {
   });
   document.getElementById("scriptFloatCloseBtn")?.addEventListener("click", closeScriptFloatPanel);
   document.getElementById("scriptFloatBackdrop")?.addEventListener("click", closeScriptFloatPanel);
-  document.getElementById("scriptFloatProduceBtn")?.addEventListener("click", () => runConfirmProduceVideo());
+  document.getElementById("scriptFloatProduceBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void runConfirmProduceVideo();
+  });
   document.getElementById("scriptFloatSaveBtn")?.addEventListener("click", async () => {
     if (!scriptEditsDirty()) {
       setScriptActionStatus("脚本未修改，无需保存");
@@ -2291,12 +2384,19 @@ function syncDockRunButtonsDisabled() {
     btn.disabled = scriptBlocked;
     btn.title = scriptBlocked ? "今日 LLM 脚本配额已满，明日再试或调高 DAILY_SCRIPT_QUOTA" : "";
   });
-  document.querySelectorAll("#generateDockRun, #imitateDockRun, #scriptFloatProduceBtn").forEach((btn) => {
+  document.querySelectorAll("#generateDockRun, #imitateDockRun").forEach((btn) => {
     btn.disabled = scriptBlocked || videoBlocked;
     btn.title = videoBlocked
       ? "今日成片产出配额已满，明日再试或调高 DAILY_VIDEO_QUOTA"
       : (scriptBlocked ? "今日 LLM 脚本配额已满" : "");
   });
+  const produceBtn = document.getElementById("scriptFloatProduceBtn");
+  if (produceBtn) {
+    produceBtn.disabled = videoBlocked;
+    produceBtn.title = videoBlocked
+      ? "今日成片产出配额已满，明日再试或调高 DAILY_VIDEO_QUOTA"
+      : "按当前脚本生成分镜视频并拼接成片";
+  }
 }
 
 function currentVideoSettings() {
@@ -3416,7 +3516,7 @@ function renderSeedance(slug, seedance, health) {
   if (pipelineEl) pipelineEl.textContent = pipeline;
 
   if (!slug || !seedance) {
-    showSeedanceProgress(false);
+    hideSeedanceProgressIfIdle();
     renderSeedanceFinalPreview(null, null);
     return;
   }
@@ -3424,8 +3524,8 @@ function renderSeedance(slug, seedance, health) {
   const finalReady = Boolean(seedance.final_video?.ready);
   renderSeedanceFinalPreview(slug, seedance);
 
-  if (!state.createPipelineActive) {
-    showSeedanceProgress(false);
+  if (!state.createPipelineActive && !state.videoGenActive) {
+    hideSeedanceProgressIfIdle();
     return;
   }
 
@@ -3913,7 +4013,11 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
       updateLoopBarFromForm(state.lastPreview || {});
     });
     setScriptStep("ref", { scroll: false });
-    await refreshHealth();
+    try {
+      await refreshHealth();
+    } catch (healthErr) {
+      console.warn("refreshHealth after selectMaterial", healthErr);
+    }
   } catch (err) {
     pane.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
   }
@@ -4166,7 +4270,7 @@ async function refreshScriptPreview() {
       mountScriptPackEditor(scriptResultBody(), prev.script_pack, prev.script_meta);
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
-    showSeedanceProgress(false);
+    hideSeedanceProgressIfIdle();
     renderSeedanceFinalPreview(null, null);
   } catch (err) {
     analysisEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
@@ -4182,11 +4286,12 @@ function onScriptSelectionChange() {
   state.tagPoolExtra = { audience: [], scenarios: [], selling: [], pains: [] };
   state.tagSelection = { audience: [], scenarios: [], selling: [], pains: [] };
   state.createPipelineActive = false;
+  state.scriptGenActive = false;
   state.scriptTagSnapshot = null;
   state.lastScriptProductId = null;
   setSeedanceVideoComplete(false);
   if (scriptResultBody()) scriptResultBody().innerHTML = "";
-  showSeedanceProgress(false);
+  hideSeedanceProgressIfIdle();
   renderSeedanceFinalPreview(null, null);
   syncScriptProduceEmpty();
 }
@@ -4271,14 +4376,15 @@ async function runScriptGenerate() {
   }
   if (produceBtn) produceBtn.disabled = true;
   setSeedanceVideoComplete(false);
+  const scriptStatus = "正在根据产品标签与对标结构生成脚本…";
   showScriptProgress(true, {
-    status: "正在根据产品标签与对标结构生成脚本…",
+    status: scriptStatus,
     indeterminate: true,
     pipeline: state.healthCache?.llm?.label || "",
     countdownSec: SEEDANCE_COUNTDOWN_PHASE_SEC.script,
   });
   if (resultEl) resultEl.innerHTML = "";
-  setScriptActionStatus("");
+  setScriptActionStatus(scriptStatus);
   try {
     const vs = currentVideoSettings();
     const creativeBrief = getImitationPrompt();
@@ -4408,6 +4514,7 @@ async function runSeedanceGenerate(options = {}) {
   }
   state.scriptSlug = slug;
   if (!background) ensureScriptResultVisible();
+  state.videoGenActive = true;
   showSeedanceProgress(true, {
     status: force ? "正在强制重生成…" : "正在生成分镜视频…",
     indeterminate: true,
@@ -4480,9 +4587,14 @@ async function runSeedanceGenerate(options = {}) {
     return !failed.length && finalReady;
   } catch (err) {
     stopSeedanceCountdown();
-    showSeedanceProgress(true, { status: `失败：${err.message}`, percent: 0 });
+    showSeedanceProgress(true, { status: `失败：${err.message}`, percent: 0, persist: true });
     setScriptActionStatus(`视频生成失败：${err.message}`);
     return false;
+  } finally {
+    if (background && !state.createPipelineActive) {
+      state.videoGenActive = false;
+      hideSeedanceProgressIfIdle();
+    }
   }
 }
 
@@ -4496,13 +4608,17 @@ async function runProduceVideo(options = {}) {
   }
   if (!options.skipScriptSave) {
     const saved = await saveScriptEditsIfDirty({ silent: true });
-    if (!saved) return false;
+    if (!saved) {
+      setScriptActionStatus("保存脚本修改失败，无法开始生成视频", { forceDock: true });
+      return false;
+    }
   }
   state.scriptSlug = slug;
   if (!background) {
     setScriptStep("produce", { scroll: false });
     ensureScriptResultVisible();
   }
+  state.videoGenActive = true;
   const forceRegen = document.getElementById("seedanceForceRegen")?.checked;
   const needsDelivery = !Boolean(state.lastPreview?.delivery_ready);
   showSeedanceProgress(true, {
