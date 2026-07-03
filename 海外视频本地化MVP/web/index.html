@@ -51,6 +51,41 @@
     <button type="button" class="video-gen-error-banner-close" id="videoGenErrorBannerClose" aria-label="关闭提示">×</button>
   </div>
 
+  <aside id="videoQueuePanel" class="video-queue-panel hidden" aria-live="polite" aria-label="成片生产队列">
+    <div class="video-queue-head">
+      <h2 class="video-queue-title">成片生产队列</h2>
+      <button type="button" class="video-queue-close" id="videoQueueCloseBtn" aria-label="收起">×</button>
+    </div>
+    <p id="videoQueueMyStatus" class="video-queue-my-status">等待中…</p>
+    <p id="videoQueueEta" class="video-queue-eta muted">预计等待 —</p>
+    <ol id="videoQueueList" class="video-queue-list"></ol>
+    <button type="button" class="secondary pill-btn video-queue-cancel hidden" id="videoQueueCancelBtn">取消排队</button>
+  </aside>
+
+  <div id="produceCompleteBanner" class="produce-complete-banner hidden" role="status" aria-live="polite">
+    <span class="produce-complete-banner-icon" aria-hidden="true">✓</span>
+    <div class="produce-complete-banner-body">
+      <strong id="produceCompleteBannerTitle" class="produce-complete-banner-title">成片已就绪</strong>
+      <p id="produceCompleteBannerText" class="produce-complete-banner-text"></p>
+    </div>
+    <a id="produceCompleteDownloadBtn" class="produce-complete-download hidden" href="#" download>下载 zip</a>
+    <button type="button" class="produce-complete-banner-close" id="produceCompleteBannerClose" aria-label="关闭">×</button>
+  </div>
+
+  <div id="produceCompleteModalBackdrop" class="produce-complete-modal-backdrop hidden" hidden></div>
+  <div id="produceCompleteModal" class="produce-complete-modal hidden" role="dialog" aria-modal="true" aria-labelledby="produceCompleteModalTitle" hidden>
+    <div class="produce-complete-modal-card">
+      <span class="produce-complete-modal-icon" id="produceCompleteModalIcon" aria-hidden="true">✓</span>
+      <h2 id="produceCompleteModalTitle" class="produce-complete-modal-title">成片已就绪</h2>
+      <p id="produceCompleteModalText" class="produce-complete-modal-text"></p>
+      <div id="produceCompleteModalPreview" class="produce-complete-modal-preview"></div>
+      <div class="produce-complete-modal-actions">
+        <a id="produceCompleteModalDownload" class="primary primary-dark produce-complete-modal-download hidden" href="#" download>下载成片 zip</a>
+        <button type="button" class="secondary pill-btn" id="produceCompleteModalCloseBtn">知道了</button>
+      </div>
+    </div>
+  </div>
+
   <div id="settingsBackdrop" class="settings-backdrop" hidden></div>
   <aside id="settingsDrawer" class="settings-drawer" aria-hidden="true" hidden>
     <div class="settings-drawer-head">
@@ -442,6 +477,7 @@
             </div>
             <p id="seedancePipelineCompact" class="seedance-progress-meta muted"></p>
           </div>
+          <div id="dockProducePreview" class="dock-produce-preview hidden" aria-live="polite"></div>
           <footer class="studio-dock-toolbar">
             <span class="dock-chip" id="dockModelChip">SeedDance · 脚本分镜</span>
             <span class="dock-chip dock-quota-chip hidden" id="dailyScriptQuotaChip" title="今日 LLM 脚本生成次数"></span>
@@ -559,6 +595,7 @@
             </div>
             <p id="imitateSeedancePipelineCompact" class="seedance-progress-meta muted"></p>
           </div>
+          <div id="imitateDockProducePreview" class="dock-produce-preview hidden" aria-live="polite"></div>
           <footer class="studio-dock-toolbar">
             <span class="dock-chip" id="imitateDockModelChip">爆款模仿 · 结构复刻</span>
             <span class="dock-chip dock-quota-chip hidden" id="imitateDailyQuotaChip" title="今日 LLM 脚本生成次数"></span>

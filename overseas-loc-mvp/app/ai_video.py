@@ -80,10 +80,7 @@ def sanitize_seedance_prompt(text: str) -> str:
 
 
 def _usage_compact() -> str:
-    return (
-        "Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; "
-        "Fahrenheit °F display ~98°F only, no °C; no steam or boiling; never put bottle inside cup"
-    )
+    return THERMOS_USAGE_EN
 
 
 def _safe_suffix(character: dict[str, Any] | None, role: str, *, aspect_ratio: str = "9:16") -> str:
@@ -151,11 +148,11 @@ def build_shot_video_prompt(
         if character and shot_needs_person(role_key):
             return _clamp_prompt(
                 f"Problem moment, {scene_en}, {person}, cold milk in baby bottle, bulky warmer contrast, "
-                f"moody lighting, realistic hand physics, {safe}. {usage}. {vo}"
+                f"moody lighting, realistic hand physics, {safe}. {usage}. {hero_lock}. {vo}"
             )
         return _clamp_prompt(
             f"Problem moment, {scene_en}, cold milk in baby bottle, bulky old bottle warmer contrast, "
-            f"moody lighting, {safe}. {usage}. {vo}"
+            f"moody lighting, {safe}. {usage}. {hero_lock}. {vo}"
         )
     if role_key == "方案":
         if character and shot_needs_person(role_key):

@@ -136,7 +136,7 @@ print(json.dumps(seedance_status(project_dir(slug, create=False)), ensure_ascii=
     return _run_olm(code, slug)
 
 
-def refresh_project_seedance_source(slug: str) -> Path | None:
+def refresh_project_seedance_source(slug: str) -> dict[str, Any] | None:
     """按 localization-brief 的 sku 刷新 inputs/seedance-source 垫图。"""
     project = OVERSEAS_RUNS_DIR / slug
     if not project.is_dir():
@@ -156,6 +156,8 @@ def refresh_project_seedance_source(slug: str) -> Path | None:
     inputs = project / "inputs"
     if inputs.is_dir():
         for path in inputs.glob("seedance-source.*"):
+            if path.name == "seedance-source.meta.json":
+                continue
             try:
                 path.unlink()
             except OSError:

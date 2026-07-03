@@ -8,7 +8,7 @@ from typing import Any
 
 from paths import MATERIAL_LIBRARY_DIR, WORKFLOW_ROOT
 
-from .product_assets import get_product_usage_pour_image, get_product_white_hero_image, product_listing_dir
+from .product_assets import get_product_usage_pour_image, get_product_white_hero_image, product_listing_dir, resolve_staged_seedance_source
 
 CHARACTER_LIBRARY_DIR = MATERIAL_LIBRARY_DIR / "人像角色"
 MANIFEST_PATH = CHARACTER_LIBRARY_DIR / "characters.json"
@@ -103,6 +103,8 @@ PRODUCT_VISIBLE_ROLES = frozenset({"钩子", "方案", "证明", "行动号召"}
 def _staged_path(project: Path | None, pattern: str) -> Path | None:
     if not project:
         return None
+    if pattern == "seedance-source.*":
+        return resolve_staged_seedance_source(project)
     inputs = project / "inputs"
     if not inputs.is_dir():
         return None

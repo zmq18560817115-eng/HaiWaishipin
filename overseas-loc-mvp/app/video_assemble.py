@@ -116,10 +116,11 @@ def assemble_storyboard_video(project: Path, *, min_shots: int = 1) -> dict[str,
                 cmd_reencode, capture_output=True, text=True, encoding="utf-8", errors="replace"
             )
         if proc.returncode != 0 or not output.is_file():
-            tail = (proc.stderr or proc.stdout or "ffmpeg 失败")[-600:]
+            tail = (proc.stderr or proc.stdout or "ffmpeg 失败")[-600:].strip()
             return {
                 "ok": False,
-                "message": tail,
+                "message": "分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试",
+                "detail": tail,
                 "shots_used": len(shots),
                 "file": None,
             }

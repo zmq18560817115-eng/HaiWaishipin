@@ -71,6 +71,15 @@ from .daily_quota import (
 from .doubao_script import test_script_connection
 from .doubao_video_analysis import test_connection as test_doubao_connection
 from .jobs import job_status, start_job
+from .video_queue import (
+    assert_can_run,
+    cancel_ticket,
+    complete_ticket,
+    join_queue,
+    mark_running,
+    queue_snapshot,
+    ticket_status,
+)
 from .library_api import list_feedback, list_finished, load_feedback, load_templates, save_feedback
 from .feedback_loop import preview_constraints
 from .feedback_tags import ISSUE_TAG_DEFS
@@ -123,7 +132,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 161
+UI_VERSION = 165
 
 
 def _render_index() -> HTMLResponse:
@@ -232,6 +241,18 @@ class JobStartRequest(BaseModel):
     product_id: str = ""
 
 
+class VideoQueueJoinRequest(BaseModel):
+    slug: str
+    label: str = ""
+    client_id: str = ""
+
+
+class VideoQueueCompleteRequest(BaseModel):
+    ok: bool = True
+    message: str = ""
+    client_id: str = ""
+
+
 class TikTokCollectorRequest(BaseModel):
     keywords: list[str] = Field(min_length=1)
     limit_per_keyword: int = Field(default=50, ge=1, le=200)
@@ -276,6 +297,7 @@ async def health() -> dict:
         "finished": len(list_finished()),
         "prompt_library": len(list_prompts()),
         "job": job_status(),
+        "video_queue": queue_snapshot(),
         "llm": {
             **script_cfg,
             "available": script_cfg["effective_provider"] in ("doubao", "anthropic"),
@@ -988,10 +1010,43 @@ async def delivery_seedance(slug: str) -> dict:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/video-queue")
+async def video_queue_status(ticket: str = "") -> dict:
+    if ticket:
+        row = ticket_status(ticket)
+        if not row:
+            raise HTTPException(status_code=404, detail="排队号不存在")
+        return row
+    return queue_snapshot()
+
+
+@app.post("/api/video-queue/join")
+async def video_queue_join(body: VideoQueueJoinRequest) -> dict:
+    try:
+        return join_queue(slug=body.slug, label=body.label, client_id=body.client_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete("/api/video-queue/{ticket_id}")
+async def video_queue_cancel(ticket_id: str, client_id: str = "") -> dict:
+    try:
+        return cancel_ticket(ticket_id, client_id=client_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/video-queue/{ticket_id}/complete")
+async def video_queue_complete(ticket_id: str, body: VideoQueueCompleteRequest) -> dict:
+    complete_ticket(ticket_id, ok=body.ok, message=body.message)
+    return queue_snapshot()
+
+
 @app.post("/api/delivery/{slug}/seedance/run")
 async def delivery_seedance_run(
     slug: str,
     force: bool = Query(False),
+    ticket: str = Query(""),
     body: SeedanceRunRequest = Body(default_factory=SeedanceRunRequest),
 ) -> dict:
     if not project_exists(slug):
@@ -1000,14 +1055,42 @@ async def delivery_seedance_run(
         assert_video_quota()
     except ValueError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
+    ticket_id = (ticket or "").strip()
+    if not ticket_id:
+        raise HTTPException(status_code=400, detail="缺少排队号，请从工作台重新点击「确认生成视频」")
+    try:
+        await run_in_threadpool(assert_can_run, ticket_id, slug)
+        await run_in_threadpool(mark_running, ticket_id, slug)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     try:
         video_settings = await run_in_threadpool(sync_project_video_settings, slug, body.model_dump())
+        staged = await run_in_threadpool(refresh_project_seedance_source, slug)
+        if not staged or not staged.get("product_ref"):
+            raise HTTPException(
+                status_code=409,
+                detail="缺少白底主图垫图：请在 01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/ 放置 白底主图.png 后重试",
+            )
         status = await run_in_threadpool(project_status, slug)
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
-        if force:
-            await run_in_threadpool(refresh_project_seedance_source, slug)
         payload = await run_in_threadpool(run_all, slug, force=force)
+        assemble = payload.get("assemble") if isinstance(payload.get("assemble"), dict) else {}
+        seedance = payload.get("seedance") if isinstance(payload.get("seedance"), dict) else {}
+        shots = seedance.get("shots") or []
+        ready_shots = sum(1 for s in shots if s.get("ready"))
+        final_ready = bool(
+            assemble.get("ok")
+            or (seedance.get("final_video") or {}).get("ready")
+        )
+        if not final_ready and ready_shots >= 1:
+            retry_asm = await run_in_threadpool(assemble_project, slug)
+            payload["assemble"] = retry_asm
+            if retry_asm.get("ok"):
+                seedance = await run_in_threadpool(project_status, slug)
+                payload["seedance"] = seedance
         payload["video_production"] = video_settings
         assemble = payload.get("assemble") if isinstance(payload.get("assemble"), dict) else {}
         final_ready = bool(
@@ -1018,12 +1101,18 @@ async def delivery_seedance_run(
             payload["daily_video_quota"] = record_video_output(slug, note="seedance/run")
         else:
             payload["daily_video_quota"] = video_quota_status()
+        payload["queue_ticket"] = ticket_id
+        complete_ticket(ticket_id, ok=True)
         return payload
-    except HTTPException:
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, str) else "生成失败"
+        complete_ticket(ticket_id, ok=False, message=str(detail))
         raise
     except (RuntimeError, FileNotFoundError, ValueError) as exc:
+        complete_ticket(ticket_id, ok=False, message=str(exc))
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
+        complete_ticket(ticket_id, ok=False, message=str(exc))
         raise HTTPException(status_code=500, detail=f"视频生成失败: {exc}") from exc
 
 
@@ -1032,7 +1121,7 @@ async def delivery_assemble(slug: str) -> dict:
     if not project_exists(slug):
         raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
     try:
-        return assemble_project(slug)
+        return await run_in_threadpool(assemble_project, slug)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

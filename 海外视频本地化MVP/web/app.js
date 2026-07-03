@@ -32,7 +32,11 @@ const state = {
   scriptGenActive: false,
   videoGenActive: false,
   lastVideoGenError: "",
+  videoQueueTicket: null,
+  videoQueuePoll: null,
+  clientId: null,
   seedanceVideoComplete: false,
+  producePartialReady: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
   scriptEditBaseline: null,
@@ -1083,19 +1087,239 @@ function resetSeedanceProgressDock() {
   showSeedanceProgress(false);
 }
 
-function renderSeedanceFinalPreview(slug, seedance) {
-  const box = document.getElementById("seedanceFinalPreview");
-  if (!box) return;
-  const final = seedance?.final_video || {};
-  const s = slug || currentScriptSlug();
-  if (final.ready && final.file && s) {
-    box.classList.remove("hidden");
-    const hint = videoOutputHint(s);
-    box.innerHTML = `<a class="seedance-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(s)}/files/${encodeURI(final.file)}`)}" target="_blank">预览成片 final-video.mp4</a>${hint ? `<p class="muted seedance-final-path">${esc(hint)}</p>` : ""}`;
-  } else {
-    box.classList.add("hidden");
-    box.innerHTML = "";
+function renderSeedanceFinalPreview(slug, seedance, options = {}) {
+  renderProduceResultPanel(slug, seedance, options);
+}
+
+function shotAssetsReady(seedance) {
+  return (seedance?.shots || []).some((s) => s.ready);
+}
+
+function produceDownloadReady(prev = state.lastPreview || {}) {
+  const sd = prev?.seedance || {};
+  return Boolean(sd.final_video?.ready || shotAssetsReady(sd) || prev?.delivery_ready);
+}
+
+function hideProduceCompleteBanner() {
+  document.getElementById("produceCompleteBanner")?.classList.add("hidden");
+}
+
+function hideProduceCompleteModal() {
+  const modal = document.getElementById("produceCompleteModal");
+  const backdrop = document.getElementById("produceCompleteModalBackdrop");
+  modal?.classList.add("hidden");
+  backdrop?.classList.add("hidden");
+  if (modal) {
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
   }
+  if (backdrop) backdrop.hidden = true;
+}
+
+function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
+  const shots = (seedance?.shots || []).filter((row) => row.ready && row.file);
+  const final = seedance?.final_video || {};
+  const finalReady = Boolean(final.ready && final.file && slug);
+  const hint = videoOutputHint(slug);
+  const shotLinks = shots.map((row) => {
+    const href = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(row.file)}`);
+    return `<li><a class="seedance-final-link" href="${href}" target="_blank">预览 镜${row.number} · ${esc(row.role || row.timing || "分镜")}</a></li>`;
+  }).join("");
+  const finalBlock = finalReady
+    ? `<a class="seedance-final-link produce-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}`)}" target="_blank">▶ 预览成片 final-video.mp4</a>`
+    : "";
+  const retryBlock = !finalReady && shots.length
+    ? `<button type="button" class="secondary pill-btn produce-retry-assemble" data-retry-slug="${esc(slug)}">重新拼接成片</button>
+       <p class="muted produce-assemble-hint">${esc(assembleMessage || "分镜 mp4 已就绪，点击重新拼接为 final-video.mp4")}</p>`
+    : "";
+  return `<div class="produce-result-panel ${finalReady ? "is-complete" : "is-partial"}">
+    <p class="produce-result-title">${finalReady ? "✓ 成片已生成" : "分镜已生成（待拼接成片）"}</p>
+    ${finalBlock}
+    ${shotLinks ? `<ul class="produce-shot-list">${shotLinks}</ul>` : ""}
+    ${retryBlock}
+    ${hint ? `<p class="muted seedance-final-path">${esc(hint)}</p>` : ""}
+  </div>`;
+}
+
+function wireProduceResultPanel(root, slug) {
+  if (!root) return;
+  root.querySelectorAll(".produce-retry-assemble").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      void retryAssembleVideo(btn.getAttribute("data-retry-slug") || slug);
+    });
+  });
+}
+
+function showProduceCompleteBanner(title, message, slug, { partial = false } = {}) {
+  const banner = document.getElementById("produceCompleteBanner");
+  const titleEl = document.getElementById("produceCompleteBannerTitle");
+  const textEl = document.getElementById("produceCompleteBannerText");
+  const dl = document.getElementById("produceCompleteDownloadBtn");
+  if (!banner || !titleEl || !textEl) return;
+  titleEl.textContent = title;
+  textEl.textContent = message;
+  banner.classList.toggle("is-partial", Boolean(partial));
+  banner.classList.remove("hidden");
+  if (dl && slug && produceDownloadReady({ slug, seedance: state.lastPreview?.seedance, delivery_ready: state.lastPreview?.delivery_ready })) {
+    dl.href = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`);
+    dl.classList.remove("hidden");
+  } else if (dl) {
+    dl.classList.add("hidden");
+  }
+}
+
+function showProduceCompleteModal(title, message, slug, seedance, { partial = false } = {}) {
+  const modal = document.getElementById("produceCompleteModal");
+  const backdrop = document.getElementById("produceCompleteModalBackdrop");
+  const titleEl = document.getElementById("produceCompleteModalTitle");
+  const textEl = document.getElementById("produceCompleteModalText");
+  const iconEl = document.getElementById("produceCompleteModalIcon");
+  const previewEl = document.getElementById("produceCompleteModalPreview");
+  const dl = document.getElementById("produceCompleteModalDownload");
+  if (!modal || !backdrop || !titleEl || !textEl || !previewEl) return;
+  titleEl.textContent = title;
+  textEl.textContent = message;
+  modal.classList.toggle("is-partial", Boolean(partial));
+  if (iconEl) iconEl.textContent = partial ? "!" : "✓";
+  const zipReady = slug && produceDownloadReady({ slug, seedance, delivery_ready: state.lastPreview?.delivery_ready });
+  if (dl) {
+    if (zipReady) {
+      dl.href = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`);
+      dl.classList.remove("hidden");
+    } else {
+      dl.classList.add("hidden");
+    }
+  }
+  if (slug && seedance && (shotAssetsReady(seedance) || seedance.final_video?.ready)) {
+    previewEl.innerHTML = buildProduceResultHtml(slug, seedance, {
+      assembleMessage: partial ? message : "",
+    });
+    wireProduceResultPanel(previewEl, slug);
+    previewEl.classList.remove("hidden");
+  } else {
+    previewEl.innerHTML = "";
+    previewEl.classList.add("hidden");
+  }
+  modal.classList.remove("hidden");
+  backdrop.classList.remove("hidden");
+  modal.hidden = false;
+  backdrop.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
+  if (!prev.slug || !prev.seedance) {
+    hideProduceCompleteBanner();
+    hideProduceCompleteModal();
+    renderProduceResultPanel(null, null);
+    return;
+  }
+  const { slug, seedance } = prev;
+  if (seedance.final_video?.ready) {
+    state.producePartialReady = false;
+    state.seedanceVideoComplete = true;
+    renderProduceResultPanel(slug, seedance);
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+    showProduceCompleteBanner("成片已就绪", "可预览 mp4 或下载 zip 包", slug);
+    return;
+  }
+  if (shotAssetsReady(seedance)) {
+    state.producePartialReady = true;
+    const msg = "分镜 mp4 已就绪，可预览或下载 zip；成片拼接未完成时可点「重新拼接成片」。";
+    renderProduceResultPanel(slug, seedance, { assembleMessage: "分镜已生成，成片拼接未完成" });
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+    showProduceCompleteBanner("分镜已生成", msg, slug, { partial: true });
+  }
+}
+
+function renderProduceResultPanel(slug, seedance, { assembleMessage = "" } = {}) {
+  const targets = [
+    document.getElementById("seedanceFinalPreview"),
+    document.getElementById("dockProducePreview"),
+    document.getElementById("imitateDockProducePreview"),
+  ].filter(Boolean);
+  const s = slug || currentScriptSlug();
+  const shots = (seedance?.shots || []).filter((row) => row.ready && row.file);
+  const finalReady = Boolean(seedance?.final_video?.ready && seedance?.final_video?.file && s);
+  if (!s || (!finalReady && !shots.length)) {
+    targets.forEach((box) => {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+    });
+    return;
+  }
+  const html = buildProduceResultHtml(s, seedance, { assembleMessage });
+  targets.forEach((box) => {
+    box.classList.remove("hidden");
+    box.innerHTML = html;
+    wireProduceResultPanel(box, s);
+  });
+}
+
+async function retryAssembleVideo(slug) {
+  const s = slug || currentScriptSlug();
+  if (!s) return;
+  document.querySelectorAll(".produce-retry-assemble").forEach((btn) => {
+    btn.disabled = true;
+    btn.textContent = "拼接中…";
+  });
+  setScriptActionStatus("正在重新拼接成片…", { forceDock: true });
+  try {
+    const data = await api(`/api/delivery/${encodeURIComponent(s)}/assemble`, { method: "POST" });
+    await refreshScriptPreview();
+    const seedance = data.seedance || state.lastPreview?.seedance;
+    renderProduceOutcome(s, seedance, {
+      message: data.assemble?.message,
+      assemble: data.assemble,
+    });
+  } catch (err) {
+    showVideoGenError(`拼接失败：${err.message}`);
+  } finally {
+    document.querySelectorAll(".produce-retry-assemble").forEach((btn) => {
+      btn.disabled = false;
+      btn.textContent = "重新拼接成片";
+    });
+  }
+}
+
+/** @returns {"complete"|"partial"|"error"} */
+function renderProduceOutcome(slug, seedance, { message = "", assemble = null, failed = false } = {}) {
+  const s = slug || currentScriptSlug();
+  const finalReady = Boolean(seedance?.final_video?.ready);
+  const shotsReady = shotAssetsReady(seedance);
+  const hardFailed = Boolean(failed && !finalReady && !shotsReady);
+  if (finalReady && s) {
+    const msg = message || "视频生成完成，可下载 zip 或预览成片";
+    renderDockProduceComplete(s, msg);
+    openScriptFloatPanel();
+    return "complete";
+  }
+  if (shotsReady && s && !hardFailed) {
+    clearVideoGenErrorUi();
+    state.producePartialReady = true;
+    state.seedanceProgressPersist = true;
+    const asmMsg = assemble?.message || message || "分镜已生成，成片拼接未完成";
+    const friendly = asmMsg.includes("ffmpeg")
+      ? `${asmMsg}。可先预览下方分镜 mp4 或下载 zip，再点「重新拼接成片」。`
+      : `${asmMsg}。可先预览分镜或下载 zip。`;
+    renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg });
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(s)}/zip`, true);
+    showProduceCompleteBanner("分镜已生成", friendly, s, { partial: true });
+    showProduceCompleteModal("分镜已生成", friendly, s, seedance, { partial: true });
+    showSeedanceProgress(true, {
+      status: friendly,
+      percent: 90,
+      pipeline: seedance?.pipeline || state.healthCache?.seedance?.label || "",
+      persist: true,
+    });
+    setScriptActionStatus(friendly, { forceDock: true });
+    updateLoopBarFromForm(state.lastPreview || {});
+    openScriptFloatPanel();
+    activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+    return "partial";
+  }
+  showVideoGenError(message || state.lastVideoGenError || "视频生成未成功，请查看错误说明");
+  return "error";
 }
 
 async function runStartCreate() {
@@ -1147,18 +1371,19 @@ async function runStartCreate() {
 
 function renderDockProduceComplete(slug, message) {
   const msg = message || "视频生成完成，可下载 zip 或预览成片";
-  const hint = videoOutputHint(slug);
   clearVideoGenErrorUi();
   setSeedanceVideoComplete(true, slug);
-  setScriptActionStatus(hint ? `${msg}。${hint}` : msg, { forceDock: true });
-  renderSeedanceFinalPreview(slug, state.lastPreview?.seedance);
+  setScriptActionStatus(msg, { forceDock: true });
+  renderProduceResultPanel(slug, state.lastPreview?.seedance);
+  showProduceCompleteBanner("成片已就绪", msg, slug);
+  showProduceCompleteModal("成片已就绪", msg, slug, state.lastPreview?.seedance);
   resetSeedanceProgressDock();
 }
 
 function setSeedanceVideoComplete(complete, slug) {
   state.seedanceVideoComplete = Boolean(complete);
   const s = slug || currentScriptSlug() || state.lastPreview?.slug;
-  if (state.seedanceVideoComplete && s) {
+  if (s && (state.seedanceVideoComplete || state.producePartialReady || produceDownloadReady(state.lastPreview))) {
     syncDownloadLinks(`/api/delivery/${encodeURIComponent(s)}/zip`, true);
   } else {
     syncDownloadLinks("", false);
@@ -1223,25 +1448,14 @@ async function runConfirmProduceVideo() {
   closeScriptFloatPanel();
   activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
 
-  let ok = false;
   try {
-    ok = await runProduceVideo({ background: true, skipScriptSave: true });
+    const queueLabel = `${slug} · ${currentProductLabel() || "成片"}`;
+    await withVideoProductionQueue(slug, queueLabel, () => runProduceVideo({
+      background: true,
+      skipScriptSave: true,
+    }));
     await refreshScriptPreview();
     updateLoopBarFromForm(state.lastPreview || {});
-    const finalSlug = currentScriptSlug();
-    const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
-    if (ok && finalSlug && finalReady) {
-      renderDockProduceComplete(finalSlug, "视频生成完成，可下载 zip 或预览成片");
-      openScriptFloatPanel();
-      return;
-    }
-    if (!ok || (finalSlug && !finalReady)) {
-      const msg = state.lastVideoGenError
-        || (finalSlug && !finalReady
-          ? "分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试"
-          : "视频生成未成功，请查看下方错误说明");
-      showVideoGenError(msg);
-    }
   } catch (err) {
     showVideoGenError(`视频生成失败：${err.message}`);
   } finally {
@@ -1311,14 +1525,195 @@ function mirrorStatusToDock(msg) {
   }
 }
 
+function ensureClientId() {
+  if (state.clientId) return state.clientId;
+  let id = "";
+  try {
+    id = sessionStorage.getItem("wb_client_id") || "";
+  } catch {
+    id = "";
+  }
+  if (!id) {
+    id = Math.random().toString(36).slice(2, 10);
+    try {
+      sessionStorage.setItem("wb_client_id", id);
+    } catch {
+      /* ignore */
+    }
+  }
+  state.clientId = id;
+  return id;
+}
+
+function formatQueueDuration(sec) {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  if (s < 60) return `约 ${s} 秒`;
+  const m = Math.ceil(s / 60);
+  if (m < 60) return `约 ${m} 分钟`;
+  return `约 ${Math.floor(m / 60)} 小时 ${m % 60} 分`;
+}
+
+function queueStatusLabel(row) {
+  const st = row?.status || "";
+  if (st === "running") return `生成中 · 剩余 ${formatQueueDuration(row.remain_sec)}`;
+  if (st === "active") return "轮到您";
+  if (st === "queued") return `排队 · ${formatQueueDuration(row.wait_sec)}`;
+  if (st === "done") return "已完成";
+  if (st === "cancelled") return "已取消";
+  if (st === "error") return "失败";
+  return st || "—";
+}
+
+function shouldShowVideoQueuePanel(joined) {
+  const items = joined?.queue?.items || joined?.items || [];
+  if (items.length > 1) return true;
+  const pos = Number(joined?.position ?? 0);
+  return pos > 0;
+}
+
+function showVideoQueuePanel(show) {
+  document.getElementById("videoQueuePanel")?.classList.toggle("hidden", !show);
+}
+
+function renderVideoQueuePanel(queue, mine) {
+  const myStatus = document.getElementById("videoQueueMyStatus");
+  const eta = document.getElementById("videoQueueEta");
+  const list = document.getElementById("videoQueueList");
+  const cancelBtn = document.getElementById("videoQueueCancelBtn");
+  if (!list) return;
+  const items = queue?.items || [];
+  if (mine && myStatus) {
+    if (mine.status === "active" || mine.status === "running") {
+      myStatus.textContent = mine.status === "running" ? "正在生成您的成片…" : "轮到您了，即将开始生成";
+    } else {
+      myStatus.textContent = `您排在第 ${Math.max(1, (mine.position ?? 0) + 1)} 位`;
+    }
+  }
+  if (eta && mine) {
+    if (mine.status === "running") {
+      eta.textContent = `本单预计剩余 ${formatQueueDuration(mine.remain_sec)}`;
+    } else if ((mine.position ?? 0) > 0) {
+      eta.textContent = `预计等待 ${formatQueueDuration(mine.wait_sec)}（按每单约 18 分钟估算）`;
+    } else {
+      eta.textContent = "即将开始，请勿关闭页面";
+    }
+  }
+  list.innerHTML = items.map((row) => {
+    const isMe = mine && row.ticket_id === mine.ticket_id;
+    const cls = [
+      "video-queue-item",
+      isMe ? "is-me" : "",
+      row.status === "running" || row.status === "active" ? "is-active" : "",
+    ].filter(Boolean).join(" ");
+    return `<li class="${cls}">
+      <span class="video-queue-item-label">${esc(row.label || row.slug || "成片")}</span>
+      <span class="video-queue-item-meta">${esc(row.client_label || "协作者")}</span>
+      <span class="video-queue-item-status">${esc(queueStatusLabel(row))}</span>
+    </li>`;
+  }).join("") || '<li class="video-queue-item"><span class="video-queue-item-label muted">队列为空</span></li>';
+  if (cancelBtn) {
+    const canCancel = mine && ["queued", "active"].includes(mine.status);
+    cancelBtn.classList.toggle("hidden", !canCancel);
+  }
+}
+
+function stopVideoQueuePoll() {
+  if (state.videoQueuePoll) {
+    clearInterval(state.videoQueuePoll);
+    state.videoQueuePoll = null;
+  }
+}
+
+function waitVideoQueueTurn(ticketId) {
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        const row = await api(`/api/video-queue?ticket=${encodeURIComponent(ticketId)}`);
+        renderVideoQueuePanel(row.queue, row);
+        if (row.status === "cancelled") {
+          stopVideoQueuePoll();
+          reject(new Error(row.message || "排队已取消"));
+          return;
+        }
+        if (row.status === "active" || row.status === "running") {
+          stopVideoQueuePoll();
+          showSeedanceProgress(true, {
+            status: row.status === "running" ? "正在生成成片…" : "轮到您了，正在启动生成…",
+            indeterminate: true,
+            persist: true,
+          });
+          resolve(row);
+          return;
+        }
+        const pos = Math.max(1, (row.position ?? 0) + 1);
+        const waitLabel = formatQueueDuration(row.wait_sec);
+        setScriptActionStatus(`排队中：第 ${pos} 位，预计 ${waitLabel}`, { forceDock: true });
+        showSeedanceProgress(true, {
+          status: `排队中（第 ${pos} 位）· 预计 ${waitLabel}`,
+          indeterminate: true,
+          persist: true,
+        });
+      } catch (err) {
+        stopVideoQueuePoll();
+        reject(err);
+      }
+    };
+    stopVideoQueuePoll();
+    state.videoQueuePoll = setInterval(poll, 2500);
+    poll();
+  });
+}
+
+async function releaseVideoQueue(ticketId, ok, message = "") {
+  if (!ticketId) return;
+  try {
+    const row = await api(`/api/video-queue?ticket=${encodeURIComponent(ticketId)}`);
+    if (!row || !["queued", "active", "running"].includes(row.status)) return;
+    await api(`/api/video-queue/${encodeURIComponent(ticketId)}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ok: Boolean(ok), message, client_id: ensureClientId() }),
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+async function withVideoProductionQueue(slug, label, fn) {
+  let ticketId = null;
+  let ok = false;
+  try {
+    const joined = await api("/api/video-queue/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, label, client_id: ensureClientId() }),
+    });
+    ticketId = joined.ticket_id;
+    state.videoQueueTicket = ticketId;
+    if (shouldShowVideoQueuePanel(joined)) showVideoQueuePanel(true);
+    renderVideoQueuePanel(joined.queue, joined);
+    await waitVideoQueueTurn(ticketId);
+    ok = Boolean(await fn());
+    return ok;
+  } finally {
+    stopVideoQueuePoll();
+    await releaseVideoQueue(ticketId, ok);
+    state.videoQueueTicket = null;
+    if (!state.videoGenActive && !state.createPipelineActive) showVideoQueuePanel(false);
+  }
+}
+
 function clearVideoGenErrorUi() {
   state.lastVideoGenError = "";
+  state.producePartialReady = false;
   const statusEl = document.getElementById("scriptActionStatus");
   if (statusEl) statusEl.classList.remove("script-action-error");
   for (const ids of SEEDANCE_PROGRESS_TARGETS) {
     document.getElementById(ids.bar)?.classList.remove("seedance-progress-error");
   }
   document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+  hideProduceCompleteBanner();
+  hideProduceCompleteModal();
 }
 
 /** 视频生成失败：顶部横幅 + 底部进度条 + 脚本浮层同时展示，避免静默无反馈 */
@@ -1389,11 +1784,11 @@ function syncDownloadLinks(href, visible) {
 }
 
 function videoZipDownloadReady(prev = state.lastPreview || {}) {
-  return Boolean(prev?.seedance?.final_video?.ready);
+  return produceDownloadReady(prev);
 }
 
 function syncScriptDownloadZip(prev = state.lastPreview || {}) {
-  if (state.seedanceVideoComplete && prev?.slug) {
+  if (prev?.slug && (state.seedanceVideoComplete || state.producePartialReady || produceDownloadReady(prev))) {
     syncDownloadLinks(`/api/delivery/${encodeURIComponent(prev.slug)}/zip`, true);
   } else {
     syncDownloadLinks("", false);
@@ -1738,18 +2133,12 @@ async function runViralBenchmarkPipeline(linkId) {
       return;
     }
 
-    const ok = await runProduceVideo({ background: true });
-    await refreshScriptPreview();
     const slug = currentScriptSlug();
-    const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
-    if (ok && slug && finalReady) {
-      renderDockProduceComplete(slug, "对标流水线完成：可下载 zip 或预览成片");
-      setScriptActionStatus("视频生成完成，可下载 zip 或预览成片", { forceDock: true });
-    } else if (slug && !finalReady) {
-      showVideoGenError(state.lastVideoGenError || "分镜已生成，成片拼接未完成；请检查 ffmpeg 或重新生成");
-    } else if (!ok) {
-      showVideoGenError(state.lastVideoGenError || "视频生成未成功，请查看错误说明");
-    }
+    const queueLabel = `${slug || "ref"} · 对标流水线`;
+    await (slug
+      ? withVideoProductionQueue(slug, queueLabel, () => runProduceVideo({ background: true }))
+      : runProduceVideo({ background: true }));
+    await refreshScriptPreview();
   } catch (err) {
     stopSeedanceCountdown();
     showVideoGenError(err.message);
@@ -4375,7 +4764,7 @@ async function refreshScriptPreview() {
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
     hideSeedanceProgressIfIdle();
-    renderSeedanceFinalPreview(prev.slug, prev.seedance);
+    restoreProduceUiFromPreview(prev);
   } catch (err) {
     analysisEl.innerHTML = `<div class="result error">${esc(friendlyApiErrorMessage(err.message))}</div>`;
     productEl.className = "script-tag-grid script-tag-grid-float detail-empty";
@@ -4394,6 +4783,8 @@ function onScriptSelectionChange() {
   state.scriptTagSnapshot = null;
   state.lastScriptProductId = null;
   setSeedanceVideoComplete(false);
+  hideProduceCompleteBanner();
+  hideProduceCompleteModal();
   if (scriptResultBody()) scriptResultBody().innerHTML = "";
   hideSeedanceProgressIfIdle();
   renderSeedanceFinalPreview(null, null);
@@ -4630,7 +5021,13 @@ async function runSeedanceGenerate(options = {}) {
   const vs = currentVideoSettings();
   try {
     const qs = force ? "?force=1" : "";
-    const data = await api(`/api/delivery/${encodeURIComponent(slug)}/seedance/run${qs}`, {
+    const ticket = state.videoQueueTicket || "";
+    const ticketQs = ticket ? `${qs ? "&" : "?"}ticket=${encodeURIComponent(ticket)}` : "";
+    if (!ticket) {
+      showVideoGenError("缺少生产排队号，请重新点击「确认生成视频」");
+      return false;
+    }
+    const data = await api(`/api/delivery/${encodeURIComponent(slug)}/seedance/run${qs}${ticketQs}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -4671,28 +5068,16 @@ async function runSeedanceGenerate(options = {}) {
     }
     if (hintEl) hintEl.textContent = msg;
     stopSeedanceCountdown();
-    const success = !failed.length && finalReady;
-    if (success) {
-      clearVideoGenErrorUi();
-      if (!background) {
-        showSeedanceProgress(true, {
-          status: "成片已就绪",
-          pipeline: data.seedance?.pipeline || "",
-          percent: 100,
-        });
-      }
-      setScriptActionStatus(msg, { forceDock: true });
-      setSeedanceVideoComplete(true, slug);
-      renderSeedanceFinalPreview(slug, data.seedance);
-    } else {
-      showVideoGenError(msg, { openPanel: !background, scrollDock: true });
-    }
     if (data.daily_video_quota && state.healthCache?.production) {
       state.healthCache.production.daily_video_quota = data.daily_video_quota;
       syncDailyVideoQuota(data.daily_video_quota);
     }
-    if (!background && success) openScriptFloatPanel();
-    return success;
+    const level = renderProduceOutcome(slug, data.seedance, {
+      message: msg,
+      assemble: data.assemble,
+      failed: Boolean(failed.length && !shotAssetsReady(data.seedance)),
+    });
+    return level !== "error";
   } catch (err) {
     stopSeedanceCountdown();
     showVideoGenError(`视频生成失败：${err.message}`, { openPanel: !background });
@@ -5440,7 +5825,41 @@ document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", (
   document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
 });
 
+document.getElementById("produceCompleteBannerClose")?.addEventListener("click", () => {
+  hideProduceCompleteBanner();
+});
+
+document.getElementById("produceCompleteModalCloseBtn")?.addEventListener("click", () => {
+  hideProduceCompleteModal();
+});
+
+document.getElementById("produceCompleteModalBackdrop")?.addEventListener("click", () => {
+  hideProduceCompleteModal();
+});
+
+document.getElementById("videoQueueCloseBtn")?.addEventListener("click", () => {
+  showVideoQueuePanel(false);
+});
+
+document.getElementById("videoQueueCancelBtn")?.addEventListener("click", async () => {
+  const ticket = state.videoQueueTicket;
+  if (!ticket) return;
+  try {
+    await api(`/api/video-queue/${encodeURIComponent(ticket)}?client_id=${encodeURIComponent(ensureClientId())}`, {
+      method: "DELETE",
+    });
+    stopVideoQueuePoll();
+    showVideoQueuePanel(false);
+    state.videoQueueTicket = null;
+    setScriptActionStatus("已取消排队", { forceDock: true });
+    resetSeedanceProgressDock();
+  } catch (err) {
+    showVideoGenError(err.message);
+  }
+});
+
 async function bootstrapApp() {
+  ensureClientId();
   try {
     initModuleStudios();
   } catch (err) {

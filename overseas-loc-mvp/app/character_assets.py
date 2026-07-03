@@ -74,16 +74,63 @@ def get_product_hero_image(product_id: str) -> Path | None:
     return get_product_white_hero_image(product_id)
 
 
+def resolve_staged_seedance_source(project: Path | None) -> Path | None:
+    """读取项目内已注入的白底主图垫图（忽略历史残留的 KV jpg 等多文件冲突）。"""
+    if not project:
+        return None
+    inputs = project / "inputs"
+    if not inputs.is_dir():
+        return None
+    meta_path = inputs / "seedance-source.meta.json"
+    if meta_path.is_file():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            staged = str(meta.get("staged") or "").strip()
+            if staged:
+                path = inputs / staged
+                if path.is_file():
+                    return path
+        except (json.JSONDecodeError, OSError):
+            pass
+    matches = [p for p in inputs.glob("seedance-source.*") if p.is_file() and p.suffix.lower() != ".json"]
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    # 历史脏数据：优先 png/webp（白底主图），避免误选旧 KV jpg
+    for ext in (".png", ".webp", ".jpeg", ".jpg"):
+        for path in matches:
+            if path.suffix.lower() == ext:
+                return path
+    return sorted(matches)[0]
+
+
 def stage_seedance_source_image(project: Path, product_id: str) -> Path | None:
     hero = get_product_white_hero_image(product_id)
     if not hero:
         return None
     inputs = project / "inputs"
     inputs.mkdir(parents=True, exist_ok=True)
+    for old in inputs.glob("seedance-source.*"):
+        if old.name == "seedance-source.meta.json":
+            continue
+        try:
+            old.unlink()
+        except OSError:
+            pass
     target = inputs / f"seedance-source{hero.suffix.lower()}"
-    if target.exists() and target.stat().st_size == hero.stat().st_size:
-        return target
     shutil.copy2(hero, target)
+    meta = {
+        "product_id": product_id,
+        "source": str(hero),
+        "bytes": hero.stat().st_size,
+        "staged": target.name,
+        "rule": "白底主图唯一 I2V 垫图；禁止 KV/场景图/倒出口参考",
+    }
+    (inputs / "seedance-source.meta.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     return target
 
 
@@ -169,6 +216,8 @@ PRODUCT_VISIBLE_ROLES = frozenset({"钩子", "方案", "证明", "行动号召"}
 def _staged_path(project: Path | None, pattern: str) -> Path | None:
     if not project:
         return None
+    if pattern == "seedance-source.*":
+        return resolve_staged_seedance_source(project)
     inputs = project / "inputs"
     if not inputs.is_dir():
         return None

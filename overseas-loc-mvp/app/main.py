@@ -347,17 +347,9 @@ async def seedance_run_all(slug: str, force: bool = Query(False)) -> dict:
 
 
 def _project_seedance_source_image(project: Path) -> Path | None:
-    inputs = project / "inputs"
-    if not inputs.is_dir():
-        return None
-    for pattern in ("seedance-source.jpg", "seedance-source.jpeg", "seedance-source.png", "seedance-source.webp"):
-        path = inputs / pattern
-        if path.is_file():
-            return path
-    for path in sorted(inputs.iterdir()):
-        if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
-            return path
-    return None
+    from .character_assets import resolve_staged_seedance_source
+
+    return resolve_staged_seedance_source(project)
 
 
 def _clear_broll_for_regenerate(project: Path) -> list[str]:
