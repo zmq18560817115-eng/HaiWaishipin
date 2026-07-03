@@ -195,7 +195,10 @@ print(json.dumps({"ok": True, "slug": slug, "delivery_ready": result.get("delive
         tail = (proc.stderr or proc.stdout or "交付失败")[-800:]
         raise RuntimeError(tail)
     line = (proc.stdout or "").strip().splitlines()[-1]
-    return json.loads(line)
+    try:
+        return json.loads(line)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"交付子进程返回无效 JSON: {line[:200]}") from exc
 
 
 def _valid_mp4(path: Path) -> bool:

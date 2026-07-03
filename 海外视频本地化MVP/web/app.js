@@ -1087,9 +1087,11 @@ function renderSeedanceFinalPreview(slug, seedance) {
   const box = document.getElementById("seedanceFinalPreview");
   if (!box) return;
   const final = seedance?.final_video || {};
-  if (final.ready && final.file && slug) {
+  const s = slug || currentScriptSlug();
+  if (final.ready && final.file && s) {
     box.classList.remove("hidden");
-    box.innerHTML = `<a class="seedance-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}`)}" target="_blank">预览成片 final-video.mp4</a>`;
+    const hint = videoOutputHint(s);
+    box.innerHTML = `<a class="seedance-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(s)}/files/${encodeURI(final.file)}`)}" target="_blank">预览成片 final-video.mp4</a>${hint ? `<p class="muted seedance-final-path">${esc(hint)}</p>` : ""}`;
   } else {
     box.classList.add("hidden");
     box.innerHTML = "";
@@ -1145,9 +1147,11 @@ async function runStartCreate() {
 
 function renderDockProduceComplete(slug, message) {
   const msg = message || "视频生成完成，可下载 zip 或预览成片";
+  const hint = videoOutputHint(slug);
   clearVideoGenErrorUi();
   setSeedanceVideoComplete(true, slug);
-  setScriptActionStatus(msg, { forceDock: true });
+  setScriptActionStatus(hint ? `${msg}。${hint}` : msg, { forceDock: true });
+  renderSeedanceFinalPreview(slug, state.lastPreview?.seedance);
   resetSeedanceProgressDock();
 }
 
@@ -1281,6 +1285,24 @@ function isScriptFloatPanelOpen() {
   return Boolean(panel?.classList.contains("open"));
 }
 
+function videoOutputHint(slug) {
+  const s = slug || currentScriptSlug() || state.lastPreview?.slug;
+  if (!s) return "";
+  return `成片：overseas-loc-mvp/runs/${s}/broll/final-video.mp4 · 归档：03_产出库/${s}/ · 页面可下载 zip`;
+}
+
+function friendlyApiErrorMessage(msg, path = "") {
+  const text = String(msg || "").trim();
+  if (!text || text === "Internal Server Error") {
+    const busy = state.videoGenActive || state.createPipelineActive;
+    if (busy) {
+      return "服务繁忙：正在生成交付或视频，请稍候勿重复点击；完成后刷新页面查看成片。";
+    }
+    return "服务器内部错误：请重启「启动工作台.cmd」后重试；若仍失败请检查 overseas-loc-mvp/.env 中 ARK_API_KEY 与 ffmpeg。";
+  }
+  return text;
+}
+
 function mirrorStatusToDock(msg) {
   if (!msg) return;
   for (const id of ["seedanceProgressStatus", "imitateSeedanceProgressStatus"]) {
@@ -1301,7 +1323,7 @@ function clearVideoGenErrorUi() {
 
 /** 视频生成失败：顶部横幅 + 底部进度条 + 脚本浮层同时展示，避免静默无反馈 */
 function showVideoGenError(msg, { openPanel = true, scrollDock = true } = {}) {
-  const text = String(msg || "视频生成失败").trim();
+  const text = friendlyApiErrorMessage(msg);
   state.lastVideoGenError = text;
   state.seedanceProgressPersist = true;
   state.videoGenActive = false;
@@ -2915,7 +2937,7 @@ async function api(path, options = {}) {
     } else if (detail != null) {
       msg = String(detail);
     }
-    throw new Error(msg || "请求失败");
+    throw new Error(friendlyApiErrorMessage(msg, path));
   }
   return data;
 }
@@ -4045,11 +4067,6 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
     }
     pane.className = "detail dissector-detail";
     pane.innerHTML = renderMaterialDetail(d, detail);
-    if (document.getElementById("scriptProductSelect")?.value) {
-      await refreshScriptPreview();
-    } else {
-      updateLoopBarFromForm(state.lastPreview || {});
-    }
     document.getElementById("retryAnalyzeBtn")?.addEventListener("click", async () => {
       const btn = document.getElementById("retryAnalyzeBtn");
       if (btn) { btn.disabled = true; btn.textContent = "拆解中…"; }
@@ -4092,7 +4109,21 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
       console.warn("refreshHealth after selectMaterial", healthErr);
     }
   } catch (err) {
-    pane.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    pane.innerHTML = `<div class="result error">${esc(friendlyApiErrorMessage(err.message))}</div>`;
+    const status = document.getElementById("refFloatStatus");
+    if (status) status.textContent = `加载失败：${friendlyApiErrorMessage(err.message)}`;
+    return;
+  }
+  try {
+    if (document.getElementById("scriptProductSelect")?.value) {
+      await refreshScriptPreview();
+    } else {
+      updateLoopBarFromForm(state.lastPreview || {});
+    }
+  } catch (err) {
+    const status = document.getElementById("refFloatStatus");
+    if (status) status.textContent = `预览同步失败：${friendlyApiErrorMessage(err.message)}`;
+    showVideoGenError(friendlyApiErrorMessage(err.message), { openPanel: false, scrollDock: false });
   }
 }
 
@@ -4344,9 +4375,9 @@ async function refreshScriptPreview() {
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
     hideSeedanceProgressIfIdle();
-    renderSeedanceFinalPreview(null, null);
+    renderSeedanceFinalPreview(prev.slug, prev.seedance);
   } catch (err) {
-    analysisEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    analysisEl.innerHTML = `<div class="result error">${esc(friendlyApiErrorMessage(err.message))}</div>`;
     productEl.className = "script-tag-grid script-tag-grid-float detail-empty";
     productEl.innerHTML = "";
     const lp = state.lastPreview || {};
@@ -4652,6 +4683,7 @@ async function runSeedanceGenerate(options = {}) {
       }
       setScriptActionStatus(msg, { forceDock: true });
       setSeedanceVideoComplete(true, slug);
+      renderSeedanceFinalPreview(slug, data.seedance);
     } else {
       showVideoGenError(msg, { openPanel: !background, scrollDock: true });
     }

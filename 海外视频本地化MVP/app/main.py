@@ -123,7 +123,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 160
+UI_VERSION = 161
 
 
 def _render_index() -> HTMLResponse:
@@ -337,6 +337,15 @@ async def materials(
 @app.get("/api/materials/{link_id}/analysis/detail")
 async def material_analysis_detail(link_id: int) -> dict:
     """打开素材详情时自动触发豆包拆解（若尚未完成）。"""
+    try:
+        return await _material_analysis_detail_payload(link_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"拆解详情加载失败: {exc}") from exc
+
+
+async def _material_analysis_detail_payload(link_id: int) -> dict:
     detail = load_analysis_detail(str(link_id))
     job = analyze_status(link_id)
     lid = str(link_id)
@@ -602,7 +611,7 @@ async def _material_preview_payload(link_id: int, product_id: str = "") -> dict:
         "workflow_note": (
             "仅借鉴本条竞品的钩子/节奏/分镜结构；成片口播与画面统一露出我方品牌，不出现竞品名。"
         ),
-        "seedance": _safe_project_status(slug),
+        "seedance": await run_in_threadpool(_safe_project_status, slug),
     }
 
 
@@ -939,12 +948,14 @@ async def tiktok_collector_db_sync(body: TikTokCollectorDbSyncRequest) -> dict:
 async def delivery_finish(slug: str) -> dict:
     try:
         link_id = int(slug.replace("ref-", ""))
-        ensure_delivery_project(link_id)
-        return finish_project(slug)
+        await run_in_threadpool(ensure_delivery_project, link_id)
+        return await run_in_threadpool(finish_project, slug)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except RuntimeError as exc:
+    except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"交付失败: {exc}") from exc
 
 
 @app.get("/api/doubao/test")
@@ -990,13 +1001,13 @@ async def delivery_seedance_run(
     except ValueError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
     try:
-        video_settings = sync_project_video_settings(slug, body.model_dump())
-        status = project_status(slug)
+        video_settings = await run_in_threadpool(sync_project_video_settings, slug, body.model_dump())
+        status = await run_in_threadpool(project_status, slug)
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
         if force:
-            refresh_project_seedance_source(slug)
-        payload = run_all(slug, force=force)
+            await run_in_threadpool(refresh_project_seedance_source, slug)
+        payload = await run_in_threadpool(run_all, slug, force=force)
         payload["video_production"] = video_settings
         assemble = payload.get("assemble") if isinstance(payload.get("assemble"), dict) else {}
         final_ready = bool(
