@@ -31,6 +31,7 @@ const state = {
   seedanceProgressPersist: false,
   scriptGenActive: false,
   videoGenActive: false,
+  lastVideoGenError: "",
   seedanceVideoComplete: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
@@ -1056,12 +1057,16 @@ function resetSeedanceProgressDock() {
   state.seedanceProgressPersist = false;
   state.scriptGenActive = false;
   state.videoGenActive = false;
+  clearVideoGenErrorUi();
   for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const bar = document.getElementById(ids.bar);
     const fill = document.getElementById(ids.fill);
     if (fill) {
       fill.classList.remove("indeterminate");
       fill.style.width = "";
     }
+    const labelEl = bar?.querySelector(".seedance-progress-label");
+    if (labelEl) labelEl.textContent = "AI 分镜";
     const meta = document.getElementById(ids.meta);
     if (meta) {
       meta.textContent = "";
@@ -1140,8 +1145,9 @@ async function runStartCreate() {
 
 function renderDockProduceComplete(slug, message) {
   const msg = message || "视频生成完成，可下载 zip 或预览成片";
+  clearVideoGenErrorUi();
   setSeedanceVideoComplete(true, slug);
-  setScriptActionStatus(msg);
+  setScriptActionStatus(msg, { forceDock: true });
   resetSeedanceProgressDock();
 }
 
@@ -1160,9 +1166,7 @@ async function runConfirmProduceVideo() {
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
   if (produceBtn?.disabled) {
     const tip = produceBtn.title || "当前无法生成视频，请检查今日成片配额或 SeedDance 配置";
-    setScriptActionStatus(tip, { forceDock: true });
-    showSeedanceProgress(true, { status: tip, persist: true });
-    openScriptFloatPanel();
+    showVideoGenError(tip);
     return;
   }
 
@@ -1173,27 +1177,26 @@ async function runConfirmProduceVideo() {
     state.scriptSlug = slug;
   }
   if (!slug) {
-    setScriptActionStatus("请先生成脚本");
-    openScriptFloatPanel();
+    showVideoGenError("请先生成脚本");
     return;
   }
 
   const videoQ = state.healthCache?.production?.daily_video_quota;
   if (videoQ?.enabled && videoQ.remaining <= 0) {
-    const tip = `今日成片产出配额已用完（${videoQ.used}/${videoQ.limit}），请明日再试`;
-    setScriptActionStatus(tip, { forceDock: true });
-    openScriptFloatPanel();
+    showVideoGenError(`今日成片产出配额已用完（${videoQ.used}/${videoQ.limit}），请明日再试`);
     return;
   }
 
   if (scriptEditsDirty()) {
     const saved = await saveScriptEditsIfDirty();
     if (!saved) {
+      showVideoGenError("保存脚本修改失败，无法开始生成视频");
       openScriptFloatPanel();
       return;
     }
   }
 
+  clearVideoGenErrorUi();
   state.seedanceProgressPersist = false;
   setSeedanceVideoComplete(false);
   if (produceBtn) {
@@ -1228,23 +1231,15 @@ async function runConfirmProduceVideo() {
       openScriptFloatPanel();
       return;
     }
-    if (finalSlug && !finalReady) {
-      const msg = "分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试";
-      setScriptActionStatus(msg, { forceDock: true });
-      showSeedanceProgress(true, { status: msg, persist: true });
-      openScriptFloatPanel();
-    } else if (!ok) {
-      const msg = document.getElementById("scriptActionStatus")?.textContent?.trim()
-        || "视频生成未启动，请检查网络、配额与 SeedDance 配置";
-      setScriptActionStatus(msg, { forceDock: true });
-      showSeedanceProgress(true, { status: msg, persist: true });
-      openScriptFloatPanel();
+    if (!ok || (finalSlug && !finalReady)) {
+      const msg = state.lastVideoGenError
+        || (finalSlug && !finalReady
+          ? "分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试"
+          : "视频生成未成功，请查看下方错误说明");
+      showVideoGenError(msg);
     }
   } catch (err) {
-    const msg = `视频生成失败：${err.message}`;
-    setScriptActionStatus(msg, { forceDock: true });
-    showSeedanceProgress(true, { status: msg, persist: true });
-    openScriptFloatPanel();
+    showVideoGenError(`视频生成失败：${err.message}`);
   } finally {
     state.createPipelineActive = false;
     if (!state.seedanceProgressPersist) {
@@ -1294,12 +1289,72 @@ function mirrorStatusToDock(msg) {
   }
 }
 
-function setScriptActionStatus(msg, { forceDock = false } = {}) {
+function clearVideoGenErrorUi() {
+  state.lastVideoGenError = "";
+  const statusEl = document.getElementById("scriptActionStatus");
+  if (statusEl) statusEl.classList.remove("script-action-error");
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    document.getElementById(ids.bar)?.classList.remove("seedance-progress-error");
+  }
+  document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+}
+
+/** 视频生成失败：顶部横幅 + 底部进度条 + 脚本浮层同时展示，避免静默无反馈 */
+function showVideoGenError(msg, { openPanel = true, scrollDock = true } = {}) {
+  const text = String(msg || "视频生成失败").trim();
+  state.lastVideoGenError = text;
+  state.seedanceProgressPersist = true;
+  state.videoGenActive = false;
+  state.createPipelineActive = false;
+
+  const banner = document.getElementById("videoGenErrorBanner");
+  const bannerText = document.getElementById("videoGenErrorBannerText");
+  if (banner && bannerText) {
+    bannerText.textContent = text;
+    banner.classList.remove("hidden");
+  }
+
+  const statusEl = document.getElementById("scriptActionStatus");
+  if (statusEl) {
+    statusEl.textContent = text;
+    statusEl.classList.add("script-action-error");
+  }
+
+  mirrorStatusToDock(text);
+  for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+    const bar = document.getElementById(ids.bar);
+    const fill = document.getElementById(ids.fill);
+    const st = document.getElementById(ids.status);
+    if (bar) {
+      bar.classList.remove("hidden");
+      bar.classList.add("seedance-progress-error");
+      const labelEl = bar.querySelector(".seedance-progress-label");
+      if (labelEl) labelEl.textContent = "生成失败";
+    }
+    if (st) st.textContent = text;
+    if (fill) {
+      fill.classList.remove("indeterminate");
+      fill.style.width = "0%";
+    }
+  }
+  stopSeedanceCountdown();
+  syncDockScrollPadding();
+  if (scrollDock) activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+  if (openPanel) openScriptFloatPanel();
+}
+
+function setScriptActionStatus(msg, { forceDock = false, isError = false } = {}) {
+  const text = String(msg || "").trim();
   const el = document.getElementById("scriptActionStatus");
-  if (el) el.textContent = msg || "";
-  if (!msg) return;
-  if (forceDock || !isScriptFloatPanelOpen() || isWorkbenchProgressActive()) {
-    mirrorStatusToDock(msg);
+  const keepErrorStyle = isError || Boolean(text && state.lastVideoGenError && text === state.lastVideoGenError);
+  if (el) {
+    el.textContent = text;
+    if (keepErrorStyle) el.classList.add("script-action-error");
+    else if (text) el.classList.remove("script-action-error");
+  }
+  if (!text) return;
+  if (forceDock || !isScriptFloatPanelOpen()) {
+    mirrorStatusToDock(text);
   }
 }
 
@@ -1667,18 +1722,24 @@ async function runViralBenchmarkPipeline(linkId) {
     const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
     if (ok && slug && finalReady) {
       renderDockProduceComplete(slug, "对标流水线完成：可下载 zip 或预览成片");
-      setScriptActionStatus("视频生成完成，可下载 zip 或预览成片");
+      setScriptActionStatus("视频生成完成，可下载 zip 或预览成片", { forceDock: true });
     } else if (slug && !finalReady) {
-      setScriptActionStatus("分镜已生成，成片拼接未完成；请检查 ffmpeg 或重新生成");
+      showVideoGenError(state.lastVideoGenError || "分镜已生成，成片拼接未完成；请检查 ffmpeg 或重新生成");
+    } else if (!ok) {
+      showVideoGenError(state.lastVideoGenError || "视频生成未成功，请查看错误说明");
     }
   } catch (err) {
     stopSeedanceCountdown();
-    setScriptActionStatus(err.message);
-    showSeedanceProgress(true, { status: `失败：${err.message}`, persist: true });
+    showVideoGenError(err.message);
   } finally {
     state.viralPipelineBusy = false;
     state.createPipelineActive = false;
-    resetSeedanceProgressDock();
+    if (!state.seedanceProgressPersist) {
+      resetSeedanceProgressDock();
+    } else {
+      state.videoGenActive = false;
+      state.scriptGenActive = false;
+    }
     forEachDockRunBtn((runBtn) => {
       delete runBtn.dataset.busy;
       runBtn.disabled = false;
@@ -2843,7 +2904,19 @@ async function api(path, options = {}) {
   if (window.__WB_TOKEN__) headers["X-Workbench-Token"] = window.__WB_TOKEN__;
   const res = await fetch(path, { ...options, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || res.statusText);
+  if (!res.ok) {
+    const detail = data.detail;
+    let msg = res.statusText || "请求失败";
+    if (typeof detail === "string") msg = detail;
+    else if (Array.isArray(detail)) {
+      msg = detail.map((d) => (typeof d === "string" ? d : d.msg || String(d))).join("；");
+    } else if (detail && typeof detail === "object" && detail.msg) {
+      msg = detail.msg;
+    } else if (detail != null) {
+      msg = String(detail);
+    }
+    throw new Error(msg || "请求失败");
+  }
   return data;
 }
 
@@ -4488,7 +4561,7 @@ async function runScriptFinish(options = {}) {
     if (!keepScript) {
       resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
     } else {
-      setScriptActionStatus(`交付失败：${err.message}`);
+      showVideoGenError(`交付失败：${err.message}`, { openPanel: !background });
     }
     await refreshScriptPreview();
     return false;
@@ -4503,12 +4576,12 @@ async function runSeedanceGenerate(options = {}) {
   const background = Boolean(options.background);
   const videoQ = state.healthCache?.production?.daily_video_quota;
   if (videoQ?.enabled && videoQ.remaining <= 0) {
-    setScriptActionStatus(`今日成片产出配额已用完（${videoQ.used}/${videoQ.limit}），请明日再试。`);
+    showVideoGenError(`今日成片产出配额已用完（${videoQ.used}/${videoQ.limit}），请明日再试。`);
     return false;
   }
   const slug = currentScriptSlug();
   if (!slug) {
-    setScriptActionStatus("请先生成脚本");
+    showVideoGenError("请先生成脚本");
     if (!background) ensureScriptResultVisible();
     return false;
   }
@@ -4567,28 +4640,30 @@ async function runSeedanceGenerate(options = {}) {
     }
     if (hintEl) hintEl.textContent = msg;
     stopSeedanceCountdown();
-    if (!background) {
-      showSeedanceProgress(true, {
-        status: finalReady ? "成片已就绪" : msg,
-        pipeline: data.seedance?.pipeline || "",
-        percent: finalReady ? 100 : undefined,
-        indeterminate: !finalReady && !failed.length,
-      });
-    }
-    setScriptActionStatus(msg);
-    if (finalReady) {
+    const success = !failed.length && finalReady;
+    if (success) {
+      clearVideoGenErrorUi();
+      if (!background) {
+        showSeedanceProgress(true, {
+          status: "成片已就绪",
+          pipeline: data.seedance?.pipeline || "",
+          percent: 100,
+        });
+      }
+      setScriptActionStatus(msg, { forceDock: true });
       setSeedanceVideoComplete(true, slug);
+    } else {
+      showVideoGenError(msg, { openPanel: !background, scrollDock: true });
     }
     if (data.daily_video_quota && state.healthCache?.production) {
       state.healthCache.production.daily_video_quota = data.daily_video_quota;
       syncDailyVideoQuota(data.daily_video_quota);
     }
-    if (!background) openScriptFloatPanel();
-    return !failed.length && finalReady;
+    if (!background && success) openScriptFloatPanel();
+    return success;
   } catch (err) {
     stopSeedanceCountdown();
-    showSeedanceProgress(true, { status: `失败：${err.message}`, percent: 0, persist: true });
-    setScriptActionStatus(`视频生成失败：${err.message}`);
+    showVideoGenError(`视频生成失败：${err.message}`, { openPanel: !background });
     return false;
   } finally {
     if (background && !state.createPipelineActive) {
@@ -4602,14 +4677,13 @@ async function runProduceVideo(options = {}) {
   const background = Boolean(options.background);
   const slug = currentScriptSlug();
   if (!slug) {
-    setScriptActionStatus("请先生成脚本后再产出视频");
-    if (!background) ensureScriptResultVisible();
+    showVideoGenError("请先生成脚本后再产出视频", { openPanel: !background });
     return false;
   }
   if (!options.skipScriptSave) {
     const saved = await saveScriptEditsIfDirty({ silent: true });
     if (!saved) {
-      setScriptActionStatus("保存脚本修改失败，无法开始生成视频", { forceDock: true });
+      showVideoGenError("保存脚本修改失败，无法开始生成视频");
       return false;
     }
   }
@@ -4635,7 +4709,7 @@ async function runProduceVideo(options = {}) {
     if (!lp.delivery_ready) {
       const ok = await runScriptFinish({ keepScript: true, background });
       if (!ok) {
-        setScriptActionStatus("交付未完成，无法产出视频。");
+        showVideoGenError(state.lastVideoGenError || "交付未完成，无法产出视频。");
         return false;
       }
       await refreshScriptPreview();
@@ -4647,8 +4721,7 @@ async function runProduceVideo(options = {}) {
     });
   } catch (err) {
     stopSeedanceCountdown();
-    setScriptActionStatus(`产出视频失败：${err.message}`);
-    showSeedanceProgress(true, { status: `失败：${err.message}`, persist: true });
+    showVideoGenError(`产出视频失败：${err.message}`);
     return false;
   } finally {
     syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
@@ -5329,6 +5402,10 @@ document.getElementById("btnFeishuDoctorSettings")?.addEventListener("click", as
   } catch (err) {
     if (el) el.textContent = err.message || "飞书 doctor 运行失败";
   }
+});
+
+document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", () => {
+  document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
 });
 
 async function bootstrapApp() {

@@ -30,6 +30,25 @@ USER_DELIVERABLES = (
 )
 
 
+def _olm_module(module: str):
+    """从 overseas-loc-mvp/app 加载模块，避免与工作台 app 包名冲突。"""
+    import importlib.util
+    import sys
+
+    rel = module.replace(".", "/") + ".py"
+    path = OVERSEAS_MVP_DIR / "app" / rel
+    if not path.is_file():
+        raise RuntimeError(f"缺少 overseas-loc-mvp 模块: {path}")
+    mod_name = f"olm_{module.replace('.', '_')}"
+    spec = importlib.util.spec_from_file_location(mod_name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"无法加载 {path}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _olm_python() -> Path:
     venv_py = OVERSEAS_MVP_DIR / ".venv" / "Scripts" / "python.exe"
     if venv_py.exists():
@@ -259,12 +278,8 @@ def delivery_ready(slug: str) -> bool:
 
 def sync_project_video_settings(slug: str, settings: dict[str, Any]) -> dict[str, Any]:
     """将工作台底部选取的分辨率/画幅写入 runs 项目，供 SeedDance 出片严格读取。"""
-    import sys
-
-    olm_root = OVERSEAS_MVP_DIR
-    if str(olm_root) not in sys.path:
-        sys.path.insert(0, str(olm_root))
-    from app.video_production import normalize_video_settings
+    vp_mod = _olm_module("video_production")
+    normalize_video_settings = vp_mod.normalize_video_settings
 
     project = OVERSEAS_RUNS_DIR / slug
     if not project.is_dir():

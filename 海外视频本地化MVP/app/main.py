@@ -123,7 +123,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 157
+UI_VERSION = 160
 
 
 def _render_index() -> HTMLResponse:
@@ -531,6 +531,15 @@ async def material(link_id: int) -> dict:
 
 @app.get("/api/materials/{link_id}/preview")
 async def material_preview(link_id: int, product_id: str = "") -> dict:
+    try:
+        return await _material_preview_payload(link_id, product_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"预览加载失败: {exc}") from exc
+
+
+async def _material_preview_payload(link_id: int, product_id: str = "") -> dict:
     detail = material_detail(link_id)
     if not detail:
         raise HTTPException(status_code=404, detail="素材不存在")
@@ -1001,8 +1010,10 @@ async def delivery_seedance_run(
         return payload
     except HTTPException:
         raise
-    except RuntimeError as exc:
+    except (RuntimeError, FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"视频生成失败: {exc}") from exc
 
 
 @app.post("/api/delivery/{slug}/assemble")
