@@ -19,7 +19,15 @@ from .product_assets import stage_seedance_source_image
 from .character_assets import stage_project_production_assets
 from .product_tags import validate_delivery_selection
 from .data import ANALYSIS_FIELDS, load_analysis, material_detail
-from .llm_script import generate_script_pack, pack_to_bridge_shots, pack_to_markdown
+from .llm_script import generate_script_pack, normalize_pack, pack_to_bridge_shots, pack_to_markdown
+
+SHOT_EDIT_FIELDS = (
+    "visual",
+    "voiceover_en",
+    "subtitle_en",
+    "visual_prompt",
+    "seedance_prompt",
+)
 
 
 def utc_now() -> str:
@@ -203,3 +211,108 @@ def _bridge(
                     },
                 )
     return slug
+
+
+def recompute_pack_derivatives(pack: dict[str, Any]) -> dict[str, Any]:
+    storyboard = pack.get("storyboard") or []
+    pack["subtitle_copy"] = [str(s.get("subtitle_en") or "") for s in storyboard]
+    pack["visual_prompts"] = [str(s.get("visual_prompt") or s.get("visual") or "") for s in storyboard]
+    pack["seedance_prompts"] = [
+        str(s.get("seedance_prompt") or "")
+        for s in storyboard
+        if s.get("footage_type") in ("AI_BROLL", "AI_VIDEO") and s.get("seedance_prompt")
+    ]
+    voiceover = str(pack.get("voiceover_20s") or "").strip()
+    if not voiceover and storyboard:
+        voiceover = " ".join(str(s.get("voiceover_en") or "") for s in storyboard if s.get("voiceover_en"))
+    pack["voiceover_20s"] = voiceover
+    return pack
+
+
+def apply_pack_edits(pack: dict[str, Any], edits: dict[str, Any]) -> dict[str, Any]:
+    out = dict(pack)
+    for key in ("title", "subtitle", "voiceover_20s"):
+        if key in edits:
+            out[key] = str(edits.get(key) or "").strip()
+
+    incoming = edits.get("storyboard") or []
+    if incoming:
+        existing = list(out.get("storyboard") or [])
+        merged: list[dict[str, Any]] = []
+        for idx, row in enumerate(incoming):
+            base = dict(existing[idx]) if idx < len(existing) else {}
+            if row.get("number") is not None:
+                base["number"] = int(row.get("number") or idx + 1)
+            else:
+                base["number"] = idx + 1
+            for field in SHOT_EDIT_FIELDS:
+                if field in row:
+                    base[field] = str(row.get(field) or "").strip()
+            for keep in ("role", "timing", "footage_type"):
+                if row.get(keep) not in (None, ""):
+                    base[keep] = row.get(keep)
+            merged.append(base)
+        out["storyboard"] = merged
+
+    return recompute_pack_derivatives(normalize_pack(out))
+
+
+def _sync_saved_pack_to_project(link_id: int, doc: dict[str, Any], shots: list[dict[str, str]]) -> str:
+    slug = f"ref-{link_id:03d}"
+    proj = OVERSEAS_RUNS_DIR / slug
+    if not proj.exists():
+        return slug
+    pack_text = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
+    (proj / "script-pack.json").write_text(pack_text, encoding="utf-8")
+    (proj / "交付脚本包.json").write_text(pack_text, encoding="utf-8")
+    if shots:
+        (proj / "storyboard.json").write_text(
+            json.dumps({"shots": shots}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return slug
+
+
+def save_script_edits(link_id: int, edits: dict[str, Any]) -> dict[str, Any]:
+    detail = material_detail(link_id)
+    if not detail:
+        raise ValueError("素材不存在")
+    out_dir = GENERATED_SCRIPTS_DIR / str(link_id)
+    pack_path = out_dir / "script-pack.json"
+    if not pack_path.is_file():
+        raise ValueError("尚未生成脚本，请先生成脚本")
+
+    raw = json.loads(pack_path.read_text(encoding="utf-8"))
+    pack = raw.get("pack") if isinstance(raw.get("pack"), dict) else raw
+    meta = raw.get("meta") if isinstance(raw.get("meta"), dict) else {}
+    payload = raw.get("payload") if isinstance(raw.get("payload"), dict) else {}
+
+    pack = apply_pack_edits(pack, edits)
+    shots = pack_to_bridge_shots(pack)
+    source_url = str(payload.get("source_url") or detail.get("url") or "")
+    md = pack_to_markdown(pack, source_url)
+
+    payload.update({
+        "title": pack.get("title", ""),
+        "subtitle": pack.get("subtitle", ""),
+        "voiceover_20s": pack.get("voiceover_20s", ""),
+        "storyboard": pack.get("storyboard", []),
+        "subtitle_copy": pack.get("subtitle_copy", []),
+        "visual_prompts": pack.get("visual_prompts", []),
+        "seedance_prompts": pack.get("seedance_prompts", []),
+        "shots": shots,
+        "edited_at": utc_now(),
+    })
+    doc = {"pack": pack, "meta": meta, "payload": payload}
+    pack_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (out_dir / "script-pack.md").write_text(md, encoding="utf-8")
+
+    slug = _sync_saved_pack_to_project(link_id, doc, shots)
+    return {
+        "link_id": link_id,
+        "slug": slug,
+        "script_pack": pack,
+        "meta": meta,
+        "edited": True,
+        "message": "脚本修改已保存，将按当前内容生成视频",
+    }

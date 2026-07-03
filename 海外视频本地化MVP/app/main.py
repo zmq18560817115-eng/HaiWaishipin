@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -86,7 +87,7 @@ from .products import get_product, list_products, update_product
 from .prompt_library import ensure_default_presets, list_prompts, record_usage
 from .reverse_prompt import run_reverse_prompt
 from .scene_script import scenario_conflict_note
-from .script_gen import generate_script
+from .script_gen import generate_script, save_script_edits
 from .thumbnails import ensure_thumbnail_cached
 from .tiktok_collector_bridge import run_collector_import
 from .tiktok_collector_bridge import query_collector_database
@@ -121,7 +122,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 149
+UI_VERSION = 150
 
 
 def _render_index() -> HTMLResponse:
@@ -186,6 +187,13 @@ class GenerateRequest(BaseModel):
     generate_count: int = 1
     creative_brief: str = ""
     prompt_enhanced: bool = False
+
+
+class ScriptEditRequest(BaseModel):
+    title: str = ""
+    subtitle: str = ""
+    voiceover_20s: str = ""
+    storyboard: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SeedanceRunRequest(BaseModel):
@@ -627,6 +635,16 @@ async def generate(link_id: int, body: GenerateRequest) -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"生成失败: {exc}") from exc
+
+
+@app.put("/api/materials/{link_id}/script")
+async def update_material_script(link_id: int, body: ScriptEditRequest) -> dict:
+    try:
+        return save_script_edits(link_id, body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"保存脚本失败: {exc}") from exc
 
 
 @app.get("/api/products")

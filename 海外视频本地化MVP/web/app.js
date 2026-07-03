@@ -31,6 +31,7 @@ const state = {
   seedanceProgressPersist: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
+  scriptEditBaseline: null,
   videoSettings: {
     resolution: "720P",
     aspectRatio: "9:16",
@@ -364,23 +365,116 @@ function formatPersonalizationBanner(pack) {
 }
 
 function formatStoryboardHtml(storyboard) {
+  return formatStoryboardEditableHtml(storyboard);
+}
+
+function formatStoryboardEditableHtml(storyboard) {
   const shots = storyboard || [];
   if (!shots.length) return '<p class="muted">暂无分镜</p>';
-  return `<div class="shot-list-compact">${shots.map((s, idx) => {
+  return `<div class="shot-list-compact shot-list-editable">${shots.map((s, idx) => {
     const vo = String(s.voiceover_en || "").trim();
     const voPreview = vo.length > 72 ? `${vo.slice(0, 72)}…` : vo;
     return `
-    <details class="shot-compact"${idx === 0 ? " open" : ""}>
+    <details class="shot-compact shot-edit-row"${idx === 0 ? " open" : ""}
+      data-shot-idx="${idx}"
+      data-shot-role="${esc(s.role || "")}"
+      data-shot-timing="${esc(s.timing || "")}"
+      data-shot-footage="${esc(s.footage_type || "")}"
+      data-shot-number="${esc(String(s.number || idx + 1))}">
       <summary>第 ${s.number} 镜 · ${esc(s.role || "")}（${esc(s.timing || "")}）${voPreview ? ` — ${esc(voPreview)}` : ""}</summary>
-      <div class="shot-compact-body">
-        <p><span class="pack-label">画面</span>${esc(s.visual || "")}</p>
-        <p><span class="pack-label">口播</span>${esc(s.voiceover_en || "")}</p>
-        <p><span class="pack-label">字幕</span>${esc(s.subtitle_en || "")}</p>
-        ${s.visual_prompt ? `<p><span class="pack-label">构图</span>${esc(s.visual_prompt)}</p>` : ""}
-        ${s.seedance_prompt ? `<p><span class="pack-label">空镜</span>${esc(s.seedance_prompt)}</p>` : ""}
+      <div class="shot-compact-body script-edit-fields">
+        <label class="script-edit-field"><span class="pack-label">画面</span><textarea rows="2" data-shot-field="visual">${esc(s.visual || "")}</textarea></label>
+        <label class="script-edit-field"><span class="pack-label">口播</span><textarea rows="2" data-shot-field="voiceover_en">${esc(s.voiceover_en || "")}</textarea></label>
+        <label class="script-edit-field"><span class="pack-label">字幕</span><textarea rows="2" data-shot-field="subtitle_en">${esc(s.subtitle_en || "")}</textarea></label>
+        <label class="script-edit-field"><span class="pack-label">构图</span><textarea rows="4" data-shot-field="visual_prompt">${esc(s.visual_prompt || "")}</textarea></label>
+        <label class="script-edit-field"><span class="pack-label">空镜</span><textarea rows="4" data-shot-field="seedance_prompt">${esc(s.seedance_prompt || "")}</textarea></label>
       </div>
     </details>`;
   }).join("")}</div>`;
+}
+
+function packEditsSnapshot(pack) {
+  if (!pack) return "";
+  return JSON.stringify({
+    title: String(pack.title || "").trim(),
+    subtitle: String(pack.subtitle || "").trim(),
+    voiceover_20s: String(pack.voiceover_20s || "").trim(),
+    storyboard: (pack.storyboard || []).map((s) => ({
+      number: s.number,
+      role: s.role || "",
+      timing: s.timing || "",
+      footage_type: s.footage_type || "",
+      visual: String(s.visual || "").trim(),
+      voiceover_en: String(s.voiceover_en || "").trim(),
+      subtitle_en: String(s.subtitle_en || "").trim(),
+      visual_prompt: String(s.visual_prompt || "").trim(),
+      seedance_prompt: String(s.seedance_prompt || "").trim(),
+    })),
+  });
+}
+
+function setScriptEditBaseline(pack) {
+  state.scriptEditBaseline = packEditsSnapshot(pack);
+}
+
+function collectScriptPackEdits() {
+  const form = document.getElementById("scriptEditForm");
+  if (!form) return null;
+  const pack = {
+    title: form.querySelector('[data-pack-field="title"]')?.value?.trim() || "",
+    subtitle: form.querySelector('[data-pack-field="subtitle"]')?.value?.trim() || "",
+    voiceover_20s: form.querySelector('[data-pack-field="voiceover_20s"]')?.value?.trim() || "",
+    storyboard: [],
+  };
+  form.querySelectorAll(".shot-edit-row").forEach((row) => {
+    const shot = {
+      number: Number(row.dataset.shotNumber) || pack.storyboard.length + 1,
+      role: row.dataset.shotRole || "",
+      timing: row.dataset.shotTiming || "",
+      footage_type: row.dataset.shotFootage || "",
+    };
+    row.querySelectorAll("[data-shot-field]").forEach((el) => {
+      shot[el.dataset.shotField] = el.value.trim();
+    });
+    pack.storyboard.push(shot);
+  });
+  return pack;
+}
+
+function scriptEditsDirty() {
+  const form = document.getElementById("scriptEditForm");
+  if (!form || !state.scriptEditBaseline) return false;
+  return JSON.stringify(collectScriptPackEdits()) !== state.scriptEditBaseline;
+}
+
+async function saveScriptEditsIfDirty({ silent = false } = {}) {
+  if (!scriptEditsDirty()) return true;
+  const linkId = Number(document.getElementById("scriptMaterialSelect")?.value || state.selectedMaterialId);
+  if (!linkId) {
+    if (!silent) setScriptActionStatus("请先选择对标素材");
+    return false;
+  }
+  const edits = collectScriptPackEdits();
+  if (!edits) return false;
+  if (!silent) setScriptActionStatus("正在保存脚本修改…");
+  try {
+    const res = await api(`/api/materials/${linkId}/script`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edits),
+    });
+    const pack = res.script_pack || res.pack;
+    if (pack) {
+      state.lastPreview = { ...(state.lastPreview || {}), script_pack: pack, has_script: true };
+      if (res.slug) state.scriptSlug = res.slug;
+      setScriptEditBaseline(pack);
+    }
+    if (!silent) setScriptActionStatus(res.message || "脚本修改已保存");
+    return true;
+  } catch (err) {
+    if (!silent) setScriptActionStatus(`保存脚本失败：${err.message}`);
+    return false;
+  }
 }
 
 function formatPackResult(pack, meta) {
@@ -415,17 +509,17 @@ function formatPackResult(pack, meta) {
     ${tagSummary ? `<p class="pack-summary-line">${esc(tagSummary)}</p>` : ""}
     ${sceneNote ? `<p class="pack-summary-line">${esc(sceneNote)}</p>` : ""}
     ${sceneWarn ? `<p class="workflow-warn">${esc(sceneWarn)}</p>` : ""}
-    <div class="script-pack">
-      ${title || subtitle || voiceover ? `
-      <details class="pack-meta-details">
+    <p class="script-edit-hint muted">可直接修改下方字段；点击「保存修改」或「确认生成视频」时将按当前内容出片。</p>
+    <form id="scriptEditForm" class="script-pack script-edit-form" autocomplete="off">
+      <details class="pack-meta-details"${title || subtitle || voiceover ? " open" : ""}>
         <summary>标题与口播全文</summary>
-        ${title ? `<div class="pack-row"><span>英文标题</span><p>${esc(title)}</p></div>` : ""}
-        ${subtitle ? `<div class="pack-row"><span>英文副标题</span><p>${esc(subtitle)}</p></div>` : ""}
-        ${voiceover ? `<div class="pack-row"><span>完整口播</span><p>${esc(voiceover)}</p></div>` : ""}
-      </details>` : ""}
-      <div class="pack-row"><span>分镜脚本（${(pack.storyboard || []).length} 镜，点击展开）</span><div class="shot-list">${formatStoryboardHtml(pack.storyboard)}</div></div>
-      ${broll.length ? `<details class="pack-meta-details"><summary>空镜提示词（${broll.length} 条）</summary><pre>${esc(broll.join("\n\n"))}</pre></details>` : ""}
-    </div>`;
+        <label class="script-edit-field"><span>英文标题</span><textarea rows="2" data-pack-field="title">${esc(title)}</textarea></label>
+        <label class="script-edit-field"><span>英文副标题</span><textarea rows="2" data-pack-field="subtitle">${esc(subtitle)}</textarea></label>
+        <label class="script-edit-field"><span>完整口播</span><textarea rows="3" data-pack-field="voiceover_20s">${esc(voiceover)}</textarea></label>
+      </details>
+      <div class="pack-row"><span>分镜脚本（${(pack.storyboard || []).length} 镜，点击展开编辑）</span>${formatStoryboardEditableHtml(pack.storyboard)}</div>
+      ${broll.length ? `<details class="pack-meta-details"><summary>空镜提示词汇总（${broll.length} 条，只读）</summary><pre>${esc(broll.join("\n\n"))}</pre></details>` : ""}
+    </form>`;
 }
 
 function currentScriptSlug() {
@@ -947,6 +1041,13 @@ async function runConfirmProduceVideo() {
     openScriptFloatPanel();
     return;
   }
+  if (scriptEditsDirty()) {
+    const saved = await saveScriptEditsIfDirty();
+    if (!saved) {
+      openScriptFloatPanel();
+      return;
+    }
+  }
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
   closeScriptFloatPanel();
   state.seedanceProgressPersist = false;
@@ -996,6 +1097,9 @@ function refreshScriptFloatFromPreview(prev = {}) {
   if (!body) return;
   if (prev.has_script && prev.script_pack) {
     body.innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
+    setScriptEditBaseline(prev.script_pack);
+  } else {
+    state.scriptEditBaseline = null;
   }
   updateLoopBarFromForm(prev);
 }
@@ -1983,6 +2087,13 @@ function initModuleStudios() {
   document.getElementById("scriptFloatCloseBtn")?.addEventListener("click", closeScriptFloatPanel);
   document.getElementById("scriptFloatBackdrop")?.addEventListener("click", closeScriptFloatPanel);
   document.getElementById("scriptFloatProduceBtn")?.addEventListener("click", () => runConfirmProduceVideo());
+  document.getElementById("scriptFloatSaveBtn")?.addEventListener("click", async () => {
+    if (!scriptEditsDirty()) {
+      setScriptActionStatus("脚本未修改，无需保存");
+      return;
+    }
+    await saveScriptEditsIfDirty();
+  });
   document.getElementById("scriptFloatRegenBtn")?.addEventListener("click", async () => {
     if (!tagsSelectionOk()) {
       await openProductFloatPanel();
@@ -3946,6 +4057,7 @@ async function refreshScriptPreview() {
       }
       syncScriptProduceEmpty(true);
       scriptResultBody().innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
+      setScriptEditBaseline(prev.script_pack);
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
     showSeedanceProgress(false);
@@ -4091,6 +4203,7 @@ async function runScriptGenerate() {
     state.scriptTagSnapshot = captureTagSnapshot();
     state.lastScriptProductId = productId;
     if (resultEl) resultEl.innerHTML = formatPackResult(pack, res.meta);
+    setScriptEditBaseline(pack);
     if (res.daily_quota) {
       if (!state.healthCache) state.healthCache = {};
       if (!state.healthCache.production) state.healthCache.production = {};
@@ -4277,6 +4390,10 @@ async function runProduceVideo(options = {}) {
     setScriptActionStatus("请先生成脚本后再产出视频");
     if (!background) ensureScriptResultVisible();
     return false;
+  }
+  if (!options.skipScriptSave) {
+    const saved = await saveScriptEditsIfDirty({ silent: true });
+    if (!saved) return false;
   }
   state.scriptSlug = slug;
   if (!background) {
