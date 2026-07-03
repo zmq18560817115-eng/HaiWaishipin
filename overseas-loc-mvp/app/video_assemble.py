@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,17 +15,45 @@ from typing import Any
 from .storage import write_json
 
 
-def find_ffmpeg() -> str | None:
-    for name in ("ffmpeg", "ffmpeg.exe"):
-        found = shutil.which(name)
-        if found:
-            return found
+def _ffmpeg_from_imageio() -> str | None:
     try:
         import imageio_ffmpeg
 
-        return imageio_ffmpeg.get_ffmpeg_exe()
-    except ImportError:
-        return None
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if exe and Path(exe).is_file():
+            return exe
+    except Exception:
+        pass
+    return None
+
+
+def _bootstrap_imageio_ffmpeg() -> bool:
+    """在交付引擎子进程内尝试 pip 安装 imageio-ffmpeg（拼接时自动修复）。"""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "imageio-ffmpeg"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=300,
+        )
+        return proc.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def find_ffmpeg() -> str | None:
+    for name in ("ffmpeg", "ffmpeg.exe"):
+        found = shutil.which(name)
+        if found and Path(found).is_file():
+            return found
+    exe = _ffmpeg_from_imageio()
+    if exe:
+        return exe
+    if _bootstrap_imageio_ffmpeg():
+        return _ffmpeg_from_imageio()
+    return None
 
 
 def _shot_sort_key(path: Path) -> int:

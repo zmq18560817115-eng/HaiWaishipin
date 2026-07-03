@@ -134,7 +134,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 173
+UI_VERSION = 174
 
 
 def _render_index() -> HTMLResponse:
@@ -1103,6 +1103,7 @@ async def delivery_seedance_run(
             or (seedance.get("final_video") or {}).get("ready")
         )
         if not final_ready and ready_shots >= 1:
+            await run_in_threadpool(lambda: ensure_ffmpeg_ready(raise_on_fail=False))
             retry_asm = await run_in_threadpool(assemble_project, slug)
             payload["assemble"] = retry_asm
             if retry_asm.get("ok"):
@@ -1138,7 +1139,7 @@ async def delivery_assemble(slug: str) -> dict:
     if not project_exists(slug):
         raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
     try:
-        await run_in_threadpool(ensure_ffmpeg_ready)
+        await run_in_threadpool(lambda: ensure_ffmpeg_ready(raise_on_fail=True))
         return await run_in_threadpool(assemble_project, slug)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

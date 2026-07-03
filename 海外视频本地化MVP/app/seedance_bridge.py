@@ -12,7 +12,7 @@ from dotenv import dotenv_values
 
 from paths import OVERSEAS_ENV, OVERSEAS_MVP_DIR, OVERSEAS_RUNS_DIR
 
-from .olm_bridge import _olm_python
+from .olm_bridge import _olm_python, ensure_ffmpeg_ready
 from .character_assets import stage_project_production_assets
 
 
@@ -205,6 +205,7 @@ print(json.dumps({"results": results, "seedance": status, "assemble": assemble, 
 
 
 def assemble_project(slug: str) -> dict[str, Any]:
+    ensure_ffmpeg_ready(raise_on_fail=True)
     code = """
 import json, sys
 from app.main import _maybe_assemble_final_video

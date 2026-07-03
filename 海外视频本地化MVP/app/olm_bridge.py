@@ -130,27 +130,42 @@ def ffmpeg_status() -> dict[str, Any]:
         return {"available": False, "path": "", "message": str(exc)}
 
 
-def ensure_ffmpeg_ready() -> dict[str, Any]:
+def ensure_ffmpeg_ready(*, raise_on_fail: bool = False) -> dict[str, Any]:
     """启动或拼接前调用：补齐 venv 依赖并重试 imageio-ffmpeg。"""
+    global _olm_venv_ready
     status = ffmpeg_status()
     if status.get("available"):
         return status
     py = ensure_olm_venv(reinstall_deps=True)
     pip = subprocess.run(
-        [str(py), "-m", "pip", "install", "--disable-pip-version-check", "-q", "imageio-ffmpeg"],
+        [str(py), "-m", "pip", "install", "--disable-pip-version-check", "imageio-ffmpeg"],
         capture_output=True,
         text=True,
         encoding="utf-8",
         errors="replace",
+        timeout=300,
     )
     if pip.returncode != 0:
-        tail = (pip.stderr or pip.stdout or "pip 失败")[-300:]
-        return {
+        _olm_venv_ready = False
+        tail = (pip.stderr or pip.stdout or "pip 失败")[-400:]
+        status = {
             "available": False,
             "path": "",
-            "message": f"imageio-ffmpeg 安装失败：{tail}。请运行「检查开发环境.cmd」",
+            "message": f"imageio-ffmpeg 安装失败：{tail}。请双击运行「检查开发环境.cmd」或检查网络后重试",
         }
-    return ffmpeg_status()
+        if raise_on_fail:
+            raise RuntimeError(status["message"])
+        return status
+    status = ffmpeg_status()
+    if not status.get("available"):
+        _olm_venv_ready = False
+        status.setdefault(
+            "message",
+            "imageio-ffmpeg 已安装但 ffmpeg 仍不可用，请重新运行「启动工作台.cmd」",
+        )
+        if raise_on_fail:
+            raise RuntimeError(status["message"])
+    return status
 
 
 def _olm_python() -> Path:
@@ -329,6 +344,7 @@ def _try_assemble_final(slug: str) -> None:
     if not broll.is_dir() or not list(broll.glob("shot-*.mp4")):
         return
     try:
+        ensure_ffmpeg_ready()
         assemble_project(slug)
     except (RuntimeError, OSError):
         pass

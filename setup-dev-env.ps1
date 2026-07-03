@@ -38,25 +38,66 @@ function Show-Status {
     return $false
 }
 
+function Ensure-Ffmpeg {
+    param([string]$VenvPy)
+    $ff = & $VenvPy -c "from app.video_assemble import find_ffmpeg; print(find_ffmpeg() or '')" 2>$null
+    if ($ff) {
+        Write-Host '[OK] ffmpeg (imageio-ffmpeg or PATH)'
+        Write-Host "     $ff"
+        return $true
+    }
+    Write-Host '[SETUP] Installing imageio-ffmpeg for video concat...'
+    & $VenvPy -m pip install --disable-pip-version-check imageio-ffmpeg
+    $ff = & $VenvPy -c "from app.video_assemble import find_ffmpeg; print(find_ffmpeg() or '')" 2>$null
+    if ($ff) {
+        Write-Host '[OK] ffmpeg ready after install'
+        Write-Host "     $ff"
+        return $true
+    }
+    Write-Host '[MISS] ffmpeg — 重新合成需要 imageio-ffmpeg，请检查网络后重试'
+    return $false
+}
+
+function Test-VenvHealthy {
+    param([string]$VenvPy)
+    if (-not (Test-Path -LiteralPath $VenvPy)) { return $false }
+    $last = & $VenvPy -c "import sys; print(sys.version)" 2>$null
+    return [bool]$last
+}
+
 function Ensure-Venv {
     param([string]$Label, [string]$ProjectDir)
     if (-not (Test-Path -LiteralPath $ProjectDir)) {
         Write-Host "[MISS] $Label project dir: $ProjectDir"
         return $false
     }
-    $venvPy = Join-Path $ProjectDir '.venv\Scripts\python.exe'
-    if (Test-Path -LiteralPath $venvPy) { return $true }
-    $py = Resolve-Python
-    if (-not $py) {
-        Write-Host "[MISS] Python required to create $Label venv"
-        return $false
+    $venvDir = Join-Path $ProjectDir '.venv'
+    $venvPy = Join-Path $venvDir 'Scripts\python.exe'
+    if ((Test-Path -LiteralPath $venvDir) -and -not (Test-VenvHealthy $venvPy)) {
+        Write-Host "[SETUP] Repairing broken $Label venv..."
+        Remove-Item -LiteralPath $venvDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "[SETUP] Creating $Label venv..."
-    & $py -m venv (Join-Path $ProjectDir '.venv')
-    if (-not (Test-Path -LiteralPath $venvPy)) { return $false }
+    if (-not (Test-Path -LiteralPath $venvPy)) {
+        $py = Resolve-Python
+        if (-not $py) {
+            Write-Host "[MISS] Python required to create $Label venv"
+            return $false
+        }
+        Write-Host "[SETUP] Creating $Label venv..."
+        & $py -m venv $venvDir
+        if (-not (Test-Path -LiteralPath $venvPy)) { return $false }
+    }
     $req = Join-Path $ProjectDir 'requirements.txt'
     if (Test-Path -LiteralPath $req) {
+        Write-Host "[SETUP] Syncing $Label dependencies..."
         & $venvPy -m pip install --disable-pip-version-check -q -r $req
+    }
+    if ($Label -eq 'Delivery engine') {
+        $prev = Get-Location
+        Set-Location -LiteralPath $ProjectDir
+        $ffOk = Ensure-Ffmpeg $venvPy
+        Set-Location -LiteralPath $prev
+        if (-not $ffOk) { return $false }
     }
     Write-Host "[OK] $Label venv ready"
     return $true
@@ -107,8 +148,16 @@ if ($listening) {
 Write-Host ''
 Write-Host '===== Local workbench ====='
 try {
-    $null = Invoke-RestMethod -Uri 'http://127.0.0.1:8788/api/health' -TimeoutSec 2
-    Write-Host '[OK] Workbench: http://127.0.0.1:8788'
+    $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8788/api/health' -TimeoutSec 2
+    $ui = $health.ui_version
+    $ff = $health.delivery_engine.ffmpeg
+    Write-Host "[OK] Workbench: http://127.0.0.1:8788 (UI v$ui)"
+    if ($ff.available) {
+        Write-Host '[OK] Workbench sees ffmpeg'
+    } else {
+        Write-Host '[WARN] Workbench running but ffmpeg not ready — close workbench and run 启动工作台.cmd again'
+        Write-Host "       $($ff.message)"
+    }
 } catch {
     Write-Host '[INFO] Workbench is not running — use 启动工作台.cmd'
 }
