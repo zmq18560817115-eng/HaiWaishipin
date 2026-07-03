@@ -1,0 +1,32 @@
+{
+  "slug": "ref-015",
+  "link_id": "15",
+  "title": "#exclusivelypumping #pumpingmom #pumpingtok #breastmilk #momcozybottlewarmer ",
+  "saved_at": "2026-07-03T04:01:39.814781+00:00",
+  "script_refs": {
+    "script_pack": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/15/script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/15",
+    "script_pack.md": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/15/script-pack.md"
+  },
+  "video_refs": [
+    "broll/shot-1.mp4",
+    "broll/shot-2.mp4",
+    "broll/shot-3.mp4",
+    "broll/shot-4.mp4",
+    "broll/shot-5.mp4"
+  ],
+  "template_id": "product-seed",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "",
+  "delivery_files": [
+    "交付脚本包.json"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@kimberly.michellee/video/7460374667765894442",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "#exclusivelypumping #pumpingmom #pumpingtok #breastmilk #momcozybottlewarmer ",
+    "target_country": "US"
+  }
+}
