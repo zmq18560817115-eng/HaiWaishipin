@@ -4996,6 +4996,48 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   text-align: center;
 }
 
+/* ── Studio focus mode：工作台展开时隐藏主页面 ───────── */
+.studio-focus-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(4px);
+}
+
+.studio-focus-backdrop.hidden {
+  display: none;
+}
+
+body.studio-focus-mode .module-studio-scroll {
+  visibility: hidden;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  pointer-events: none;
+}
+
+body.studio-focus-mode .app-hero,
+body.studio-focus-mode .top-nav-pills,
+body.studio-focus-mode .top-stats {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.studio-focus-mode .produce-complete-banner {
+  display: none;
+}
+
+.studio-dock-close.hidden {
+  display: none;
+}
+
+.studio-dock-head {
+  gap: 8px;
+}
+
 /* ── Floating studio dock ─────────────────────────────── */
 .studio-dock {
   position: fixed;
@@ -6094,7 +6136,28 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 .produce-retry-assemble {
-  margin-top: 4px;
+  margin-top: 8px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.studio-dock-reassemble {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-right: 8px;
+  border-color: #f59e0b;
+  color: #92400e;
+  background: #fffbeb;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.studio-dock-reassemble:hover:not(:disabled) {
+  background: #fef3c7;
+}
+
+.studio-dock-reassemble.hidden {
+  display: none;
 }
 
 .produce-assemble-hint {
@@ -6140,6 +6203,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 .produce-complete-modal-card {
+  position: relative;
   width: min(520px, 100%);
   max-height: min(80vh, 720px);
   overflow: auto;
@@ -6148,6 +6212,13 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   background: #fff;
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.22);
   text-align: center;
+}
+
+.produce-complete-modal-close-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
 }
 
 .produce-complete-modal.is-partial .produce-complete-modal-card {
@@ -6496,7 +6567,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .product-float-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.28);
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(4px);
   z-index: 35;
   opacity: 0;
   transition: opacity .2s;

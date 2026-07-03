@@ -62,6 +62,8 @@
     <button type="button" class="secondary pill-btn video-queue-cancel hidden" id="videoQueueCancelBtn">取消排队</button>
   </aside>
 
+  <div id="studioFocusBackdrop" class="studio-focus-backdrop hidden" hidden aria-hidden="true"></div>
+
   <div id="produceCompleteBanner" class="produce-complete-banner hidden" role="status" aria-live="polite">
     <span class="produce-complete-banner-icon" aria-hidden="true">✓</span>
     <div class="produce-complete-banner-body">
@@ -75,13 +77,14 @@
   <div id="produceCompleteModalBackdrop" class="produce-complete-modal-backdrop hidden" hidden></div>
   <div id="produceCompleteModal" class="produce-complete-modal hidden" role="dialog" aria-modal="true" aria-labelledby="produceCompleteModalTitle" hidden>
     <div class="produce-complete-modal-card">
+      <button type="button" class="produce-complete-modal-close-x settings-close" id="produceCompleteModalCloseX" aria-label="关闭">×</button>
       <span class="produce-complete-modal-icon" id="produceCompleteModalIcon" aria-hidden="true">✓</span>
       <h2 id="produceCompleteModalTitle" class="produce-complete-modal-title">成片已就绪</h2>
       <p id="produceCompleteModalText" class="produce-complete-modal-text"></p>
       <div id="produceCompleteModalPreview" class="produce-complete-modal-preview"></div>
       <div class="produce-complete-modal-actions">
         <a id="produceCompleteModalDownload" class="primary primary-dark produce-complete-modal-download hidden" href="#" download>下载成片 zip</a>
-        <button type="button" class="secondary pill-btn" id="produceCompleteModalCloseBtn">知道了</button>
+        <button type="button" class="secondary pill-btn" id="produceCompleteModalCloseBtn">返回工作台</button>
       </div>
     </div>
   </div>
@@ -317,7 +320,7 @@
     <footer class="product-float-foot script-float-foot">
       <div id="scriptGenProgress" class="seedance-progress script-gen-progress hidden" aria-live="polite">
         <div class="seedance-progress-row">
-          <span class="seedance-progress-label">脚本生成</span>
+          <span class="seedance-progress-label">AI 镜头脚本</span>
           <div class="seedance-progress-status-wrap">
             <span id="scriptGenProgressStatus" class="seedance-progress-status muted">准备中…</span>
             <span id="scriptGenProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
@@ -330,6 +333,7 @@
       </div>
       <a class="btn-link hidden js-script-download" id="scriptDownloadBtnBottom" href="#" download>下载成片 zip</a>
       <div class="script-float-actions">
+        <button type="button" class="secondary pill-btn" id="scriptFloatBackBtn">返回工作台</button>
         <button type="button" class="secondary pill-btn" id="scriptFloatRegenBtn">重新生成脚本</button>
         <button type="button" class="secondary pill-btn" id="scriptFloatSaveBtn">保存修改</button>
         <button type="button" class="primary primary-dark" id="scriptFloatProduceBtn">确认生成视频</button>
@@ -444,6 +448,7 @@
               <button type="button" data-gen-mode="generate" title="配场景 · 出脚本 · 成片">视频生成</button>
               <button type="button" data-gen-mode="image-text" disabled title="规划中">图文</button>
             </nav>
+            <button type="button" class="studio-dock-close settings-close hidden" id="generateDockCloseBtn" aria-label="返回主页面" title="返回主页面">×</button>
           </div>
           <div class="studio-dock-body">
             <div class="studio-dock-uploads">
@@ -511,6 +516,7 @@
                 <span>提示词增强</span>
               </button>
             </div>
+            <button type="button" class="secondary pill-btn studio-dock-reassemble hidden" id="generateDockReassemble" title="仅拼接已有分镜 mp4，不会重新生成各镜">重新合成</button>
             <button type="button" class="primary primary-dark studio-dock-run" id="generateDockRun">
               <span class="dock-run-icon">✦</span> 开始创作
             </button>
@@ -566,6 +572,7 @@
               <button type="button" class="active">结构复刻</button>
               <button type="button" disabled title="规划中">镜头迁移</button>
             </nav>
+            <button type="button" class="studio-dock-close settings-close hidden" id="imitateDockCloseBtn" aria-label="返回主页面" title="返回主页面">×</button>
           </div>
           <div class="studio-dock-body">
             <div class="studio-dock-uploads">
@@ -629,6 +636,7 @@
                 <span>提示词增强</span>
               </button>
             </div>
+            <button type="button" class="secondary pill-btn studio-dock-reassemble hidden" id="imitateDockReassemble" title="仅拼接已有分镜 mp4，不会重新生成各镜">重新合成</button>
             <button type="button" class="primary primary-dark studio-dock-run" id="imitateDockRun">
               <span class="dock-run-icon">✦</span> 开始复刻
             </button>

@@ -37,6 +37,7 @@ const state = {
   clientId: null,
   seedanceVideoComplete: false,
   producePartialReady: false,
+  dockFocusDismissed: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
   scriptEditBaseline: null,
@@ -651,7 +652,62 @@ function resolveScenarioTagFromFeature(scenarioTag) {
   return hit || scenarioTag;
 }
 
+function isAnyFloatPanelOpen() {
+  return ["scriptFloatPanel", "productFloatPanel", "refFloatPanel", "promptSelectFloatPanel", "starterGuidePanel"]
+    .some((id) => document.getElementById(id)?.classList.contains("open"));
+}
+
+function isDockPreviewVisible() {
+  return ["dockProducePreview", "imitateDockProducePreview"].some(
+    (id) => !document.getElementById(id)?.classList.contains("hidden"),
+  );
+}
+
+function isDockProgressVisible() {
+  return SEEDANCE_PROGRESS_TARGETS.some((ids) => !document.getElementById(ids.bar)?.classList.contains("hidden"));
+}
+
+function syncStudioFocusMode() {
+  const modalOpen = !document.getElementById("produceCompleteModal")?.classList.contains("hidden");
+  const floatOpen = isAnyFloatPanelOpen();
+  const bannerOpen = !document.getElementById("produceCompleteBanner")?.classList.contains("hidden");
+  const pipelineBusy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive;
+  const errorBanner = !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden");
+  const shouldFocus = !state.dockFocusDismissed && (
+    modalOpen
+    || floatOpen
+    || bannerOpen
+    || isDockPreviewVisible()
+    || isDockProgressVisible()
+    || errorBanner
+    || pipelineBusy
+  );
+  document.body.classList.toggle("studio-focus-mode", shouldFocus);
+  const backdrop = document.getElementById("studioFocusBackdrop");
+  if (backdrop) {
+    const showBackdrop = shouldFocus && !floatOpen;
+    backdrop.classList.toggle("hidden", !showBackdrop);
+    backdrop.hidden = !showBackdrop;
+  }
+  document.querySelectorAll(".studio-dock-close").forEach((btn) => {
+    btn.classList.toggle("hidden", !shouldFocus);
+  });
+}
+
+function dismissStudioFocus() {
+  if (state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy) {
+    return;
+  }
+  state.dockFocusDismissed = true;
+  hideProduceCompleteModal();
+  hideProduceCompleteBanner();
+  closeScriptFloatPanel();
+  document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+  syncStudioFocusMode();
+}
+
 function openFloatPanel(panelId, backdropId) {
+  state.dockFocusDismissed = false;
   const panel = document.getElementById(panelId);
   const backdrop = document.getElementById(backdropId);
   if (!panel || !backdrop) return;
@@ -662,6 +718,7 @@ function openFloatPanel(panelId, backdropId) {
   requestAnimationFrame(() => {
     panel.classList.add("open");
     backdrop.classList.add("open");
+    syncStudioFocusMode();
   });
 }
 
@@ -679,6 +736,7 @@ function closeFloatPanel(panelId, backdropId, afterClose) {
       panel.style.display = "none";
       backdrop.hidden = true;
       afterClose?.();
+      syncStudioFocusMode();
     }
   }, delay);
 }
@@ -1040,7 +1098,7 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
     }
 
     const labelEl = bar.querySelector(".seedance-progress-label");
-    if (labelEl) labelEl.textContent = state.scriptGenActive ? "脚本生成" : "AI 分镜";
+    if (labelEl) labelEl.textContent = state.scriptGenActive ? "AI 镜头脚本" : "AI 分镜";
 
     if (status && statusEl) statusEl.textContent = status;
     if (pipeline != null && meta) meta.textContent = pipeline;
@@ -1054,6 +1112,8 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
   if (!visible) stopSeedanceCountdown();
   if (!visible && wasVisible) syncDockScrollPadding();
   else if (visible && !wasVisible) syncDockScrollPadding();
+  if (visible) state.dockFocusDismissed = false;
+  syncStudioFocusMode();
 }
 
 function resetSeedanceProgressDock() {
@@ -1061,6 +1121,7 @@ function resetSeedanceProgressDock() {
   state.seedanceProgressPersist = false;
   state.scriptGenActive = false;
   state.videoGenActive = false;
+  state.producePartialReady = false;
   clearVideoGenErrorUi();
   for (const ids of SEEDANCE_PROGRESS_TARGETS) {
     const bar = document.getElementById(ids.bar);
@@ -1085,6 +1146,7 @@ function resetSeedanceProgressDock() {
     }
   }
   showSeedanceProgress(false);
+  syncStudioFocusMode();
 }
 
 function renderSeedanceFinalPreview(slug, seedance, options = {}) {
@@ -1095,6 +1157,26 @@ function shotAssetsReady(seedance) {
   return (seedance?.shots || []).some((s) => s.ready);
 }
 
+const REASSEMBLE_LABEL = "重新合成";
+const REASSEMBLE_BUSY_LABEL = "合成中…";
+
+/** 分镜 mp4 已齐但 final-video 未就绪 → 仅需 ffmpeg 拼接 */
+function needsReassemble(seedance) {
+  return shotAssetsReady(seedance) && !Boolean(seedance?.final_video?.ready);
+}
+
+function syncDockReassembleButton(slug, seedance) {
+  const show = Boolean(slug && needsReassemble(seedance));
+  ["generateDockReassemble", "imitateDockReassemble"].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.classList.toggle("hidden", !show);
+    if (show) btn.dataset.retrySlug = slug;
+    else delete btn.dataset.retrySlug;
+    if (!btn.disabled) btn.textContent = REASSEMBLE_LABEL;
+  });
+}
+
 function produceDownloadReady(prev = state.lastPreview || {}) {
   const sd = prev?.seedance || {};
   return Boolean(sd.final_video?.ready || shotAssetsReady(sd) || prev?.delivery_ready);
@@ -1102,6 +1184,7 @@ function produceDownloadReady(prev = state.lastPreview || {}) {
 
 function hideProduceCompleteBanner() {
   document.getElementById("produceCompleteBanner")?.classList.add("hidden");
+  syncStudioFocusMode();
 }
 
 function hideProduceCompleteModal() {
@@ -1114,6 +1197,7 @@ function hideProduceCompleteModal() {
     modal.setAttribute("aria-hidden", "true");
   }
   if (backdrop) backdrop.hidden = true;
+  syncStudioFocusMode();
 }
 
 function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
@@ -1129,8 +1213,8 @@ function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
     ? `<a class="seedance-final-link produce-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}`)}" target="_blank">▶ 预览成片 final-video.mp4</a>`
     : "";
   const retryBlock = !finalReady && shots.length
-    ? `<button type="button" class="secondary pill-btn produce-retry-assemble" data-retry-slug="${esc(slug)}">重新拼接成片</button>
-       <p class="muted produce-assemble-hint">${esc(assembleMessage || "分镜 mp4 已就绪，点击重新拼接为 final-video.mp4")}</p>`
+    ? `<button type="button" class="primary pill-btn produce-retry-assemble" data-retry-slug="${esc(slug)}">${REASSEMBLE_LABEL}</button>
+       <p class="muted produce-assemble-hint">${esc(assembleMessage || "分镜 mp4 已就绪，点击「重新合成」仅拼接成片，不会重新生成各镜")}</p>`
     : "";
   return `<div class="produce-result-panel ${finalReady ? "is-complete" : "is-partial"}">
     <p class="produce-result-title">${finalReady ? "✓ 成片已生成" : "分镜已生成（待拼接成片）"}</p>
@@ -1166,6 +1250,8 @@ function showProduceCompleteBanner(title, message, slug, { partial = false } = {
   } else if (dl) {
     dl.classList.add("hidden");
   }
+  state.dockFocusDismissed = false;
+  syncStudioFocusMode();
 }
 
 function showProduceCompleteModal(title, message, slug, seedance, { partial = false } = {}) {
@@ -1205,6 +1291,8 @@ function showProduceCompleteModal(title, message, slug, seedance, { partial = fa
   modal.hidden = false;
   backdrop.hidden = false;
   modal.setAttribute("aria-hidden", "false");
+  state.dockFocusDismissed = false;
+  syncStudioFocusMode();
 }
 
 function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
@@ -1219,17 +1307,29 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
     state.producePartialReady = false;
     state.seedanceVideoComplete = true;
     renderProduceResultPanel(slug, seedance);
+    syncDockReassembleButton(slug, seedance);
     syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
     showProduceCompleteBanner("成片已就绪", "可预览 mp4 或下载 zip 包", slug);
     return;
   }
   if (shotAssetsReady(seedance)) {
     state.producePartialReady = true;
-    const msg = "分镜 mp4 已就绪，可预览或下载 zip；成片拼接未完成时可点「重新拼接成片」。";
-    renderProduceResultPanel(slug, seedance, { assembleMessage: "分镜已生成，成片拼接未完成" });
+    for (const ids of SEEDANCE_PROGRESS_TARGETS) {
+      const bar = document.getElementById(ids.bar);
+      bar?.classList.remove("seedance-progress-error");
+      const labelEl = bar?.querySelector(".seedance-progress-label");
+      if (labelEl) labelEl.textContent = "AI 分镜";
+    }
+    document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+    const msg = "分镜 mp4 已就绪，可预览或下载 zip；成片未合成时可点「重新合成」（仅拼接，不重生成各镜）。";
+    renderProduceResultPanel(slug, seedance, { assembleMessage: "分镜已生成，成片合成未完成" });
+    syncDockReassembleButton(slug, seedance);
     syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
     showProduceCompleteBanner("分镜已生成", msg, slug, { partial: true });
+  } else {
+    syncDockReassembleButton(null, null);
   }
+  syncStudioFocusMode();
 }
 
 function renderProduceResultPanel(slug, seedance, { assembleMessage = "" } = {}) {
@@ -1246,6 +1346,7 @@ function renderProduceResultPanel(slug, seedance, { assembleMessage = "" } = {})
       box.classList.add("hidden");
       box.innerHTML = "";
     });
+    syncDockReassembleButton(null, null);
     return;
   }
   const html = buildProduceResultHtml(s, seedance, { assembleMessage });
@@ -1254,16 +1355,30 @@ function renderProduceResultPanel(slug, seedance, { assembleMessage = "" } = {})
     box.innerHTML = html;
     wireProduceResultPanel(box, s);
   });
+  syncDockReassembleButton(s, seedance);
+  if (html) state.dockFocusDismissed = false;
+  syncStudioFocusMode();
 }
 
 async function retryAssembleVideo(slug) {
   const s = slug || currentScriptSlug();
   if (!s) return;
-  document.querySelectorAll(".produce-retry-assemble").forEach((btn) => {
+  const busy = (btn) => {
     btn.disabled = true;
-    btn.textContent = "拼接中…";
+    btn.textContent = REASSEMBLE_BUSY_LABEL;
+  };
+  const idle = (btn) => {
+    btn.disabled = false;
+    btn.textContent = REASSEMBLE_LABEL;
+  };
+  document.querySelectorAll(".produce-retry-assemble, .studio-dock-reassemble").forEach(busy);
+  setScriptActionStatus("正在重新合成成片（仅拼接分镜，不重新生成各镜）…", { forceDock: true });
+  showSeedanceProgress(true, {
+    status: "正在合成 final-video.mp4…",
+    indeterminate: true,
+    pipeline: state.lastPreview?.seedance?.pipeline || state.healthCache?.seedance?.label || "",
+    persist: true,
   });
-  setScriptActionStatus("正在重新拼接成片…", { forceDock: true });
   try {
     const data = await api(`/api/delivery/${encodeURIComponent(s)}/assemble`, { method: "POST" });
     await refreshScriptPreview();
@@ -1273,12 +1388,12 @@ async function retryAssembleVideo(slug) {
       assemble: data.assemble,
     });
   } catch (err) {
-    showVideoGenError(`拼接失败：${err.message}`);
+    showVideoGenError(`合成失败：${err.message}`);
+    if (needsReassemble(state.lastPreview?.seedance)) {
+      syncDockReassembleButton(s, state.lastPreview?.seedance);
+    }
   } finally {
-    document.querySelectorAll(".produce-retry-assemble").forEach((btn) => {
-      btn.disabled = false;
-      btn.textContent = "重新拼接成片";
-    });
+    document.querySelectorAll(".produce-retry-assemble, .studio-dock-reassemble").forEach(idle);
   }
 }
 
@@ -1291,17 +1406,16 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
   if (finalReady && s) {
     const msg = message || "视频生成完成，可下载 zip 或预览成片";
     renderDockProduceComplete(s, msg);
-    openScriptFloatPanel();
     return "complete";
   }
   if (shotsReady && s && !hardFailed) {
     clearVideoGenErrorUi();
     state.producePartialReady = true;
     state.seedanceProgressPersist = true;
-    const asmMsg = assemble?.message || message || "分镜已生成，成片拼接未完成";
+    const asmMsg = assemble?.message || message || "分镜已生成，成片合成未完成";
     const friendly = asmMsg.includes("ffmpeg")
-      ? `${asmMsg}。可先预览下方分镜 mp4 或下载 zip，再点「重新拼接成片」。`
-      : `${asmMsg}。可先预览分镜或下载 zip。`;
+      ? `${asmMsg}。可先预览下方分镜 mp4 或下载 zip，再点「重新合成」。`
+      : `${asmMsg}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
     renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg });
     syncDownloadLinks(`/api/delivery/${encodeURIComponent(s)}/zip`, true);
     showProduceCompleteBanner("分镜已生成", friendly, s, { partial: true });
@@ -1314,11 +1428,11 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
     });
     setScriptActionStatus(friendly, { forceDock: true });
     updateLoopBarFromForm(state.lastPreview || {});
-    openScriptFloatPanel();
     activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
     return "partial";
   }
   showVideoGenError(message || state.lastVideoGenError || "视频生成未成功，请查看错误说明");
+  syncStudioFocusMode();
   return "error";
 }
 
@@ -1344,6 +1458,7 @@ async function runStartCreate() {
     runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 创作中…';
   });
   state.createPipelineActive = true;
+  state.dockFocusDismissed = false;
   activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
   showSeedanceProgress(true, { status: "准备创作…", indeterminate: true });
 
@@ -1378,6 +1493,8 @@ function renderDockProduceComplete(slug, message) {
   showProduceCompleteBanner("成片已就绪", msg, slug);
   showProduceCompleteModal("成片已就绪", msg, slug, state.lastPreview?.seedance);
   resetSeedanceProgressDock();
+  state.dockFocusDismissed = false;
+  syncStudioFocusMode();
 }
 
 function setSeedanceVideoComplete(complete, slug) {
@@ -1427,6 +1544,9 @@ async function runConfirmProduceVideo() {
 
   clearVideoGenErrorUi();
   state.seedanceProgressPersist = false;
+  state.producePartialReady = false;
+  state.dockFocusDismissed = false;
+  syncDockReassembleButton(null, null);
   setSeedanceVideoComplete(false);
   if (produceBtn) {
     produceBtn.disabled = true;
@@ -1705,7 +1825,6 @@ async function withVideoProductionQueue(slug, label, fn) {
 
 function clearVideoGenErrorUi() {
   state.lastVideoGenError = "";
-  state.producePartialReady = false;
   const statusEl = document.getElementById("scriptActionStatus");
   if (statusEl) statusEl.classList.remove("script-action-error");
   for (const ids of SEEDANCE_PROGRESS_TARGETS) {
@@ -1758,6 +1877,7 @@ function showVideoGenError(msg, { openPanel = true, scrollDock = true } = {}) {
   syncDockScrollPadding();
   if (scrollDock) activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
   if (openPanel) openScriptFloatPanel();
+  syncStudioFocusMode();
 }
 
 function setScriptActionStatus(msg, { forceDock = false, isError = false } = {}) {
@@ -2087,6 +2207,7 @@ async function runViralBenchmarkPipeline(linkId) {
   }
 
   state.viralPipelineBusy = true;
+  state.dockFocusDismissed = false;
   forEachDockRunBtn((runBtn) => {
     runBtn.disabled = true;
     runBtn.dataset.busy = "1";
@@ -5057,8 +5178,8 @@ async function runSeedanceGenerate(options = {}) {
         ? `已强制重生成 ${okCount || "5"} 镜并拼接成片${spec}，可预览 mp4 或下载 zip`
         : `视频生成完成${spec}，可预览 mp4 或下载 zip`;
     } else if (okCount > 0) {
-      const asm = data.assemble?.message || "分镜已生成，但成片拼接未完成";
-      msg = `${asm}。请确认 ffmpeg 可用后重试；zip 内仅有分镜 mp4。`;
+      const asm = data.assemble?.message || "分镜已生成，但成片合成未完成";
+      msg = `${asm}。请确认 ffmpeg 可用后点「重新合成」；zip 内仅有分镜 mp4。`;
     } else if (skipped.length) {
       msg = force
         ? "本次未覆盖旧视频：请重启工作台（启动页面.cmd）后再勾选强制重生成，或运行 本地生成视频.cmd <编号> --force"
@@ -5823,18 +5944,43 @@ document.getElementById("btnFeishuDoctorSettings")?.addEventListener("click", as
 
 document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", () => {
   document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+  syncStudioFocusMode();
 });
 
 document.getElementById("produceCompleteBannerClose")?.addEventListener("click", () => {
-  hideProduceCompleteBanner();
+  dismissStudioFocus();
 });
 
 document.getElementById("produceCompleteModalCloseBtn")?.addEventListener("click", () => {
-  hideProduceCompleteModal();
+  dismissStudioFocus();
+});
+
+document.getElementById("produceCompleteModalCloseX")?.addEventListener("click", () => {
+  dismissStudioFocus();
 });
 
 document.getElementById("produceCompleteModalBackdrop")?.addEventListener("click", () => {
-  hideProduceCompleteModal();
+  dismissStudioFocus();
+});
+
+document.getElementById("studioFocusBackdrop")?.addEventListener("click", () => {
+  dismissStudioFocus();
+});
+
+["generateDockCloseBtn", "imitateDockCloseBtn"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("click", () => dismissStudioFocus());
+});
+
+document.getElementById("scriptFloatBackBtn")?.addEventListener("click", () => {
+  closeScriptFloatPanel();
+  syncStudioFocusMode();
+});
+
+["generateDockReassemble", "imitateDockReassemble"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    void retryAssembleVideo(btn?.dataset?.retrySlug || currentScriptSlug());
+  });
 });
 
 document.getElementById("videoQueueCloseBtn")?.addEventListener("click", () => {
