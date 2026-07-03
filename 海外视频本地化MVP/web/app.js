@@ -708,21 +708,26 @@ function isDockProgressVisible() {
   return SEEDANCE_PROGRESS_TARGETS.some((ids) => !document.getElementById(ids.bar)?.classList.contains("hidden"));
 }
 
+function hideDockProducePreviews() {
+  ["seedanceFinalPreview", "dockProducePreview", "imitateDockProducePreview"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("hidden");
+    el.innerHTML = "";
+  });
+  syncDockReassembleButton(null, null);
+}
+
 function syncStudioFocusMode() {
   const modalOpen = !document.getElementById("produceCompleteModal")?.classList.contains("hidden");
   const floatOpen = isAnyFloatPanelOpen();
   const bannerOpen = !document.getElementById("produceCompleteBanner")?.classList.contains("hidden");
   const pipelineBusy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive;
   const errorBanner = !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden");
-  const shouldFocus = !state.dockFocusDismissed && (
-    modalOpen
-    || floatOpen
-    || bannerOpen
-    || isDockPreviewVisible()
-    || isDockProgressVisible()
-    || errorBanner
-    || pipelineBusy
-  );
+  const dockChrome = isDockPreviewVisible() || isDockProgressVisible() || errorBanner;
+  const shouldFocus = state.dockFocusDismissed
+    ? (modalOpen || floatOpen || pipelineBusy)
+    : (modalOpen || floatOpen || bannerOpen || dockChrome || pipelineBusy);
   document.body.classList.toggle("studio-focus-mode", shouldFocus);
   const backdrop = document.getElementById("studioFocusBackdrop");
   if (backdrop) {
@@ -731,7 +736,8 @@ function syncStudioFocusMode() {
     backdrop.hidden = !showBackdrop;
   }
   document.querySelectorAll(".studio-dock-close").forEach((btn) => {
-    btn.classList.toggle("hidden", !shouldFocus);
+    const showClose = shouldFocus || isDockPreviewVisible() || isDockProgressVisible();
+    btn.classList.toggle("hidden", !showClose);
   });
 }
 
@@ -740,10 +746,14 @@ function dismissStudioFocus() {
     return;
   }
   state.dockFocusDismissed = true;
+  state.seedanceProgressPersist = false;
   hideProduceCompleteModal();
   hideProduceCompleteBanner();
   closeScriptFloatPanel();
-  document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+  hideDockProducePreviews();
+  showSeedanceProgress(false);
+  resetScriptProgress();
+  clearVideoGenErrorOnly();
   syncStudioFocusMode();
 }
 
@@ -1244,7 +1254,7 @@ function syncProduceAssetsUi(prev = state.lastPreview || {}) {
   document.querySelectorAll("#scriptDownloadBtnBottom, .js-script-download").forEach((dl) => {
     dl.textContent = produceZipLabel(seedance);
   });
-  renderProduceResultPanel(slug, seedance);
+  renderProduceResultPanel(slug, seedance, { engageFocus: false, scope: "active" });
   syncDockReassembleButton(slug, seedance);
   return true;
 }
@@ -1288,7 +1298,10 @@ function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
        <p class="muted produce-assemble-hint">${esc(assembleMessage || "分镜 mp4 已就绪，点击「重新合成」仅拼接成片，不会重新生成各镜")}</p>`
     : "";
   return `<div class="produce-result-panel ${finalReady ? "is-complete" : "is-partial"}">
-    <p class="produce-result-title">${finalReady ? "✓ 成片已生成" : shots.length ? "分镜已生成（可预览/下载）" : "暂无可预览视频"}</p>
+    <div class="produce-result-head">
+      <p class="produce-result-title">${finalReady ? "✓ 成片已生成" : shots.length ? "分镜已生成（可预览/下载）" : "暂无可预览视频"}</p>
+      <button type="button" class="produce-result-dismiss" data-action="dismiss-studio" aria-label="返回主页面" title="返回主页面">×</button>
+    </div>
     ${finalBlock}
     ${zipBlock}
     ${shotLinks ? `<ul class="produce-shot-list">${shotLinks}</ul>` : ""}
@@ -1299,6 +1312,12 @@ function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
 
 function wireProduceResultPanel(root, slug) {
   if (!root) return;
+  root.querySelectorAll("[data-action='dismiss-studio']").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      dismissStudioFocus();
+    });
+  });
   root.querySelectorAll(".produce-retry-assemble").forEach((btn) => {
     btn.addEventListener("click", () => {
       void retryAssembleVideo(btn.getAttribute("data-retry-slug") || slug);
@@ -1373,7 +1392,7 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
   if (!prev.slug || !prev.seedance) {
     hideProduceCompleteBanner();
     hideProduceCompleteModal();
-    renderProduceResultPanel(null, null);
+    hideDockProducePreviews();
     syncDockReassembleButton(null, null);
     return;
   }
@@ -1381,6 +1400,7 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
   if (seedance.final_video?.ready) {
     state.producePartialReady = false;
     state.seedanceVideoComplete = true;
+    clearVideoGenErrorOnly();
     syncProduceAssetsUi(prev);
     showProduceCompleteBanner("成片已就绪", "可预览 mp4 或下载 zip 包", slug);
     return;
@@ -1393,7 +1413,7 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
       const labelEl = bar?.querySelector(".seedance-progress-label");
       if (labelEl) labelEl.textContent = "AI 分镜";
     }
-    document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+    clearVideoGenErrorOnly();
     const msg = "分镜 mp4 已就绪，可预览或下载 zip；成片未合成时可点「重新合成」（仅拼接，不重生成各镜）。";
     syncProduceAssetsUi(prev);
     showProduceCompleteBanner("分镜已生成", msg, slug, { partial: true });
@@ -1404,21 +1424,49 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
   syncStudioFocusMode();
 }
 
-function renderProduceResultPanel(slug, seedance, { assembleMessage = "" } = {}) {
-  const targets = [
-    document.getElementById("seedanceFinalPreview"),
-    document.getElementById("dockProducePreview"),
-    document.getElementById("imitateDockProducePreview"),
-  ].filter(Boolean);
+function producePreviewTargets(scope = "active") {
+  const map = {
+    script: document.getElementById("seedanceFinalPreview"),
+    generate: document.getElementById("dockProducePreview"),
+    imitate: document.getElementById("imitateDockProducePreview"),
+  };
+  if (scope === "all") return Object.values(map).filter(Boolean);
+  if (scope === "script") return map.script ? [map.script] : [];
+  if (scope === "imitate") return map.imitate ? [map.imitate] : [];
+  if (state.view === "imitate") return map.imitate ? [map.imitate] : [];
+  return [map.generate, map.script].filter(Boolean);
+}
+
+function syncProducePreviewForActiveView() {
+  const lp = state.lastPreview || {};
+  const inactive = state.view === "imitate" ? "dockProducePreview" : "imitateDockProducePreview";
+  document.getElementById(inactive)?.classList.add("hidden");
+  if (!lp.slug || !lp.seedance || !produceDownloadReady(lp)) {
+    producePreviewTargets("active").forEach((box) => {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+    });
+    return;
+  }
+  const scope = state.view === "imitate" ? "imitate" : "generate";
+  renderProduceResultPanel(lp.slug, lp.seedance, { engageFocus: false, scope });
+}
+
+function renderProduceResultPanel(slug, seedance, { assembleMessage = "", engageFocus = false, scope = "active" } = {}) {
+  const targets = producePreviewTargets(scope);
+  const hideOthers = scope === "active"
+    ? producePreviewTargets("all").filter((el) => !targets.includes(el))
+    : [];
   const s = slug || currentScriptSlug();
   const shots = (seedance?.shots || []).filter((row) => row.ready && row.file);
   const finalReady = Boolean(seedance?.final_video?.ready && seedance?.final_video?.file && s);
   if (!s || (!finalReady && !shots.length)) {
-    targets.forEach((box) => {
+    [...targets, ...hideOthers].forEach((box) => {
       box.classList.add("hidden");
       box.innerHTML = "";
     });
     syncDockReassembleButton(null, null);
+    syncStudioFocusMode();
     return;
   }
   const html = buildProduceResultHtml(s, seedance, { assembleMessage });
@@ -1427,8 +1475,12 @@ function renderProduceResultPanel(slug, seedance, { assembleMessage = "" } = {})
     box.innerHTML = html;
     wireProduceResultPanel(box, s);
   });
+  hideOthers.forEach((box) => {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+  });
   syncDockReassembleButton(s, seedance);
-  if (html) state.dockFocusDismissed = false;
+  if (engageFocus && html) state.dockFocusDismissed = false;
   syncStudioFocusMode();
 }
 
@@ -1488,7 +1540,7 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
     const friendly = asmMsg.includes("ffmpeg")
       ? `${asmMsg}。可先预览下方分镜 mp4 或下载 zip，再点「重新合成」。`
       : `${asmMsg}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
-    renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg });
+    renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg, engageFocus: true, scope: "active" });
     syncProduceAssetsUi({ ...(state.lastPreview || {}), slug: s, seedance });
     showProduceCompleteBanner("分镜已生成", friendly, s, { partial: true });
     showProduceCompleteModal("分镜已生成", friendly, s, seedance, { partial: true });
@@ -1654,7 +1706,6 @@ async function runConfirmProduceVideo() {
     await refreshScriptPreview();
     updateLoopBarFromForm(state.lastPreview || {});
   } catch (err) {
-    showVideoGenError(`视频生成失败：${err.message}`);
     await refreshScriptPreview();
     const lp = state.lastPreview || {};
     if (produceDownloadReady(lp)) {
@@ -1662,6 +1713,8 @@ async function runConfirmProduceVideo() {
         message: err.message,
         failed: !shotAssetsReady(lp.seedance),
       });
+    } else {
+      showVideoGenError(`视频生成失败：${err.message}`);
     }
   } finally {
     state.createPipelineActive = false;
@@ -1909,7 +1962,7 @@ async function withVideoProductionQueue(slug, label, fn) {
   }
 }
 
-function clearVideoGenErrorUi() {
+function clearVideoGenErrorOnly() {
   state.lastVideoGenError = "";
   const statusEl = document.getElementById("scriptActionStatus");
   if (statusEl) statusEl.classList.remove("script-action-error");
@@ -1917,6 +1970,10 @@ function clearVideoGenErrorUi() {
     document.getElementById(ids.bar)?.classList.remove("seedance-progress-error");
   }
   document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+}
+
+function clearVideoGenErrorUi() {
+  clearVideoGenErrorOnly();
   hideProduceCompleteBanner();
   hideProduceCompleteModal();
 }
@@ -1924,10 +1981,21 @@ function clearVideoGenErrorUi() {
 /** 视频生成失败：顶部横幅 + 底部进度条 + 脚本浮层同时展示，避免静默无反馈 */
 function showVideoGenError(msg, { openPanel = true, scrollDock = true } = {}) {
   const text = friendlyApiErrorMessage(msg);
+  const lp = state.lastPreview || {};
+  if (produceDownloadReady(lp)) {
+    const s = currentScriptSlug() || lp.slug;
+    renderProduceOutcome(s, lp.seedance, {
+      message: text,
+      failed: !shotAssetsReady(lp.seedance),
+    });
+    return;
+  }
   state.lastVideoGenError = text;
   state.seedanceProgressPersist = true;
   state.videoGenActive = false;
   state.createPipelineActive = false;
+  hideProduceCompleteModal();
+  hideProduceCompleteBanner();
 
   const banner = document.getElementById("videoGenErrorBanner");
   const bannerText = document.getElementById("videoGenErrorBannerText");
@@ -2329,7 +2397,12 @@ async function runViralBenchmarkPipeline(linkId) {
       pipeline: state.healthCache?.llm?.label || "",
       countdownSec: SEEDANCE_COUNTDOWN_PHASE_SEC.script,
     });
-    await runScriptGenerate();
+    const scriptOk = await runScriptGenerate();
+    if (!scriptOk) {
+      setScriptActionStatus("脚本生成失败，请检查产品标签与 API 配置", { isError: true });
+      showSeedanceProgress(true, { status: "脚本生成失败", persist: true });
+      return;
+    }
     await refreshScriptPreview();
 
     if (!state.lastPreview?.has_script && !currentScriptSlug()) {
@@ -2485,6 +2558,7 @@ function syncGenerateDockMode(mode = state.generateDockMode) {
       : "① 点击「产品」配置场景标签 → ② 点击上方爆款卡片（自动拆解+出片）或底部「开始创作」";
   }
   syncDockPromptSelectSlot();
+  syncProducePreviewForActiveView();
   syncDockScrollPadding();
 }
 
@@ -2894,6 +2968,7 @@ function initModuleStudios() {
     ?.addEventListener("click", () => {
       switchView("generate");
       syncGenerateDockMode("imitate");
+      syncProducePreviewForActiveView();
     });
   document.querySelector('#generateDock .studio-dock-modes [data-gen-mode="generate"]')
     ?.addEventListener("click", () => openGenerateModule());
@@ -3398,6 +3473,7 @@ function viewElementId(name) {
 
 function activateView(name, options = {}) {
   name = normalizeView(name);
+  const prevView = state.view;
   const viewId = viewElementId(name);
   const el = document.getElementById(viewId);
   if (!el) {
@@ -3417,7 +3493,10 @@ function activateView(name, options = {}) {
     loadWorkspaceView();
     if (!state.generateWorkspaceOpen) collapseGenerateWorkspace();
   }
-  if (name === "imitate") loadImitateView();
+  if (name === "imitate") {
+    syncGenerateDockMode("imitate");
+    loadImitateView();
+  }
   if (name === "reverse") loadReverseView();
   if (name === "products") loadProductsView();
   if (name === "draft-feedback") {
@@ -3425,6 +3504,13 @@ function activateView(name, options = {}) {
     switchDraftFeedbackSub(sub);
     renderDraftFeedbackStats();
     renderDraftFeedbackHistory();
+  }
+  if (prevView !== name && (name === "generate" || name === "imitate")) {
+    syncDockProductSlot();
+    syncDockRefSlot();
+    syncDockChipsFromHealth();
+    syncProducePreviewForActiveView();
+    syncStudioFocusMode();
   }
   syncDockScrollPadding();
   return name;
@@ -3807,6 +3893,17 @@ function collectorErrorHint(message) {
       "4. 采集时会弹出浏览器窗口",
     ].join("\n");
   }
+  if (/login|captcha|验证码|限流|rate-limited|verification/i.test(raw)) {
+    return [
+      "TikTok 要求登录或人机验证（常见于新 IP / 频繁搜索）：",
+      "1. 确认用「启动工作台.cmd」启动（不要用 Cursor 终端）",
+      "2. 点击「开始采集」后留意弹出的 Chrome/Edge 窗口",
+      "3. 在窗口中登录 TikTok 并完成滑块/验证码",
+      "4. 登录成功后关闭弹窗或等待自动继续，再点一次「开始采集」",
+      "5. 若仍失败：删除 tiktok_collector\\data\\browser_profile 后重试，或隔 10–30 分钟再采",
+      "6. 确认 tiktok_collector/.env 中 TIKTOK_COLLECTOR_HEADLESS=false",
+    ].join("\n");
+  }
   return "";
 }
 
@@ -3834,7 +3931,7 @@ async function runCollectorImport() {
   if (!productId) return;
   if (statusEl) {
     statusEl.className = "seedance-status collector-status";
-    statusEl.textContent = `正在采集「${currentProductLabel()}」同品类 TikTok 数据…`;
+    statusEl.textContent = `正在采集「${currentProductLabel()}」同品类 TikTok 数据…若弹出浏览器，请在其中完成 TikTok 登录/验证码`;
   }
   if (resultEl) {
     resultEl.className = "collector-result muted";
@@ -5048,22 +5145,22 @@ async function runScriptGenerate() {
   const resultEl = scriptResultBody();
   if (!audienceTags.length || !scenarioTags.length || !sellingTags.length || !painTags.length) {
     await openProductFloatPanel();
-    return;
+    return false;
   }
   if (!document.getElementById("scriptMaterialSelect")?.value) {
     openRefFloatPanel();
-    return;
+    return false;
   }
   if (!materialInProductPool(linkId, productId)) {
     setScriptActionStatus("所选对标与当前产品不匹配，请重新选择同品类对标。");
     openRefFloatPanel();
-    return;
+    return false;
   }
   const quota = state.healthCache?.production?.daily_script_quota;
   if (quota?.enabled && quota.remaining <= 0) {
     setScriptActionStatus(`今日 LLM 脚本配额已用完（${quota.used}/${quota.limit}），请明日再试。`);
     openScriptFloatPanel();
-    return;
+    return false;
   }
   await refreshScriptPreview({ skipScriptRemount: true, preserveTagSelection: true });
   if (state.lastPreview?.product_match === false) {
@@ -5072,7 +5169,7 @@ async function runScriptGenerate() {
     if (resultEl) resultEl.innerHTML = `<div class="result error">${esc(msg)}</div>`;
     setScriptActionStatus(msg);
     openScriptFloatPanel();
-    return;
+    return false;
   }
   setScriptStep("produce");
   openScriptFloatPanel();
@@ -5153,9 +5250,12 @@ async function runScriptGenerate() {
       mergePreview: previewPatch,
     });
     resetPromptEnhanceUsed();
+    return true;
   } catch (err) {
     if (resultEl) resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true, forceDock: true });
     if (String(err.message || "").includes("配额")) syncDailyScriptQuota();
+    return false;
   } finally {
     showScriptProgress(false);
     if (regenBtn) {
@@ -6062,8 +6162,22 @@ document.getElementById("btnFeishuDoctorSettings")?.addEventListener("click", as
 });
 
 document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", () => {
-  document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
+  clearVideoGenErrorOnly();
   syncStudioFocusMode();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (isAnyFloatPanelOpen()) return;
+  if (state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy) return;
+  if (
+    isDockPreviewVisible()
+    || isDockProgressVisible()
+    || !document.getElementById("produceCompleteModal")?.classList.contains("hidden")
+    || !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden")
+  ) {
+    dismissStudioFocus();
+  }
 });
 
 document.getElementById("produceCompleteBannerClose")?.addEventListener("click", () => {

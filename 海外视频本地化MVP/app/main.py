@@ -132,7 +132,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 170
+UI_VERSION = 172
 
 
 def _render_index() -> HTMLResponse:
@@ -888,6 +888,9 @@ async def tiktok_collector_collect(body: TikTokCollectorRequest) -> dict:
     keywords = [item.strip() for item in body.keywords if item.strip()]
     if not keywords:
         raise HTTPException(status_code=400, detail="请至少输入一个关键词")
+    # 工作台采集一律使用有头浏览器，便于用户完成 TikTok 登录/验证码
+    os.environ["TIKTOK_COLLECTOR_HEADLESS"] = "false"
+    os.environ.setdefault("TIKTOK_COLLECTOR_MANUAL_VERIFY_WAIT_MS", "180000")
     try:
         result = await run_in_threadpool(
             run_collector_import,

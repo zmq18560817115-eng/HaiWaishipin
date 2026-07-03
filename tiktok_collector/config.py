@@ -72,14 +72,14 @@ def load_settings() -> CollectorSettings:
     if not user_data_dir.is_absolute():
         user_data_dir = (BASE_DIR / user_data_dir).resolve()
     return CollectorSettings(
-        headless=_bool("TIKTOK_COLLECTOR_HEADLESS", True),
+        headless=_bool("TIKTOK_COLLECTOR_HEADLESS", False),
         browser_channels=_browser_channels(),
         max_results=max(1, min(200, _int("TIKTOK_COLLECTOR_MAX_RESULTS", 50))),
         search_scrolls=max(1, _int("TIKTOK_COLLECTOR_SEARCH_SCROLLS", 12)),
         clean_min_score=max(0, min(5, _int("TIKTOK_COLLECTOR_CLEAN_MIN_SCORE", 1))),
         search_wait_ms=max(500, _int("TIKTOK_COLLECTOR_SEARCH_WAIT_MS", 1800)),
         video_wait_ms=max(500, _int("TIKTOK_COLLECTOR_VIDEO_WAIT_MS", 1500)),
-        manual_verify_wait_ms=max(5000, _int("TIKTOK_COLLECTOR_MANUAL_VERIFY_WAIT_MS", 90000)),
+        manual_verify_wait_ms=max(5000, _int("TIKTOK_COLLECTOR_MANUAL_VERIFY_WAIT_MS", 180000)),
         error_retry_count=max(0, min(5, _int("TIKTOK_COLLECTOR_ERROR_RETRY_COUNT", 2))),
         locale=os.getenv("TIKTOK_COLLECTOR_LOCALE", "en-US").strip() or "en-US",
         output_dir=output_dir,

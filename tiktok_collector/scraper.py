@@ -23,7 +23,19 @@ LIMIT_TEXT_RE = re.compile(
     r"(captcha|verification required|security check|too many requests|rate limit|maximum number of attempts)",
     re.I,
 )
+LOGIN_TEXT_RE = re.compile(
+    r"(log in to tiktok|login to continue|sign up for tiktok|continue with google|continue with facebook)",
+    re.I,
+)
 ERROR_TEXT_RE = re.compile(r"(something went wrong|try again|server, please try again)", re.I)
+LOGIN_CHALLENGE_SELECTORS = (
+    "[data-e2e='browse-login']",
+    "[data-e2e='login-modal']",
+    "div[class*='captcha']",
+    "iframe[src*='captcha']",
+    "#captcha_container",
+    "div[id*='captcha']",
+)
 VIDEOS_TAB_PATTERN = re.compile(r"^(videos|video|视频)$", re.I)
 
 
@@ -158,10 +170,25 @@ def _has_visible_results(page: Page) -> bool:
     return False
 
 
+def _has_login_challenge_ui(page: Page) -> bool:
+    for selector in LOGIN_CHALLENGE_SELECTORS:
+        try:
+            if page.locator(selector).count() > 0:
+                return True
+        except PlaywrightError:
+            continue
+    return False
+
+
 def _is_challenge_page(page: Page, content: str) -> bool:
     if _has_visible_results(page):
         return False
-    return bool(LIMIT_TEXT_RE.search(content))
+    url = (page.url or "").lower()
+    if "/login" in url or "captcha" in url:
+        return True
+    if _has_login_challenge_ui(page):
+        return True
+    return bool(LIMIT_TEXT_RE.search(content) or LOGIN_TEXT_RE.search(content))
 
 
 def _search_input_selectors() -> list[str]:
@@ -274,7 +301,9 @@ class TikTokScraper:
                     content = page.content()
                 if _is_challenge_page(page, content):
                     raise RuntimeError(
-                        "TikTok search page requested login/captcha or rate-limited the session"
+                        "TikTok 需要登录/验证码或触发限流：请在弹出的 Chrome/Edge 窗口中完成登录或滑块验证后重试；"
+                        "若未弹出窗口，请用「启动工作台.cmd」启动服务，并确认 tiktok_collector/.env 中 "
+                        "TIKTOK_COLLECTOR_HEADLESS=false"
                     )
             page.mouse.wheel(0, 1800)
             page.wait_for_timeout(self.settings.search_wait_ms)
@@ -283,6 +312,10 @@ class TikTokScraper:
     def _wait_for_manual_verification(self, page: Page, keyword: str) -> bool:
         if self.settings.headless:
             return False
+        try:
+            page.bring_to_front()
+        except PlaywrightError:
+            pass
         print(
             "TikTok triggered verification or login for keyword "
             f"'{keyword}'. Complete it in the opened browser window within "
@@ -294,11 +327,14 @@ class TikTokScraper:
             page.wait_for_timeout(step_ms)
             elapsed_ms += step_ms
             try:
+                page.bring_to_front()
                 if _has_visible_results(page):
+                    return True
+                if not _is_challenge_page(page, page.content()):
                     return True
             except PlaywrightError:
                 return False
-        return True
+        return False
 
     def _recover_from_error_page(self, page: Page, query_url: str, keyword: str) -> None:
         for attempt in range(self.settings.error_retry_count + 1):
