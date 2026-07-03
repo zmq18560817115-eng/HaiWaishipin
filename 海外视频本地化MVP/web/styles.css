@@ -3577,6 +3577,35 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   padding-top: 4px;
 }
 
+.script-shot-list-head {
+  margin: 12px 0 8px;
+}
+
+.script-shot-editor {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.script-shot-head {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 10px;
+}
+
+.script-float-output,
+.script-edit-form textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.script-edit-form textarea {
+  cursor: text;
+}
+
 .pack-row { margin-bottom: 12px; }
 .pack-row span {
   display: block;

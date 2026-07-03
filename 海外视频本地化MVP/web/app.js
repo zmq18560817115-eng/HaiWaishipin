@@ -477,18 +477,47 @@ async function saveScriptEditsIfDirty({ silent = false } = {}) {
   }
 }
 
-function formatPackResult(pack, meta) {
-  const broll = (pack.seedance_prompts || []).filter(Boolean);
+function appendScriptEditTextarea(parent, label, fieldAttr, fieldName, value, rows = 3) {
+  const labelEl = document.createElement("label");
+  labelEl.className = "script-edit-field";
+  const span = document.createElement("span");
+  span.className = "pack-label";
+  span.textContent = label;
+  const ta = document.createElement("textarea");
+  ta.rows = rows;
+  ta.dataset[fieldAttr] = fieldName;
+  ta.value = String(value ?? "");
+  ta.spellcheck = false;
+  labelEl.append(span, ta);
+  parent.appendChild(labelEl);
+  return ta;
+}
+
+function mountScriptPackEditor(container, pack, meta) {
+  if (!container || !pack) return;
+  container.replaceChildren();
+
+  const h3 = document.createElement("h3");
+  h3.textContent = "脚本已生成";
+  container.appendChild(h3);
+
+  const bannerHtml = formatPersonalizationBanner(pack);
+  if (bannerHtml) {
+    const bannerWrap = document.createElement("div");
+    bannerWrap.innerHTML = bannerHtml;
+    container.appendChild(bannerWrap);
+  }
+
   const m = pack.inputs?.market || {};
   const provider = meta?.provider || pack.provider || "";
   const model = meta?.model || pack.model || "";
   const providerLine = provider === "doubao"
-    ? `脚本引擎：豆包（${esc(model || "ark")}）`
+    ? `脚本引擎：豆包（${model || "ark"}）`
     : provider === "anthropic"
-    ? `脚本引擎：Claude（${esc(model || "claude")}）`
-    : provider === "rule_template"
-      ? "脚本引擎：规则模板（LLM 未配置或 API 失败时自动使用）"
-      : "";
+      ? `脚本引擎：Claude（${model || "claude"}）`
+      : provider === "rule_template"
+        ? "脚本引擎：规则模板（LLM 未配置或 API 失败时自动使用）"
+        : "";
   const tagSummary = [
     m.audience_tags?.length ? `人群：${m.audience_tags.join("、")}` : "",
     m.scenario_tags?.length ? `场景：${m.scenario_tags.join("、")}` : "",
@@ -499,27 +528,86 @@ function formatPackResult(pack, meta) {
     ? `全片统一场景：${pack.inputs.scenario_primary}`
     : "";
   const sceneWarn = pack.inputs?.scenario_conflict_note;
-  const title = String(pack.title || "").trim();
-  const subtitle = String(pack.subtitle || "").trim();
-  const voiceover = String(pack.voiceover_20s || "").trim();
-  return `
-    <h3>脚本已生成</h3>
-    ${formatPersonalizationBanner(pack)}
-    ${providerLine ? `<p class="pack-summary-line">${providerLine}</p>` : ""}
-    ${tagSummary ? `<p class="pack-summary-line">${esc(tagSummary)}</p>` : ""}
-    ${sceneNote ? `<p class="pack-summary-line">${esc(sceneNote)}</p>` : ""}
-    ${sceneWarn ? `<p class="workflow-warn">${esc(sceneWarn)}</p>` : ""}
-    <p class="script-edit-hint muted">可直接修改下方字段；点击「保存修改」或「确认生成视频」时将按当前内容出片。</p>
-    <form id="scriptEditForm" class="script-pack script-edit-form" autocomplete="off">
-      <details class="pack-meta-details"${title || subtitle || voiceover ? " open" : ""}>
-        <summary>标题与口播全文</summary>
-        <label class="script-edit-field"><span>英文标题</span><textarea rows="2" data-pack-field="title">${esc(title)}</textarea></label>
-        <label class="script-edit-field"><span>英文副标题</span><textarea rows="2" data-pack-field="subtitle">${esc(subtitle)}</textarea></label>
-        <label class="script-edit-field"><span>完整口播</span><textarea rows="3" data-pack-field="voiceover_20s">${esc(voiceover)}</textarea></label>
-      </details>
-      <div class="pack-row"><span>分镜脚本（${(pack.storyboard || []).length} 镜，点击展开编辑）</span>${formatStoryboardEditableHtml(pack.storyboard)}</div>
-      ${broll.length ? `<details class="pack-meta-details"><summary>空镜提示词汇总（${broll.length} 条，只读）</summary><pre>${esc(broll.join("\n\n"))}</pre></details>` : ""}
-    </form>`;
+
+  for (const [text, cls] of [
+    [providerLine, "pack-summary-line"],
+    [tagSummary, "pack-summary-line"],
+    [sceneNote, "pack-summary-line"],
+  ]) {
+    if (!text) continue;
+    const p = document.createElement("p");
+    p.className = cls;
+    p.textContent = text;
+    container.appendChild(p);
+  }
+  if (sceneWarn) {
+    const p = document.createElement("p");
+    p.className = "workflow-warn";
+    p.textContent = sceneWarn;
+    container.appendChild(p);
+  }
+
+  const hint = document.createElement("p");
+  hint.className = "script-edit-hint muted";
+  hint.textContent = "可直接修改下方字段；点击「保存修改」或「确认生成视频」时将按当前内容出片。";
+  container.appendChild(hint);
+
+  const form = document.createElement("form");
+  form.id = "scriptEditForm";
+  form.className = "script-pack script-edit-form";
+  form.autocomplete = "off";
+  form.addEventListener("submit", (e) => e.preventDefault());
+
+  const metaDetails = document.createElement("details");
+  metaDetails.className = "pack-meta-details";
+  metaDetails.open = true;
+  const metaSummary = document.createElement("summary");
+  metaSummary.textContent = "标题与口播全文";
+  metaDetails.appendChild(metaSummary);
+  appendScriptEditTextarea(metaDetails, "英文标题", "packField", "title", pack.title, 2);
+  appendScriptEditTextarea(metaDetails, "英文副标题", "packField", "subtitle", pack.subtitle, 2);
+  appendScriptEditTextarea(metaDetails, "完整口播", "packField", "voiceover_20s", pack.voiceover_20s, 3);
+  form.appendChild(metaDetails);
+
+  const shotsLabel = document.createElement("div");
+  shotsLabel.className = "pack-row script-shot-list-head";
+  const shotsTitle = document.createElement("span");
+  shotsTitle.textContent = `分镜脚本（${(pack.storyboard || []).length} 镜，可直接编辑）`;
+  shotsLabel.appendChild(shotsTitle);
+  form.appendChild(shotsLabel);
+
+  const shotsWrap = document.createElement("div");
+  shotsWrap.className = "shot-list-compact shot-list-editable";
+  (pack.storyboard || []).forEach((s, idx) => {
+    const row = document.createElement("section");
+    row.className = "shot-edit-row script-shot-editor";
+    row.dataset.shotIdx = String(idx);
+    row.dataset.shotRole = s.role || "";
+    row.dataset.shotTiming = s.timing || "";
+    row.dataset.shotFootage = s.footage_type || "";
+    row.dataset.shotNumber = String(s.number || idx + 1);
+
+    const head = document.createElement("div");
+    head.className = "script-shot-head";
+    head.textContent = `第 ${s.number || idx + 1} 镜 · ${s.role || ""}（${s.timing || ""}）`;
+    row.appendChild(head);
+
+    appendScriptEditTextarea(row, "画面", "shotField", "visual", s.visual, 2);
+    appendScriptEditTextarea(row, "口播", "shotField", "voiceover_en", s.voiceover_en, 2);
+    appendScriptEditTextarea(row, "字幕", "shotField", "subtitle_en", s.subtitle_en, 2);
+    appendScriptEditTextarea(row, "构图", "shotField", "visual_prompt", s.visual_prompt, 5);
+    appendScriptEditTextarea(row, "空镜", "shotField", "seedance_prompt", s.seedance_prompt, 5);
+    shotsWrap.appendChild(row);
+  });
+  form.appendChild(shotsWrap);
+  container.appendChild(form);
+  setScriptEditBaseline(pack);
+}
+
+function formatPackResult(pack, meta) {
+  const wrap = document.createElement("div");
+  mountScriptPackEditor(wrap, pack, meta);
+  return wrap.innerHTML;
 }
 
 function currentScriptSlug() {
@@ -1051,6 +1139,7 @@ async function runConfirmProduceVideo() {
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
   closeScriptFloatPanel();
   state.seedanceProgressPersist = false;
+  syncDownloadLinks("", false);
   if (produceBtn) {
     produceBtn.disabled = true;
     produceBtn.dataset.busy = "1";
@@ -1096,9 +1185,9 @@ function refreshScriptFloatFromPreview(prev = {}) {
   const body = scriptResultBody();
   if (!body) return;
   if (prev.has_script && prev.script_pack) {
-    body.innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
-    setScriptEditBaseline(prev.script_pack);
+    mountScriptPackEditor(body, prev.script_pack, prev.script_meta);
   } else {
+    body.replaceChildren();
     state.scriptEditBaseline = null;
   }
   updateLoopBarFromForm(prev);
@@ -1119,6 +1208,18 @@ function syncDownloadLinks(href, visible) {
     if (url) dl.href = url;
     dl.classList.toggle("hidden", !visible);
   });
+}
+
+function videoZipDownloadReady(prev = state.lastPreview || {}) {
+  return Boolean(prev?.seedance?.final_video?.ready);
+}
+
+function syncScriptDownloadZip(prev = state.lastPreview || {}) {
+  if (videoZipDownloadReady(prev) && prev?.slug) {
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(prev.slug)}/zip`, true);
+  } else {
+    syncDownloadLinks("", false);
+  }
 }
 
 function slugFor(linkId) {
@@ -4046,18 +4147,13 @@ async function refreshScriptPreview() {
     const p = prev.product || {};
     syncProductTagPanelFromPreview(p, prev.delivery_tags || {}, prev.selected_tags || {});
     updateLoopBarFromForm(prev);
-    if (prev.delivery_ready) {
-      syncDownloadLinks(`/api/delivery/${prev.slug}/zip`, true);
-    } else {
-      syncDownloadLinks("", false);
-    }
+    syncScriptDownloadZip(prev);
     if (prev.has_script && prev.script_pack) {
       if (!state.scriptTagSnapshot) {
         state.scriptTagSnapshot = scriptTagSnapshotFromPack(prev.script_pack, prev.selected_tags || {});
       }
       syncScriptProduceEmpty(true);
-      scriptResultBody().innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
-      setScriptEditBaseline(prev.script_pack);
+      mountScriptPackEditor(scriptResultBody(), prev.script_pack, prev.script_meta);
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
     showSeedanceProgress(false);
@@ -4163,15 +4259,14 @@ async function runScriptGenerate() {
     regenBtn.textContent = "生成中…";
   }
   if (produceBtn) produceBtn.disabled = true;
+  syncDownloadLinks("", false);
   showScriptProgress(true, {
     status: "正在根据产品标签与对标结构生成脚本…",
     indeterminate: true,
     pipeline: state.healthCache?.llm?.label || "",
     countdownSec: SEEDANCE_COUNTDOWN_PHASE_SEC.script,
   });
-  if (resultEl) {
-    resultEl.innerHTML = '<p class="muted script-gen-placeholder">LLM 正在撰写分镜与旁白，底部进度条显示预计剩余时间。</p>';
-  }
+  if (resultEl) resultEl.innerHTML = "";
   setScriptActionStatus("");
   try {
     const vs = currentVideoSettings();
@@ -4202,8 +4297,7 @@ async function runScriptGenerate() {
     state.scriptSlug = res.slug || slugFor(linkId);
     state.scriptTagSnapshot = captureTagSnapshot();
     state.lastScriptProductId = productId;
-    if (resultEl) resultEl.innerHTML = formatPackResult(pack, res.meta);
-    setScriptEditBaseline(pack);
+    if (resultEl) mountScriptPackEditor(resultEl, pack, res.meta);
     if (res.daily_quota) {
       if (!state.healthCache) state.healthCache = {};
       if (!state.healthCache.production) state.healthCache.production = {};
@@ -4244,7 +4338,6 @@ async function runScriptFinish(options = {}) {
   state.scriptSlug = slug;
   const finishBtns = document.querySelectorAll("#scriptFinishBtn, .js-script-finish");
   const resultEl = scriptResultBody();
-  const savedHtml = resultEl?.innerHTML || "";
   finishBtns.forEach((b) => { b.disabled = true; });
   if (!background) openScriptFloatPanel();
   if (!keepScript) {
@@ -4268,10 +4361,8 @@ async function runScriptFinish(options = {}) {
         switchView("draft-feedback", { sub: "feedback" });
       });
     } else {
-      resultEl.innerHTML = savedHtml;
       setScriptActionStatus(`交付完成：${res.message || "字幕与交付包已生成"}`);
     }
-    syncDownloadLinks(`/api/delivery/${slug}/zip`, true);
     await refreshScriptPreview();
     await refreshHealth();
     return true;
