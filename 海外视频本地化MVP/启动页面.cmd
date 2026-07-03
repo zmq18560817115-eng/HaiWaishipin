@@ -14,15 +14,22 @@ set PLAYWRIGHT_BROWSERS_PATH=
 set WORKBENCH_LAUNCHER=startup-cmd
 
 if not exist ".venv\Scripts\python.exe" (
-  echo [1/2] 创建 Python 环境...
+  echo [1/3] 创建工作台 Python 环境...
   python -m venv .venv
 )
 
-echo [2/2] 启动本地化工作台...
+set "OLM_DIR=%~dp0..\overseas-loc-mvp"
+if not exist "%OLM_DIR%\.venv\Scripts\python.exe" (
+  echo [2/3] 创建交付引擎 Python 环境（成片拼接 / SeedDance）...
+  python -m venv "%OLM_DIR%\.venv"
+)
+
+echo [3/3] 安装依赖并启动本地化工作台...
 if defined WORKBENCH_HOST (
   echo 打开 http://%WORKBENCH_HOST%:%WORKBENCH_PORT%
 ) else (
   echo 打开 http://127.0.0.1:8788
 )
 ".venv\Scripts\python.exe" -m pip install --disable-pip-version-check -q -r requirements.txt
+"%OLM_DIR%\.venv\Scripts\python.exe" -m pip install --disable-pip-version-check -q -r "%OLM_DIR%\requirements.txt"
 ".venv\Scripts\python.exe" -m app.main

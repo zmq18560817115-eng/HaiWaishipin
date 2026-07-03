@@ -88,6 +88,8 @@ from .olm_bridge import (
     build_delivery_zip,
     delivery_ready,
     ensure_delivery_project,
+    ensure_ffmpeg_ready,
+    ffmpeg_status,
     finish_project,
     project_exists,
     sync_project_video_settings,
@@ -132,7 +134,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 172
+UI_VERSION = 173
 
 
 def _render_index() -> HTMLResponse:
@@ -317,6 +319,7 @@ async def health() -> dict:
         "delivery_engine": {
             "mode": "subprocess",
             "label": "overseas-loc-mvp（字幕/zip/SeedDance，由工作台子进程调用）",
+            "ffmpeg": ffmpeg_status(),
         },
         "aigc_primary": "seedance-2.0",
         "seedance": seedance_config(),
@@ -1135,9 +1138,18 @@ async def delivery_assemble(slug: str) -> dict:
     if not project_exists(slug):
         raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
     try:
+        await run_in_threadpool(ensure_ffmpeg_ready)
         return await run_in_threadpool(assemble_project, slug)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.on_event("startup")
+async def _warm_delivery_engine() -> None:
+    try:
+        await run_in_threadpool(ensure_ffmpeg_ready)
+    except Exception as exc:
+        print(f"[warn] 交付引擎 ffmpeg 预热失败: {exc}")
 
 
 @app.get("/api/delivery/{slug}/files/{file_path:path}")

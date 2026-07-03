@@ -49,11 +49,106 @@ def _olm_module(module: str):
     return mod
 
 
+_olm_venv_ready = False
+
+
+def ensure_olm_venv(*, reinstall_deps: bool = False) -> Path:
+    """确保 overseas-loc-mvp 虚拟环境存在且已安装 requirements（含 imageio-ffmpeg）。"""
+    global _olm_venv_ready
+    venv_dir = OVERSEAS_MVP_DIR / ".venv"
+    venv_py = venv_dir / "Scripts" / "python.exe"
+    req = OVERSEAS_MVP_DIR / "requirements.txt"
+
+    if not venv_py.is_file():
+        proc = subprocess.run(
+            [sys.executable, "-m", "venv", str(venv_dir)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if proc.returncode != 0:
+            tail = (proc.stderr or proc.stdout or "venv 创建失败")[-400:]
+            raise RuntimeError(f"无法创建交付引擎虚拟环境：{tail}")
+        reinstall_deps = True
+
+    if reinstall_deps or not _olm_venv_ready:
+        if req.is_file():
+            pip = subprocess.run(
+                [
+                    str(venv_py),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--disable-pip-version-check",
+                    "-q",
+                    "-r",
+                    str(req),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if pip.returncode != 0:
+                tail = (pip.stderr or pip.stdout or "pip 失败")[-400:]
+                raise RuntimeError(f"交付引擎依赖安装失败：{tail}")
+        _olm_venv_ready = True
+
+    return venv_py
+
+
+def ffmpeg_status() -> dict[str, Any]:
+    """探测交付引擎子进程能否找到 ffmpeg（PATH 或 imageio-ffmpeg）。"""
+    try:
+        py = ensure_olm_venv()
+        proc = subprocess.run(
+            [
+                str(py),
+                "-c",
+                "from app.video_assemble import find_ffmpeg; import json; "
+                "p = find_ffmpeg(); "
+                "print(json.dumps({'available': bool(p), 'path': p or ''}, ensure_ascii=False))",
+            ],
+            cwd=str(OVERSEAS_MVP_DIR),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return json.loads(proc.stdout.strip().splitlines()[-1])
+        tail = (proc.stderr or proc.stdout or "ffmpeg 探测失败")[-300:]
+        return {"available": False, "path": "", "message": tail}
+    except Exception as exc:
+        return {"available": False, "path": "", "message": str(exc)}
+
+
+def ensure_ffmpeg_ready() -> dict[str, Any]:
+    """启动或拼接前调用：补齐 venv 依赖并重试 imageio-ffmpeg。"""
+    status = ffmpeg_status()
+    if status.get("available"):
+        return status
+    py = ensure_olm_venv(reinstall_deps=True)
+    pip = subprocess.run(
+        [str(py), "-m", "pip", "install", "--disable-pip-version-check", "-q", "imageio-ffmpeg"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if pip.returncode != 0:
+        tail = (pip.stderr or pip.stdout or "pip 失败")[-300:]
+        return {
+            "available": False,
+            "path": "",
+            "message": f"imageio-ffmpeg 安装失败：{tail}。请运行「检查开发环境.cmd」",
+        }
+    return ffmpeg_status()
+
+
 def _olm_python() -> Path:
-    venv_py = OVERSEAS_MVP_DIR / ".venv" / "Scripts" / "python.exe"
-    if venv_py.exists():
-        return venv_py
-    return Path(sys.executable)
+    return ensure_olm_venv()
 
 
 def ensure_delivery_project(link_id: int) -> str:

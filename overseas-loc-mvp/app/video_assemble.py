@@ -54,7 +54,10 @@ def assemble_storyboard_video(project: Path, *, min_shots: int = 1) -> dict[str,
     if not ffmpeg:
         return {
             "ok": False,
-            "message": "未找到 ffmpeg，请安装 ffmpeg 或 pip install imageio-ffmpeg",
+            "message": (
+                "未找到 ffmpeg。请关闭工作台后重新运行「启动工作台.cmd」或「检查开发环境.cmd」"
+                "（将自动安装 imageio-ffmpeg），再点「重新合成」"
+            ),
             "shots_used": len(shots),
             "file": None,
         }
