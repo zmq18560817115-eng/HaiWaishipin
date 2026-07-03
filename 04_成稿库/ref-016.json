@@ -1,0 +1,31 @@
+{
+  "slug": "ref-016",
+  "link_id": "16",
+  "title": "HOW DARE YOU DR BROWNS, GET IT TOGETHER! #drbrowns #babyproducts #review #babyre",
+  "saved_at": "2026-07-03T08:48:59.174255+00:00",
+  "script_refs": {
+    "script_pack": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/16/script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/16",
+    "script_pack.md": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/16/script-pack.md"
+  },
+  "video_refs": [
+    "broll/shot-1.mp4",
+    "broll/shot-3.mp4",
+    "broll/shot-4.mp4",
+    "broll/shot-5.mp4"
+  ],
+  "template_id": "product-seed",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "",
+  "delivery_files": [
+    "交付脚本包.json"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@lazykelly/video/7229018143182785838",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "HOW DARE YOU DR BROWNS, GET IT TOGETHER! #drbrowns #babyproducts #review #babyre",
+    "target_country": "US"
+  }
+}
