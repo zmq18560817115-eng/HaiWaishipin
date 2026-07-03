@@ -1,0 +1,16 @@
+{
+  "assembled_at": "2026-07-02T09:08:58.794883+00:00",
+  "shots": [
+    {
+      "number": 1,
+      "file": "broll/shot-1.mp4"
+    },
+    {
+      "number": 2,
+      "file": "broll/shot-2.mp4"
+    }
+  ],
+  "output": "broll/final-video.mp4",
+  "bytes": 3686753,
+  "ffmpeg": "/opt/homebrew/bin/ffmpeg"
+}

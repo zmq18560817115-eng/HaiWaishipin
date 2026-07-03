@@ -1,19 +1,22 @@
 {
   "slug": "ref-005",
   "link_id": "5",
-  "title": "熊猫布布便携恒温杯 tips for dining out with baby",
-  "saved_at": "2026-06-23T08:50:31.281960+00:00",
+  "title": "this makes being out or on the go for feedings SO MUCH easier🩵#tiktokshopblackfr",
+  "saved_at": "2026-07-02T08:03:42.201510+00:00",
   "script_refs": {
-    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\5\\script-pack.json",
-    "delivery_pack": "交付脚本包.json",
-    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\5",
-    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\5\\script-pack.md"
+    "delivery_pack": "交付脚本包.json"
   },
-  "video_refs": [],
-  "template_id": "",
-  "template_label": "产品种草型",
+  "video_refs": [
+    "broll/shot-1.mp4",
+    "broll/shot-2.mp4",
+    "broll/shot-3.mp4",
+    "broll/shot-4.mp4",
+    "broll/shot-5.mp4"
+  ],
+  "template_id": "【模板】外出痛点开场 → 便携暖奶器演示 → 场景种草 → 软性 CTA。适用于",
+  "template_label": "【模板】外出痛点开场 → 便携暖奶器演示 → 场景种草 → 软性 CTA。适用于便携恒温杯/暖奶器测评与旅行种草短视频。",
   "product_id": "便携恒温杯",
-  "product_name": "便携恒温杯",
+  "product_name": "",
   "delivery_files": [
     "交付脚本包.md",
     "交付脚本包.json",

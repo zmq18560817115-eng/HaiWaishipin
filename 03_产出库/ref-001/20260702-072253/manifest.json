@@ -1,0 +1,52 @@
+{
+  "slug": "ref-001",
+  "version": "20260702-072253",
+  "archived_at": "2026-07-02T07:22:53.156325+00:00",
+  "note": "",
+  "prompt_fingerprint": "96d89ef3",
+  "shots": [
+    "shot-1.mp4",
+    "shot-2.mp4",
+    "shot-3.mp4",
+    "shot-4.mp4",
+    "shot-5.mp4"
+  ],
+  "final_video": "final-video.mp4",
+  "bytes": 10161397,
+  "source_runs": "/Users/apple/.openclaw/workspace/vl-workflow/overseas-loc-mvp/runs/ref-001",
+  "assemble": {
+    "ok": true,
+    "message": "已拼接 5 镜 → final-video.mp4",
+    "shots_used": 5,
+    "file": "broll/final-video.mp4",
+    "bytes": 10161397,
+    "meta": {
+      "assembled_at": "2026-07-02T07:22:53.123183+00:00",
+      "shots": [
+        {
+          "number": 1,
+          "file": "broll/shot-1.mp4"
+        },
+        {
+          "number": 2,
+          "file": "broll/shot-2.mp4"
+        },
+        {
+          "number": 3,
+          "file": "broll/shot-3.mp4"
+        },
+        {
+          "number": 4,
+          "file": "broll/shot-4.mp4"
+        },
+        {
+          "number": 5,
+          "file": "broll/shot-5.mp4"
+        }
+      ],
+      "output": "broll/final-video.mp4",
+      "bytes": 10161397,
+      "ffmpeg": "/opt/homebrew/bin/ffmpeg"
+    }
+  }
+}

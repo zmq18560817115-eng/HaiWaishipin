@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-03T01:16:06+00:00",
+  "items": [
+    {
+      "source": "preset",
+      "prompt_type": "scene-use",
+      "label": "场景种草",
+      "sub": "真实场景 · 卖点展示",
+      "prompt_text": "竖屏 9:16，真实育儿日常场景（客厅或外出休息区）。妈妈从妈咪包取出便携恒温杯，倒入温水后特写杯身数字屏稳定在约 98°F（37°C），口播自然讲解「外出也能随时冲奶」。镜头节奏紧凑：中景使用→特写温度屏→产品入画，突出便携、恒温、一键操作。禁止蒸汽、沸腾、奶液喷溅或夸张热雾画面。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 1,
+      "tags": [
+        "preset",
+        "scene-use"
+      ],
+      "prompt_id": "pl-preset-scene-use",
+      "usage_count": 0,
+      "created_at": "2026-07-02T06:33:42+00:00",
+      "updated_at": "2026-07-03T01:16:06+00:00",
+      "_key": "preset|scene-use|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "pain-hook",
+      "label": "痛点钩子",
+      "sub": "3秒钩子 · 问题切入",
+      "prompt_text": "开场 3 秒钩子：宝宝饿哭/户外找不到合适水温的焦虑特写，字幕点出「凉水冲奶、保温难」痛点。随后便携恒温杯入画解决问题：加水→设定温度→屏显约 98°F 稳定。结构：痛点场景→产品介入→快速演示→效果确认→软性引导关注。口播口语化、镜头短平快，禁止蒸汽与沸腾夸张表现。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 2,
+      "tags": [
+        "preset",
+        "pain-hook"
+      ],
+      "prompt_id": "pl-preset-pain-hook",
+      "usage_count": 0,
+      "created_at": "2026-07-02T06:33:42+00:00",
+      "updated_at": "2026-07-03T01:16:06+00:00",
+      "_key": "preset|pain-hook|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "unbox",
+      "label": "开箱测评",
+      "sub": "开箱 → 演示 → 推荐",
+      "prompt_text": "开箱测评结构：包装开箱→配件陈列→通电/setup 演示→外出场景实测→总结推荐。重点展示杯身做工、数字温控屏、续航与 USB-C 充电，实测冲奶/保温流程，强调「便携、恒温、外出友好」。结尾口播总结 2–3 个核心卖点。画面真实明亮，禁止蒸汽、沸腾、夸张热雾。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 3,
+      "tags": [
+        "preset",
+        "unbox"
+      ],
+      "prompt_id": "pl-preset-unbox",
+      "usage_count": 0,
+      "created_at": "2026-07-02T06:33:42+00:00",
+      "updated_at": "2026-07-03T01:16:06+00:00",
+      "_key": "preset|unbox|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "demo-proof",
+      "label": "功能演示",
+      "sub": "操作特写 · 效果验证",
+      "prompt_text": "近景跟拍操作：单手开盖、加水、设定目标温度，特写屏幕从室温升至并稳定在约 98°F。穿插中景展示杯身尺寸与妈咪包收纳，字幕标注「恒温」「便携」「续航」。结尾对比使用前（凉水奶瓶）与使用后（温度适宜）的安心表情。禁止蒸汽、沸腾、液体飞溅。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 4,
+      "tags": [
+        "preset",
+        "demo-proof"
+      ],
+      "prompt_id": "pl-preset-demo-proof",
+      "usage_count": 0,
+      "created_at": "2026-07-02T06:33:42+00:00",
+      "updated_at": "2026-07-03T01:16:06+00:00",
+      "_key": "preset|demo-proof|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "travel-test",
+      "label": "出行实测",
+      "sub": "车载 / 户外 · 真实续航",
+      "prompt_text": "出行实测：车载或公园长椅场景，家长带娃外出，从包中取出恒温杯完成一次冲奶/保温流程。展示 USB-C 充电、电量指示与长时间保温能力，口播强调「7 小时续航」「出门必备」。镜头含环境建立镜头+产品操作特写，氛围生活化、真实可信。禁止蒸汽、夸张热力特效。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 5,
+      "tags": [
+        "preset",
+        "travel-test"
+      ],
+      "prompt_id": "pl-preset-travel-test",
+      "usage_count": 0,
+      "created_at": "2026-07-02T06:33:42+00:00",
+      "updated_at": "2026-07-03T01:16:06+00:00",
+      "_key": "preset|travel-test|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "soft-cta",
+      "label": "软性种草",
+      "sub": "生活方式 · 温和推荐",
+      "prompt_text": "生活方式软性种草：清晨/午后育儿片段，恒温杯作为背景道具自然出现，妈妈从容冲奶、宝宝满足饮用。旁白或字幕温和推荐「新手爸妈外出必备」。色调温暖、节奏舒缓，1–2 次产品特写即可，避免硬广口吻。温度展示约 98°F，禁止蒸汽与沸腾画面。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 6,
+      "tags": [
+        "preset",
+        "soft-cta"
+      ],
+      "prompt_id": "pl-preset-soft-cta",
+      "usage_count": 0,
+      "created_at": "2026-07-02T06:33:42+00:00",
+      "updated_at": "2026-07-03T01:16:06+00:00",
+      "_key": "preset|soft-cta|"
+    }
+  ]
+}

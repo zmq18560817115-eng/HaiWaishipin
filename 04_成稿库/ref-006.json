@@ -2,12 +2,12 @@
   "slug": "ref-006",
   "link_id": "6",
   "title": "熊猫布布便携恒温杯 tips for calmer night feeds",
-  "saved_at": "2026-06-24T03:23:16.420921+00:00",
+  "saved_at": "2026-07-02T08:39:40.707118+00:00",
   "script_refs": {
-    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\6\\script-pack.json",
+    "script_pack": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/6/script-pack.json",
     "delivery_pack": "交付脚本包.json",
-    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\6",
-    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\6\\script-pack.md"
+    "generated_dir": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/6",
+    "script_pack.md": "/Users/apple/.openclaw/workspace/vl-workflow/01_素材库/脚本快照/6/script-pack.md"
   },
   "video_refs": [
     "broll/shot-1.mp4",
@@ -19,12 +19,9 @@
   "template_id": "",
   "template_label": "产品种草型",
   "product_id": "便携恒温杯",
-  "product_name": "便携恒温杯",
+  "product_name": "",
   "delivery_files": [
-    "交付脚本包.md",
-    "交付脚本包.json",
-    "subtitles.srt",
-    "剪辑单.html"
+    "交付脚本包.json"
   ],
   "source_tiktok_url": "https://www.tiktok.com/@beeandtheboys/video/7158923548579499310",
   "brief": {
