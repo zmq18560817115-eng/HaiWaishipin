@@ -250,14 +250,17 @@ def build_delivery_zip(slug: str) -> tuple[bytes, str]:
     final_path = resolve_final_video_path(slug)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        wrote = 0
         for name in USER_DELIVERABLES:
             path = project / name
             if path.exists():
                 zf.write(path, name)
+                wrote += 1
         broll = project / "broll"
         if broll.exists():
             for mp4 in sorted(broll.glob("shot-*.mp4")):
                 zf.write(mp4, mp4.relative_to(project).as_posix())
+                wrote += 1
         if final_path and _valid_mp4(final_path):
             zf.write(final_path, "final-video.mp4")
             runs_final = project / "broll" / "final-video.mp4"
@@ -265,7 +268,11 @@ def build_delivery_zip(slug: str) -> tuple[bytes, str]:
                 zf.write(runs_final, runs_final.relative_to(project).as_posix())
             else:
                 zf.write(final_path, "broll/final-video.mp4")
-    return buf.getvalue(), f"{slug}-delivery.zip"
+            wrote += 1
+    data = buf.getvalue()
+    if wrote == 0:
+        raise FileNotFoundError("尚无可下载的分镜或成片 mp4")
+    return data, f"{slug}-delivery.zip"
 
 
 def project_exists(slug: str) -> bool:

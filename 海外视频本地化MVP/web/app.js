@@ -295,9 +295,11 @@ function toggleTagChip(group, value) {
   if (cfg.single) {
     state.tagSelection[key] = sel.includes(value) ? [] : [value];
     if (group === "scenario") syncDockPromptFromScenarioTags();
+    refreshScriptFloatPersonalization();
     return;
   }
   state.tagSelection[key] = sel.includes(value) ? sel.filter((t) => t !== value) : [...sel, value];
+  refreshScriptFloatPersonalization();
 }
 
 function refreshTagGroupsUI() {
@@ -327,14 +329,53 @@ function hasActiveTagSelection() {
   );
 }
 
-function syncProductTagPanelFromPreview(p, deliveryTags, savedTags) {
+function marketTagsFromPack(pack) {
+  const m = pack?.inputs?.market || pack?.inputs?.personalization || {};
+  return {
+    audience: [...(m.audience_tags || m.audience || [])],
+    scenarios: [...(m.scenario_tags || m.scenarios || [])],
+    selling: [...(m.selling_tags || m.selling || [])],
+    pains: [...(m.pain_tags || m.pains || [])],
+  };
+}
+
+function applyTagSelectionFromPack(pack) {
+  const tags = marketTagsFromPack(pack);
+  state.tagSelection = {
+    audience: tags.audience.slice(0, 1),
+    scenarios: tags.scenarios.slice(0, 1),
+    selling: [...tags.selling],
+    pains: [...tags.pains],
+  };
+  state.selectedAudience = state.tagSelection.audience;
+  state.selectedScenarios = state.tagSelection.scenarios;
+}
+
+function syncProductTagPanelFromPreview(p, deliveryTags, savedTags, scriptPack, opts = {}) {
   const pool = buildTagPool(p, deliveryTags || {});
   state.currentTagPool = pool;
+  if (opts.preserveTagSelection || tagsChangedSinceScript()) {
+    refreshTagGroupsUI();
+    return;
+  }
+  const packTags = scriptPack ? marketTagsFromPack(scriptPack) : null;
+  if (packTags && packTags.audience.length && packTags.scenarios.length) {
+    applyTagSelectionFromPack(scriptPack);
+    refreshTagGroupsUI();
+    return;
+  }
   if (!hasActiveTagSelection()) {
     renderProductPanel(p, deliveryTags || {}, savedTags || {});
   } else {
     refreshTagGroupsUI();
   }
+}
+
+function refreshScriptFloatPersonalization() {
+  const prev = state.lastPreview || {};
+  if (!prev.has_script || !prev.script_pack) return;
+  const body = scriptResultBody();
+  if (body) mountScriptPackEditor(body, prev.script_pack, prev.script_meta);
 }
 
 function packMatchesCurrentTags(pack) {
@@ -1182,6 +1223,32 @@ function produceDownloadReady(prev = state.lastPreview || {}) {
   return Boolean(sd.final_video?.ready || shotAssetsReady(sd) || prev?.delivery_ready);
 }
 
+function produceZipLabel(seedance) {
+  return shotAssetsReady(seedance) && !seedance?.final_video?.ready
+    ? "下载分镜 zip"
+    : "下载成片 zip";
+}
+
+/** 有分镜或成片时：同步下载按钮、脚本浮层内预览区、底部 dock 预览 */
+function syncProduceAssetsUi(prev = state.lastPreview || {}) {
+  const slug = prev?.slug || currentScriptSlug();
+  const seedance = prev?.seedance;
+  if (!slug || !produceDownloadReady(prev)) {
+    syncDownloadLinks("", false);
+    return false;
+  }
+  if (shotAssetsReady(seedance) && !seedance?.final_video?.ready) {
+    state.producePartialReady = true;
+  }
+  syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+  document.querySelectorAll("#scriptDownloadBtnBottom, .js-script-download").forEach((dl) => {
+    dl.textContent = produceZipLabel(seedance);
+  });
+  renderProduceResultPanel(slug, seedance);
+  syncDockReassembleButton(slug, seedance);
+  return true;
+}
+
 function hideProduceCompleteBanner() {
   document.getElementById("produceCompleteBanner")?.classList.add("hidden");
   syncStudioFocusMode();
@@ -1212,13 +1279,18 @@ function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
   const finalBlock = finalReady
     ? `<a class="seedance-final-link produce-final-link" href="${withApiToken(`/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}`)}" target="_blank">▶ 预览成片 final-video.mp4</a>`
     : "";
+  const zipHref = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`);
+  const zipBlock = (finalReady || shots.length)
+    ? `<a class="seedance-final-link produce-zip-link" href="${zipHref}" download>${finalReady ? "下载成片 zip" : "下载分镜 zip（含已生成 mp4）"}</a>`
+    : "";
   const retryBlock = !finalReady && shots.length
     ? `<button type="button" class="primary pill-btn produce-retry-assemble" data-retry-slug="${esc(slug)}">${REASSEMBLE_LABEL}</button>
        <p class="muted produce-assemble-hint">${esc(assembleMessage || "分镜 mp4 已就绪，点击「重新合成」仅拼接成片，不会重新生成各镜")}</p>`
     : "";
   return `<div class="produce-result-panel ${finalReady ? "is-complete" : "is-partial"}">
-    <p class="produce-result-title">${finalReady ? "✓ 成片已生成" : "分镜已生成（待拼接成片）"}</p>
+    <p class="produce-result-title">${finalReady ? "✓ 成片已生成" : shots.length ? "分镜已生成（可预览/下载）" : "暂无可预览视频"}</p>
     ${finalBlock}
+    ${zipBlock}
     ${shotLinks ? `<ul class="produce-shot-list">${shotLinks}</ul>` : ""}
     ${retryBlock}
     ${hint ? `<p class="muted seedance-final-path">${esc(hint)}</p>` : ""}
@@ -1246,6 +1318,7 @@ function showProduceCompleteBanner(title, message, slug, { partial = false } = {
   banner.classList.remove("hidden");
   if (dl && slug && produceDownloadReady({ slug, seedance: state.lastPreview?.seedance, delivery_ready: state.lastPreview?.delivery_ready })) {
     dl.href = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`);
+    dl.textContent = produceZipLabel(state.lastPreview?.seedance);
     dl.classList.remove("hidden");
   } else if (dl) {
     dl.classList.add("hidden");
@@ -1271,6 +1344,7 @@ function showProduceCompleteModal(title, message, slug, seedance, { partial = fa
   if (dl) {
     if (zipReady) {
       dl.href = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`);
+      dl.textContent = produceZipLabel(seedance);
       dl.classList.remove("hidden");
     } else {
       dl.classList.add("hidden");
@@ -1300,15 +1374,14 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
     hideProduceCompleteBanner();
     hideProduceCompleteModal();
     renderProduceResultPanel(null, null);
+    syncDockReassembleButton(null, null);
     return;
   }
   const { slug, seedance } = prev;
   if (seedance.final_video?.ready) {
     state.producePartialReady = false;
     state.seedanceVideoComplete = true;
-    renderProduceResultPanel(slug, seedance);
-    syncDockReassembleButton(slug, seedance);
-    syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+    syncProduceAssetsUi(prev);
     showProduceCompleteBanner("成片已就绪", "可预览 mp4 或下载 zip 包", slug);
     return;
   }
@@ -1322,12 +1395,11 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
     }
     document.getElementById("videoGenErrorBanner")?.classList.add("hidden");
     const msg = "分镜 mp4 已就绪，可预览或下载 zip；成片未合成时可点「重新合成」（仅拼接，不重生成各镜）。";
-    renderProduceResultPanel(slug, seedance, { assembleMessage: "分镜已生成，成片合成未完成" });
-    syncDockReassembleButton(slug, seedance);
-    syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+    syncProduceAssetsUi(prev);
     showProduceCompleteBanner("分镜已生成", msg, slug, { partial: true });
   } else {
     syncDockReassembleButton(null, null);
+    syncProduceAssetsUi(prev);
   }
   syncStudioFocusMode();
 }
@@ -1417,7 +1489,7 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
       ? `${asmMsg}。可先预览下方分镜 mp4 或下载 zip，再点「重新合成」。`
       : `${asmMsg}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
     renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg });
-    syncDownloadLinks(`/api/delivery/${encodeURIComponent(s)}/zip`, true);
+    syncProduceAssetsUi({ ...(state.lastPreview || {}), slug: s, seedance });
     showProduceCompleteBanner("分镜已生成", friendly, s, { partial: true });
     showProduceCompleteModal("分镜已生成", friendly, s, seedance, { partial: true });
     showSeedanceProgress(true, {
@@ -1431,8 +1503,13 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
     activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
     return "partial";
   }
+  const lp = state.lastPreview || {};
+  const sd = seedance || lp.seedance;
+  if (s && shotAssetsReady(sd)) {
+    return renderProduceOutcome(s, sd, { message, assemble, failed: false });
+  }
   showVideoGenError(message || state.lastVideoGenError || "视频生成未成功，请查看错误说明");
-  syncStudioFocusMode();
+  syncProduceAssetsUi(lp);
   return "error";
 }
 
@@ -1489,7 +1566,7 @@ function renderDockProduceComplete(slug, message) {
   clearVideoGenErrorUi();
   setSeedanceVideoComplete(true, slug);
   setScriptActionStatus(msg, { forceDock: true });
-  renderProduceResultPanel(slug, state.lastPreview?.seedance);
+  syncProduceAssetsUi({ ...(state.lastPreview || {}), slug });
   showProduceCompleteBanner("成片已就绪", msg, slug);
   showProduceCompleteModal("成片已就绪", msg, slug, state.lastPreview?.seedance);
   resetSeedanceProgressDock();
@@ -1500,9 +1577,9 @@ function renderDockProduceComplete(slug, message) {
 function setSeedanceVideoComplete(complete, slug) {
   state.seedanceVideoComplete = Boolean(complete);
   const s = slug || currentScriptSlug() || state.lastPreview?.slug;
-  if (s && (state.seedanceVideoComplete || state.producePartialReady || produceDownloadReady(state.lastPreview))) {
-    syncDownloadLinks(`/api/delivery/${encodeURIComponent(s)}/zip`, true);
-  } else {
+  if (s && produceDownloadReady(state.lastPreview)) {
+    syncProduceAssetsUi(state.lastPreview);
+  } else if (!complete && !state.producePartialReady) {
     syncDownloadLinks("", false);
   }
   updateLoopBarFromForm(state.lastPreview || {});
@@ -1578,6 +1655,14 @@ async function runConfirmProduceVideo() {
     updateLoopBarFromForm(state.lastPreview || {});
   } catch (err) {
     showVideoGenError(`视频生成失败：${err.message}`);
+    await refreshScriptPreview();
+    const lp = state.lastPreview || {};
+    if (produceDownloadReady(lp)) {
+      renderProduceOutcome(currentScriptSlug(), lp.seedance, {
+        message: err.message,
+        failed: !shotAssetsReady(lp.seedance),
+      });
+    }
   } finally {
     state.createPipelineActive = false;
     if (!state.seedanceProgressPersist) {
@@ -1612,6 +1697,7 @@ function refreshScriptFloatFromPreview(prev = {}) {
     document.getElementById("loopHint")?.classList.remove("hidden");
   }
   updateLoopBarFromForm(prev);
+  syncProduceAssetsUi(prev);
 }
 
 function isScriptFloatPanelOpen() {
@@ -1877,6 +1963,7 @@ function showVideoGenError(msg, { openPanel = true, scrollDock = true } = {}) {
   syncDockScrollPadding();
   if (scrollDock) activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
   if (openPanel) openScriptFloatPanel();
+  else syncProduceAssetsUi(state.lastPreview || {});
   syncStudioFocusMode();
 }
 
@@ -1908,11 +1995,7 @@ function videoZipDownloadReady(prev = state.lastPreview || {}) {
 }
 
 function syncScriptDownloadZip(prev = state.lastPreview || {}) {
-  if (prev?.slug && (state.seedanceVideoComplete || state.producePartialReady || produceDownloadReady(prev))) {
-    syncDownloadLinks(`/api/delivery/${encodeURIComponent(prev.slug)}/zip`, true);
-  } else {
-    syncDownloadLinks("", false);
-  }
+  syncProduceAssetsUi(prev);
 }
 
 function slugFor(linkId) {
@@ -2042,6 +2125,7 @@ async function addTagInline(group, rawText) {
   renderProductPanel(p, buildTagPool(p, state.lastPreview?.delivery_tags), readAllSelectedTags());
   updateLoopBarFromForm(state.lastPreview || {});
   if (group === "scenario") syncDockPromptFromScenarioTags();
+  refreshScriptFloatPersonalization();
 }
 
 function tagsSelectionOk() {
@@ -2855,7 +2939,6 @@ function initModuleStudios() {
     }
     if (hadScript && (tagsChanged || productChanged)) {
       await runScriptGenerate();
-      await refreshScriptPreview();
       openScriptFloatPanel();
     } else {
       await refreshScriptPreview();
@@ -4821,7 +4904,7 @@ async function loadScriptView() {
   renderGenerateViralGrid();
 }
 
-async function refreshScriptPreview() {
+async function refreshScriptPreview(options = {}) {
   const linkId = Number(document.getElementById("scriptMaterialSelect").value);
   const productId = document.getElementById("scriptProductSelect").value;
   state.selectedMaterialId = linkId;
@@ -4848,22 +4931,27 @@ async function refreshScriptPreview() {
   }
   try {
     const prev = await api(`/api/materials/${linkId}/preview?product_id=${encodeURIComponent(productId)}`);
-    state.lastPreview = prev;
-    state.scriptSlug = prev.slug;
+    if (options.mergePreview) {
+      state.lastPreview = { ...prev, ...options.mergePreview };
+    } else {
+      state.lastPreview = prev;
+    }
+    const merged = state.lastPreview;
+    state.scriptSlug = merged.slug;
 
     const warnEl = document.getElementById("scriptMismatchWarn");
-    const mismatch = prev.product_match === false;
+    const mismatch = merged.product_match === false;
     if (mismatch) {
       warnEl.classList.remove("hidden");
       warnEl.textContent =
-        `品类不一致：参考偏「${prev.content_line || "其他"}」，产品为「${productId}」。建议换同品类参考，或勾选「显示其他品类」后确认再生成。`;
+        `品类不一致：参考偏「${merged.content_line || "其他"}」，产品为「${productId}」。建议换同品类参考，或勾选「显示其他品类」后确认再生成。`;
     } else {
       warnEl.classList.add("hidden");
       warnEl.textContent = "";
     }
-    const a = prev.material?.analysis || {};
-    const brandHint = prev.brand_product && mismatch
-      ? `<p class="brand-hint muted">成片品牌：${esc(prev.brand_product)}</p>`
+    const a = merged.material?.analysis || {};
+    const brandHint = merged.brand_product && mismatch
+      ? `<p class="brand-hint muted">成片品牌：${esc(merged.brand_product)}</p>`
       : "";
     analysisEl.innerHTML = `${brandHint}<div class="field-grid-compact">
       <div class="field-compact"><label>钩子 0-3s</label><p>${esc(a.hook_3s)}</p></div>
@@ -4872,20 +4960,26 @@ async function refreshScriptPreview() {
       <div class="field-compact"><label>结构</label><p>${esc(a.video_structure)}</p></div>
       <div class="field-compact"><label>字幕布局</label><p>${esc(a.subtitle_layout)}</p></div>
     </div>`;
-    const p = prev.product || {};
-    syncProductTagPanelFromPreview(p, prev.delivery_tags || {}, prev.selected_tags || {});
-    updateLoopBarFromForm(prev);
-    syncScriptDownloadZip(prev);
-    if (prev.has_script && prev.script_pack) {
+    const p = merged.product || {};
+    syncProductTagPanelFromPreview(
+      p,
+      merged.delivery_tags || {},
+      merged.selected_tags || {},
+      merged.script_pack,
+      { preserveTagSelection: Boolean(options.preserveTagSelection) },
+    );
+    updateLoopBarFromForm(merged);
+    syncScriptDownloadZip(merged);
+    if (!options.skipScriptRemount && merged.has_script && merged.script_pack) {
       if (!state.scriptTagSnapshot) {
-        state.scriptTagSnapshot = scriptTagSnapshotFromPack(prev.script_pack, prev.selected_tags || {});
+        state.scriptTagSnapshot = scriptTagSnapshotFromPack(merged.script_pack, merged.selected_tags || {});
       }
       syncScriptProduceEmpty(true);
-      mountScriptPackEditor(scriptResultBody(), prev.script_pack, prev.script_meta);
+      mountScriptPackEditor(scriptResultBody(), merged.script_pack, merged.script_meta);
     }
-    syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
+    syncFinishButton(Boolean(merged.can_finish), Boolean(merged.delivery_ready));
     hideSeedanceProgressIfIdle();
-    restoreProduceUiFromPreview(prev);
+    restoreProduceUiFromPreview(merged);
   } catch (err) {
     analysisEl.innerHTML = `<div class="result error">${esc(friendlyApiErrorMessage(err.message))}</div>`;
     productEl.className = "script-tag-grid script-tag-grid-float detail-empty";
@@ -4971,7 +5065,7 @@ async function runScriptGenerate() {
     openScriptFloatPanel();
     return;
   }
-  await refreshScriptPreview();
+  await refreshScriptPreview({ skipScriptRemount: true, preserveTagSelection: true });
   if (state.lastPreview?.product_match === false) {
     const warn = document.getElementById("scriptMismatchWarn");
     const msg = warn?.textContent || "对标与产品品类不一致，请更换对标或勾选「显示其他品类」后确认。";
@@ -5027,9 +5121,19 @@ async function runScriptGenerate() {
       }),
     });
     const pack = res.script_pack || res.pack || {};
+    applyTagSelectionFromPack(pack);
     state.scriptSlug = res.slug || slugFor(linkId);
     state.scriptTagSnapshot = captureTagSnapshot();
     state.lastScriptProductId = productId;
+    const previewPatch = {
+      script_pack: pack,
+      script_meta: res.meta,
+      has_script: true,
+      selected_tags: readAllSelectedTags(),
+    };
+    if (state.lastPreview) {
+      Object.assign(state.lastPreview, previewPatch);
+    }
     if (resultEl) mountScriptPackEditor(resultEl, pack, res.meta);
     setSeedanceVideoComplete(false);
     if (res.daily_quota) {
@@ -5043,7 +5147,11 @@ async function runScriptGenerate() {
     syncFinishButton(true, Boolean(state.lastPreview?.delivery_ready));
     syncScriptProduceEmpty(true);
     setScriptStep("produce");
-    await refreshScriptPreview();
+    await refreshScriptPreview({
+      skipScriptRemount: true,
+      preserveTagSelection: true,
+      mergePreview: previewPatch,
+    });
     resetPromptEnhanceUsed();
   } catch (err) {
     if (resultEl) resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
@@ -5168,7 +5276,7 @@ async function runSeedanceGenerate(options = {}) {
     if (failed.length) {
       msg = failed.every((r) => (r.message || "").includes("ARK_API_KEY"))
         ? `火山方舟密钥失效：${failed[0].message}。请到「设置」→ 测试连接，或更新 overseas-loc-mvp/.env 中的 ARK_API_KEY 后重启工作台。`
-        : `部分失败：${failed.map((r) => `镜${r.number} ${r.message}`).join("；")}`;
+        : `部分镜生成失败：${failed.map((r) => `镜${r.number} ${r.message}`).join("；")}。已成功的分镜可预览或下载 zip。`;
     } else if (finalReady) {
       const prod = data.video_production || {};
       const spec = prod.resolution_ui && prod.aspect_ratio
@@ -5196,12 +5304,23 @@ async function runSeedanceGenerate(options = {}) {
     const level = renderProduceOutcome(slug, data.seedance, {
       message: msg,
       assemble: data.assemble,
-      failed: Boolean(failed.length && !shotAssetsReady(data.seedance)),
+      failed: Boolean(failed.length && !shotAssetsReady(data.seedance) && !okCount),
     });
+    if (state.lastPreview) state.lastPreview.seedance = data.seedance;
     return level !== "error";
   } catch (err) {
     stopSeedanceCountdown();
-    showVideoGenError(`视频生成失败：${err.message}`, { openPanel: !background });
+    await refreshScriptPreview();
+    const lp = state.lastPreview || {};
+    const s = slug || currentScriptSlug();
+    if (produceDownloadReady(lp)) {
+      renderProduceOutcome(s, lp.seedance, {
+        message: `视频生成失败：${err.message}`,
+        failed: !shotAssetsReady(lp.seedance),
+      });
+    } else {
+      showVideoGenError(`视频生成失败：${err.message}`, { openPanel: !background });
+    }
     return false;
   } finally {
     if (background && !state.createPipelineActive) {

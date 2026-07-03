@@ -6135,6 +6135,12 @@ body.studio-focus-mode .produce-complete-banner {
   gap: 6px;
 }
 
+.produce-zip-link {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
 .produce-retry-assemble {
   margin-top: 8px;
   width: 100%;

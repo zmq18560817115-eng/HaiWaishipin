@@ -132,7 +132,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 168
+UI_VERSION = 170
 
 
 def _render_index() -> HTMLResponse:
@@ -597,6 +597,17 @@ async def _material_preview_payload(link_id: int, product_id: str = "") -> dict:
     delivered = delivery_ready(slug)
     tag_pool = product_delivery_tags(product)
     saved = load_script_payload(link_id)
+    pack_market = {}
+    if isinstance(detail.get("script_pack"), dict):
+        pack_market = (detail["script_pack"].get("inputs") or {}).get("market") or {}
+    if pack_market.get("audience_tags"):
+        saved = {
+            **saved,
+            "audience_tags": pack_market.get("audience_tags") or [],
+            "scenario_tags": pack_market.get("scenario_tags") or [],
+            "selling_tags": pack_market.get("selling_tags") or [],
+            "pain_tags": pack_market.get("pain_tags") or [],
+        }
     selected = normalize_selected_tags(
         tag_pool,
         audience=saved.get("audience_tags") or None,
