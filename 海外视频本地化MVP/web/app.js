@@ -29,6 +29,7 @@ const state = {
   pendingScenarioTag: null,
   createPipelineActive: false,
   seedanceProgressPersist: false,
+  seedanceVideoComplete: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
   scriptEditBaseline: null,
@@ -1117,9 +1118,20 @@ async function runStartCreate() {
 
 function renderDockProduceComplete(slug, message) {
   const msg = message || "视频生成完成，可下载 zip 或预览成片";
-  if (slug) syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+  setSeedanceVideoComplete(true, slug);
   setScriptActionStatus(msg);
   resetSeedanceProgressDock();
+}
+
+function setSeedanceVideoComplete(complete, slug) {
+  state.seedanceVideoComplete = Boolean(complete);
+  const s = slug || currentScriptSlug() || state.lastPreview?.slug;
+  if (state.seedanceVideoComplete && s) {
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(s)}/zip`, true);
+  } else {
+    syncDownloadLinks("", false);
+  }
+  updateLoopBarFromForm(state.lastPreview || {});
 }
 
 async function runConfirmProduceVideo() {
@@ -1139,7 +1151,7 @@ async function runConfirmProduceVideo() {
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
   closeScriptFloatPanel();
   state.seedanceProgressPersist = false;
-  syncDownloadLinks("", false);
+  setSeedanceVideoComplete(false);
   if (produceBtn) {
     produceBtn.disabled = true;
     produceBtn.dataset.busy = "1";
@@ -1159,7 +1171,6 @@ async function runConfirmProduceVideo() {
     const finalSlug = currentScriptSlug();
     const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
     if (ok && finalSlug && finalReady) {
-      syncDownloadLinks(`/api/delivery/${finalSlug}/zip`, true);
       renderDockProduceComplete(finalSlug, "视频生成完成，可下载 zip 或预览成片");
     } else if (finalSlug && !finalReady) {
       setScriptActionStatus("分镜已生成，成片拼接未完成，请检查 ffmpeg 后重试");
@@ -1215,7 +1226,7 @@ function videoZipDownloadReady(prev = state.lastPreview || {}) {
 }
 
 function syncScriptDownloadZip(prev = state.lastPreview || {}) {
-  if (videoZipDownloadReady(prev) && prev?.slug) {
+  if (state.seedanceVideoComplete && prev?.slug) {
     syncDownloadLinks(`/api/delivery/${encodeURIComponent(prev.slug)}/zip`, true);
   } else {
     syncDownloadLinks("", false);
@@ -1565,7 +1576,6 @@ async function runViralBenchmarkPipeline(linkId) {
     const slug = currentScriptSlug();
     const finalReady = Boolean(state.lastPreview?.seedance?.final_video?.ready);
     if (ok && slug && finalReady) {
-      syncDownloadLinks(`/api/delivery/${slug}/zip`, true);
       renderDockProduceComplete(slug, "对标流水线完成：可下载 zip 或预览成片");
       setScriptActionStatus("视频生成完成，可下载 zip 或预览成片");
     } else if (slug && !finalReady) {
@@ -2704,7 +2714,7 @@ function updateLoopBarFromForm(prev = {}) {
   if (hint) {
     if (tagsChangedSinceScript() && hasScript) {
       hint.textContent = "产品定义已更新（场景/卖点/痛点），点击「开始创作」或「重新生成脚本」同步。";
-    } else if (state.scriptStep === "produce" && prev.delivery_ready) {
+    } else if (state.scriptStep === "produce" && state.seedanceVideoComplete) {
       hint.textContent = "成片已完成：可下载 zip 或预览视频。";
     } else if (state.scriptStep === "produce" && hasScript) {
       hint.textContent = "请检查脚本与分镜，确认无误后点击「确认生成视频」。";
@@ -4174,6 +4184,7 @@ function onScriptSelectionChange() {
   state.createPipelineActive = false;
   state.scriptTagSnapshot = null;
   state.lastScriptProductId = null;
+  setSeedanceVideoComplete(false);
   if (scriptResultBody()) scriptResultBody().innerHTML = "";
   showSeedanceProgress(false);
   renderSeedanceFinalPreview(null, null);
@@ -4259,7 +4270,7 @@ async function runScriptGenerate() {
     regenBtn.textContent = "生成中…";
   }
   if (produceBtn) produceBtn.disabled = true;
-  syncDownloadLinks("", false);
+  setSeedanceVideoComplete(false);
   showScriptProgress(true, {
     status: "正在根据产品标签与对标结构生成脚本…",
     indeterminate: true,
@@ -4298,6 +4309,7 @@ async function runScriptGenerate() {
     state.scriptTagSnapshot = captureTagSnapshot();
     state.lastScriptProductId = productId;
     if (resultEl) mountScriptPackEditor(resultEl, pack, res.meta);
+    setSeedanceVideoComplete(false);
     if (res.daily_quota) {
       if (!state.healthCache) state.healthCache = {};
       if (!state.healthCache.production) state.healthCache.production = {};
@@ -4458,7 +4470,7 @@ async function runSeedanceGenerate(options = {}) {
     }
     setScriptActionStatus(msg);
     if (finalReady) {
-      syncDownloadLinks(`/api/delivery/${slug}/zip?ts=${Date.now()}`, true);
+      setSeedanceVideoComplete(true, slug);
     }
     if (data.daily_video_quota && state.healthCache?.production) {
       state.healthCache.production.daily_video_quota = data.daily_video_quota;
