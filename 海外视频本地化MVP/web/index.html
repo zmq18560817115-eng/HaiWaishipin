@@ -485,6 +485,8 @@
           </div>
           <div id="dockProducePreview" class="dock-produce-preview hidden" aria-live="polite"></div>
           <footer class="studio-dock-toolbar">
+            <button type="button" class="dock-toolbar-more-btn" aria-expanded="false">更多</button>
+            <div class="dock-toolbar-overflow">
             <span class="dock-chip" id="dockModelChip">SeedDance · 脚本分镜</span>
             <span class="dock-chip dock-quota-chip hidden" id="dailyScriptQuotaChip" title="今日 LLM 脚本生成次数"></span>
             <span class="dock-chip dock-quota-chip hidden" id="dailyVideoQuotaChip" title="今日成片产出次数"></span>
@@ -516,6 +518,7 @@
                 <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
                 <span>提示词增强</span>
               </button>
+            </div>
             </div>
             <button type="button" class="secondary pill-btn studio-dock-reassemble hidden" id="generateDockReassemble" title="仅拼接已有分镜 mp4，不会重新生成各镜">重新合成</button>
             <button type="button" class="primary primary-dark studio-dock-run" id="generateDockRun">
@@ -605,6 +608,8 @@
           </div>
           <div id="imitateDockProducePreview" class="dock-produce-preview hidden" aria-live="polite"></div>
           <footer class="studio-dock-toolbar">
+            <button type="button" class="dock-toolbar-more-btn" aria-expanded="false">更多</button>
+            <div class="dock-toolbar-overflow">
             <span class="dock-chip" id="imitateDockModelChip">爆款模仿 · 结构复刻</span>
             <span class="dock-chip dock-quota-chip hidden" id="imitateDailyQuotaChip" title="今日 LLM 脚本生成次数"></span>
             <span class="dock-chip dock-quota-chip hidden" id="imitateDailyVideoQuotaChip" title="今日成片产出次数"></span>
@@ -636,6 +641,7 @@
                 <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
                 <span>提示词增强</span>
               </button>
+            </div>
             </div>
             <button type="button" class="secondary pill-btn studio-dock-reassemble hidden" id="imitateDockReassemble" title="仅拼接已有分镜 mp4，不会重新生成各镜">重新合成</button>
             <button type="button" class="primary primary-dark studio-dock-run" id="imitateDockRun">

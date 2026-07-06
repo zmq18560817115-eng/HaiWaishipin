@@ -34,6 +34,7 @@ const state = {
   lastVideoGenError: "",
   videoQueueTicket: null,
   videoQueuePoll: null,
+  videoProductionAbort: null,
   clientId: null,
   seedanceVideoComplete: false,
   producePartialReady: false,
@@ -1995,9 +1996,43 @@ function renderVideoQueuePanel(queue, mine) {
     </li>`;
   }).join("") || '<li class="video-queue-item"><span class="video-queue-item-label muted">队列为空</span></li>';
   if (cancelBtn) {
-    const canCancel = mine && ["queued", "active"].includes(mine.status);
+    const canCancel = mine && ["queued", "active", "running"].includes(mine.status);
     cancelBtn.classList.toggle("hidden", !canCancel);
+    cancelBtn.textContent = mine?.status === "running" ? "取消生成" : "取消排队";
   }
+}
+
+function isAbortError(err) {
+  return err?.name === "AbortError" || String(err?.message || "").includes("已取消");
+}
+
+function beginVideoProductionAbort() {
+  if (state.videoProductionAbort) {
+    try {
+      state.videoProductionAbort.abort();
+    } catch {
+      /* ignore */
+    }
+  }
+  state.videoProductionAbort = new AbortController();
+  return state.videoProductionAbort;
+}
+
+function abortVideoProduction() {
+  if (state.videoProductionAbort) {
+    try {
+      state.videoProductionAbort.abort();
+    } catch {
+      /* ignore */
+    }
+    state.videoProductionAbort = null;
+  }
+  state.videoGenActive = false;
+  state.createPipelineActive = false;
+}
+
+function videoProductionSignal() {
+  return state.videoProductionAbort?.signal;
 }
 
 function stopVideoQueuePoll() {
@@ -2007,15 +2042,33 @@ function stopVideoQueuePoll() {
   }
 }
 
-function waitVideoQueueTurn(ticketId) {
+function waitVideoQueueTurn(ticketId, signal) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("已取消", "AbortError"));
+      return;
+    }
+    const onAbort = () => {
+      stopVideoQueuePoll();
+      reject(new DOMException("已取消", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    const finish = (fn) => {
+      signal?.removeEventListener("abort", onAbort);
+      fn();
+    };
     const poll = async () => {
+      if (signal?.aborted) {
+        stopVideoQueuePoll();
+        finish(() => reject(new DOMException("已取消", "AbortError")));
+        return;
+      }
       try {
-        const row = await api(`/api/video-queue?ticket=${encodeURIComponent(ticketId)}`);
+        const row = await api(`/api/video-queue?ticket=${encodeURIComponent(ticketId)}`, { signal });
         renderVideoQueuePanel(row.queue, row);
         if (row.status === "cancelled") {
           stopVideoQueuePoll();
-          reject(new Error(row.message || "排队已取消"));
+          finish(() => reject(new Error(row.message || "排队已取消")));
           return;
         }
         if (row.status === "active" || row.status === "running") {
@@ -2025,7 +2078,7 @@ function waitVideoQueueTurn(ticketId) {
             indeterminate: true,
             persist: true,
           });
-          resolve(row);
+          finish(() => resolve(row));
           return;
         }
         const pos = Math.max(1, (row.position ?? 0) + 1);
@@ -2038,7 +2091,7 @@ function waitVideoQueueTurn(ticketId) {
         });
       } catch (err) {
         stopVideoQueuePoll();
-        reject(err);
+        finish(() => reject(err));
       }
     };
     stopVideoQueuePoll();
@@ -2063,6 +2116,7 @@ async function releaseVideoQueue(ticketId, ok, message = "") {
 }
 
 async function withVideoProductionQueue(slug, label, fn) {
+  const ac = beginVideoProductionAbort();
   let ticketId = null;
   let ok = false;
   try {
@@ -2070,18 +2124,23 @@ async function withVideoProductionQueue(slug, label, fn) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slug, label, client_id: ensureClientId() }),
+      signal: ac.signal,
     });
     ticketId = joined.ticket_id;
     state.videoQueueTicket = ticketId;
     if (shouldShowVideoQueuePanel(joined)) showVideoQueuePanel(true);
     renderVideoQueuePanel(joined.queue, joined);
-    await waitVideoQueueTurn(ticketId);
+    await waitVideoQueueTurn(ticketId, ac.signal);
     ok = Boolean(await fn());
     return ok;
+  } catch (err) {
+    if (isAbortError(err)) return false;
+    throw err;
   } finally {
     stopVideoQueuePoll();
     await releaseVideoQueue(ticketId, ok);
     state.videoQueueTicket = null;
+    state.videoProductionAbort = null;
     if (!state.videoGenActive && !state.createPipelineActive) showVideoQueuePanel(false);
   }
 }
@@ -2348,6 +2407,9 @@ function selectGenerateScenario(featureId) {
       }
     }
   }
+  if (!document.getElementById("scriptProductSelect")?.value || !tagsSelectionOk()) {
+    void openProductFloatPanel();
+  }
 }
 
 function viralVideoCardHtml(item) {
@@ -2548,6 +2610,11 @@ async function runViralBenchmarkPipeline(linkId) {
     await refreshScriptPreview();
   } catch (err) {
     stopSeedanceCountdown();
+    if (isAbortError(err)) {
+      setScriptActionStatus("已取消生成", { forceDock: true });
+      resetSeedanceProgressDock();
+      return;
+    }
     showVideoGenError(err.message);
   } finally {
     state.viralPipelineBusy = false;
@@ -3071,6 +3138,18 @@ async function renderDraftFeedbackStats() {
   }
 }
 
+function initDockToolbarMobileMore() {
+  document.querySelectorAll(".studio-dock-toolbar").forEach((toolbar) => {
+    const more = toolbar.querySelector(".dock-toolbar-more-btn");
+    if (!more || toolbar.dataset.mobileMoreInit) return;
+    toolbar.dataset.mobileMoreInit = "1";
+    more.addEventListener("click", () => {
+      const open = toolbar.classList.toggle("dock-toolbar-more-open");
+      more.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  });
+}
+
 function initModuleStudios() {
   initDockGenSettings();
   renderAllImitationViralGrids();
@@ -3208,6 +3287,7 @@ function initModuleStudios() {
     });
   });
   syncGenerateDockMode(state.generateDockMode || "generate");
+  initDockToolbarMobileMore();
 }
 
 function syncDockChipsFromHealth() {
@@ -3741,7 +3821,8 @@ function updateLoopBarFromForm(prev = {}) {
 async function api(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (window.__WB_TOKEN__) headers["X-Workbench-Token"] = window.__WB_TOKEN__;
-  const res = await fetch(path, { ...options, headers });
+  const { signal, ...rest } = options;
+  const res = await fetch(path, { ...rest, headers, signal });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail = data.detail;
@@ -5540,6 +5621,7 @@ async function runSeedanceGenerate(options = {}) {
         generate_count: vs.generateCount,
         edit_mode: vs.editMode,
       }),
+      signal: videoProductionSignal(),
     });
     renderSeedance(slug, data.seedance, state.healthCache);
     const failed = (data.results || []).filter((r) => r.status === "error");
@@ -5584,6 +5666,11 @@ async function runSeedanceGenerate(options = {}) {
     return level !== "error";
   } catch (err) {
     stopSeedanceCountdown();
+    if (isAbortError(err)) {
+      setScriptActionStatus("已取消生成", { forceDock: true });
+      resetSeedanceProgressDock();
+      return false;
+    }
     await refreshScriptPreview();
     const lp = state.lastPreview || {};
     const s = slug || currentScriptSlug();
@@ -5652,6 +5739,11 @@ async function runProduceVideo(options = {}) {
     });
   } catch (err) {
     stopSeedanceCountdown();
+    if (isAbortError(err)) {
+      setScriptActionStatus("已取消生成", { forceDock: true });
+      resetSeedanceProgressDock();
+      return false;
+    }
     showVideoGenError(`产出视频失败：${err.message}`);
     return false;
   } finally {
@@ -6389,17 +6481,18 @@ document.getElementById("videoQueueCloseBtn")?.addEventListener("click", () => {
 document.getElementById("videoQueueCancelBtn")?.addEventListener("click", async () => {
   const ticket = state.videoQueueTicket;
   if (!ticket) return;
+  abortVideoProduction();
+  stopVideoQueuePoll();
   try {
     await api(`/api/video-queue/${encodeURIComponent(ticket)}?client_id=${encodeURIComponent(ensureClientId())}`, {
       method: "DELETE",
     });
-    stopVideoQueuePoll();
     showVideoQueuePanel(false);
     state.videoQueueTicket = null;
     setScriptActionStatus("已取消排队", { forceDock: true });
     resetSeedanceProgressDock();
   } catch (err) {
-    showVideoGenError(err.message);
+    if (!isAbortError(err)) showVideoGenError(err.message);
   }
 });
 

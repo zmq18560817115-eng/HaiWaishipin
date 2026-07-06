@@ -5452,6 +5452,25 @@ body.studio-focus-mode .produce-complete-banner {
   border-top: 1px solid var(--line-soft);
 }
 
+.dock-toolbar-more-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dock-toolbar-overflow {
+  display: contents;
+}
+
 .dock-chip {
   display: inline-flex;
   align-items: center;
@@ -6893,5 +6912,58 @@ body.studio-focus-mode .produce-complete-banner {
   .studio-dock-body { flex-direction: column; }
   .studio-dock-uploads { width: 100%; }
   .dock-upload-slot { flex: 1; }
-  .studio-dock-run { width: 100%; margin-left: 0; justify-content: center; }
+  .studio-dock-run { width: auto; margin-left: auto; justify-content: center; flex: 1; min-width: 0; }
+  .studio-dock-reassemble { width: 100%; }
+  .global-job-badge { right: 96px; top: 12px; font-size: 11px; padding: 5px 10px; }
+}
+
+@media (max-width: 480px) {
+  .dock-toolbar-more-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .studio-dock-toolbar {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .studio-dock-toolbar:not(.dock-toolbar-more-open) .dock-toolbar-overflow {
+    display: none;
+  }
+  .studio-dock-toolbar.dock-toolbar-more-open .dock-toolbar-overflow {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .studio-dock-toolbar .dock-toolbar-overflow .dock-gen-actions {
+    flex-wrap: wrap;
+  }
+  .studio-dock-toolbar .studio-dock-reassemble {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .studio-dock-toolbar .studio-dock-run {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-left: 0;
+  }
+  .script-float-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .script-float-actions #scriptFloatProduceBtn {
+    grid-column: 1 / -1;
+  }
+  .script-float-actions .pill-btn,
+  .script-float-actions .primary {
+    width: 100%;
+    justify-content: center;
+  }
 }
