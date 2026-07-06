@@ -457,6 +457,26 @@ body {
   z-index: 5;
 }
 
+.global-job-badge {
+  position: absolute;
+  top: 18px;
+  right: 108px;
+  z-index: 5;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.global-job-badge:hover {
+  background: #fef3c7;
+}
+
 /* ── Unified workspace (素材库 + 出稿合一) ─────────────── */
 .workspace-unified {
   flex: 1;

@@ -8,6 +8,7 @@
 </head>
 <body class="app-light">
   <header class="app-top">
+    <button type="button" class="global-job-badge hidden" id="globalJobBadge" hidden title="后台任务运行中，点击查看">后台任务…</button>
     <button type="button" class="settings-trigger settings-trigger-floating" id="settingsOpenBtn" aria-expanded="false" aria-controls="settingsDrawer" title="设置与数据同步">
       <span class="settings-trigger-icon" aria-hidden="true">⚙</span>
       <span>设置</span>
@@ -719,9 +720,9 @@
           </section>
           <section class="module-studio-panel hidden" id="draftFeedbackAuditPanel" data-studio-panel="audit">
             <h2 class="module-feature-title">问题调节审核</h2>
-            <p class="module-feature-desc muted">对生产视频标注问题并反哺至下一轮生成（规划中）</p>
+            <p class="module-feature-desc muted">在下方「反馈库」选择成片并填写投放反馈，数据将反哺下一轮生成</p>
             <div class="module-placeholder-inner compact">
-              <p class="muted">审核标注将写入反馈库，并关联至对应成稿与场景标签。</p>
+              <p class="muted">已自动切换到反馈库。左侧选成稿，右侧填写问题与投放数据。</p>
             </div>
           </section>
           <section class="module-workspace-panel module-feedback-body" id="draftFeedbackBody">

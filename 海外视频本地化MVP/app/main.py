@@ -135,7 +135,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 176
+UI_VERSION = 177
 
 
 def _render_index() -> HTMLResponse:
@@ -378,17 +378,17 @@ async def materials(
 
 
 @app.get("/api/materials/{link_id}/analysis/detail")
-async def material_analysis_detail(link_id: int) -> dict:
-    """打开素材详情时自动触发豆包拆解（若尚未完成）。"""
+async def material_analysis_detail(link_id: int, auto_start: bool = True) -> dict:
+    """打开素材详情时自动触发豆包拆解（若尚未完成）。auto_start=0 仅读缓存，不启动拆解。"""
     try:
-        return await _material_analysis_detail_payload(link_id)
+        return await _material_analysis_detail_payload(link_id, auto_start=auto_start)
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"拆解详情加载失败: {exc}") from exc
 
 
-async def _material_analysis_detail_payload(link_id: int) -> dict:
+async def _material_analysis_detail_payload(link_id: int, *, auto_start: bool = True) -> dict:
     detail = load_analysis_detail(str(link_id))
     job = analyze_status(link_id)
     lid = str(link_id)
@@ -403,6 +403,14 @@ async def _material_analysis_detail_payload(link_id: int) -> dict:
         return {**detail, "status": "ready", "warning": warning}
 
     if needs_doubao_analysis(lid, detail):
+        if not auto_start:
+            base = detail or {"link_id": link_id, "shots": [], "summary": "", "full_transcript": ""}
+            return {
+                **base,
+                "status": "pending",
+                "message": "尚未精细拆解；一键出片将自动规则拆解，或手动点「精细拆解」",
+                "retryable": True,
+            }
         if job and job.get("status") == "running":
             base = detail or {"link_id": link_id, "shots": [], "summary": "", "full_transcript": ""}
             return {**base, "status": "running", "message": "豆包视频拆解中，请稍候…", "job": job}

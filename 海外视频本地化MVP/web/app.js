@@ -1675,6 +1675,18 @@ async function runStartCreate() {
     return;
   }
 
+  const prev = state.lastPreview || {};
+  const isGenerateMode = state.view === "generate" && state.generateDockMode === "generate";
+  if (isGenerateMode && scriptNeedsRegenerate(prev)) {
+    const brief = getImitationPrompt();
+    const picked = Boolean(state.generatePromptSelection?.text || state.generatePromptSelection?.id);
+    if (!brief && !picked) {
+      setScriptActionStatus("请先选择或填写创作提示词（点「提示词选择」）。", { isError: true });
+      openPromptSelectFloatPanel();
+      return;
+    }
+  }
+
   forEachDockRunBtn((runBtn) => {
     runBtn.disabled = true;
     runBtn.dataset.busy = "1";
@@ -1686,7 +1698,6 @@ async function runStartCreate() {
   showSeedanceProgress(true, { status: "准备创作…", indeterminate: true });
 
   try {
-    const prev = state.lastPreview || {};
     if (scriptNeedsRegenerate(prev)) {
       await runScriptGenerate();
       if (!currentScriptSlug() && !state.lastPreview?.has_script) return;
@@ -2648,6 +2659,10 @@ async function renderImitateTemplates() {
 function switchDraftFeedbackStudioTab(tab) {
   const root = document.querySelector('.module-studio[data-module="draft-feedback"]');
   switchModuleStudioTab(root, tab);
+  if (tab === "audit") {
+    switchDraftFeedbackSub("feedback");
+    document.getElementById("draftFeedbackBody")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function expandGenerateWorkspace() {
@@ -2992,8 +3007,16 @@ async function renderDraftFeedbackHistory() {
 async function openHistoryInWorkspace(slug) {
   if (!slug) return;
   const item = state.items.find((m) => m.slug === slug || `ref-${String(m.link_id).padStart(3, "0")}` === slug);
-  if (item) await selectMaterial(item.link_id);
+  syncGenerateDockMode(state.generateDockMode || "generate");
+  if (item) {
+    if (item.content_line) state.selectedProductId = item.content_line;
+    await selectMaterial(item.link_id, { loadDetail: false });
+    repopulateScriptMaterials();
+    syncMaterialSelectFromState();
+  }
+  state.scriptSlug = slug;
   switchView("generate");
+  await refreshScriptPreview();
   refreshScriptFloatFromPreview(state.lastPreview || {});
   openScriptFloatPanel();
 }
@@ -3013,7 +3036,7 @@ function renderGenerateExamples() {
     </button>`).join("");
   root.querySelectorAll("[data-link-id]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await selectMaterial(Number(btn.dataset.linkId));
+      await selectMaterial(Number(btn.dataset.linkId), { fromRefFloat: true });
       openRefFloatPanel();
       updateLoopBarFromForm(state.lastPreview || {});
     });
@@ -3899,17 +3922,17 @@ function ensureCollectorPanel() {
       <div id="collectorStatus" class="seedance-status">待执行</div>
       <div id="collectorResult" class="collector-result muted"></div>
       <div class="collector-actions">
-        <button type="button" class="pill-btn" id="btnCollectorQuery">MySQL</button>
+        <button type="button" class="pill-btn" id="btnCollectorOpenLibrary">在素材库中查询 TikTok 数据</button>
       </div>
-      <label>TikTok 库内查询
-        <input id="collectorQueryText" type="text" placeholder="关键词 / 作者 / video_id / hashtag">
-      </label>
-      <div id="collectorQueryStatus" class="seedance-status muted">待查询</div>
-      <div id="collectorQueryResult" class="collector-query-result muted tiktok-db-preview-list"></div>
+      <p class="hint muted">库内检索已集中在「对标素材库」抽屉，避免与设置重复。</p>
     </div>`;
   body.insertBefore(wrap, productsBlock);
   document.getElementById("btnCollectorRun")?.addEventListener("click", runCollectorImport);
-  document.getElementById("btnCollectorQuery")?.addEventListener("click", runCollectorQuery);
+  document.getElementById("btnCollectorOpenLibrary")?.addEventListener("click", () => {
+    closeSettingsDrawer();
+    openMaterialLibraryDrawer();
+    document.getElementById("materialLibraryTikTokQuery")?.focus();
+  });
   void refreshCollectorRuntimeHint();
 }
 
@@ -4841,10 +4864,12 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function fetchMaterialAnalysis(linkId, pane) {
+async function fetchMaterialAnalysis(linkId, pane, { autoStart = true } = {}) {
+  const qs = autoStart ? "" : "?auto_start=0";
   for (let i = 0; i < 80; i++) {
-    const detail = await api(`/api/materials/${linkId}/analysis/detail`);
+    const detail = await api(`/api/materials/${linkId}/analysis/detail${qs}`);
     if (detail.status === "running") {
+      if (!autoStart) return detail;
       if (pane) {
         const d = state.items.find((x) => x.link_id === linkId) || { link_id: linkId, title: "", author: "", url: "#" };
         pane.innerHTML = renderMaterialDetail(d, detail);
@@ -4857,7 +4882,7 @@ async function fetchMaterialAnalysis(linkId, pane) {
   throw new Error("豆包拆解超时，请稍后重试");
 }
 
-async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false, keepDetail = false } = {}) {
+async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false, keepDetail = false, loadDetail } = {}) {
   if (state.selectedMaterialId !== linkId) resetPromptEnhanceUsed();
   state.selectedMaterialId = linkId;
   renderMaterialList();
@@ -4871,6 +4896,24 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
   repopulateScriptMaterials();
   syncMaterialSelectFromState();
   syncWorkspaceRefChip();
+  const shouldLoadDetail = loadDetail ?? !(fromDrawer || fromRefFloat);
+  if (!shouldLoadDetail) {
+    if (document.getElementById("scriptProductSelect")?.value) {
+      await refreshScriptPreview({ preserveTagSelection: true });
+    }
+    const pane = document.getElementById("materialDetail");
+    if (pane) {
+      const item = state.items.find((i) => i.link_id === linkId);
+      const title = esc((item?.title || "").slice(0, 40) || `素材 #${linkId}`);
+      pane.className = "detail dissector-detail ref-float-detail muted";
+      pane.innerHTML = `已选：<strong>${title}</strong>。<button type="button" class="pill-btn" id="loadMaterialDetailBtn">加载拆解详情</button> <span class="muted">（不会自动触发豆包）</span>`;
+      document.getElementById("loadMaterialDetailBtn")?.addEventListener("click", () => {
+        void selectMaterial(linkId, { loadDetail: true, keepDetail: false });
+      });
+    }
+    if (state.view === "reverse") syncReverseDockMaterial();
+    return;
+  }
   const pane = document.getElementById("materialDetail");
   if (!pane) return;
   if (!keepDetail) {
@@ -6021,18 +6064,21 @@ async function pollJobStatus() {
   const st = await api("/api/jobs/status");
   const el = document.getElementById("jobStatus");
   const log = document.getElementById("jobLog");
+  syncGlobalJobBadge(st);
   if (st.status === "running") {
     el.textContent = `运行中：${jobLabel(st.job)}（${st.started_at || ""}）`;
     log.textContent = st.output || "";
     if (!state.jobPoll) {
       state.jobPoll = setInterval(async () => {
         const s = await api("/api/jobs/status");
+        syncGlobalJobBadge(s);
         document.getElementById("jobStatus").textContent = s.status === "running"
           ? `运行中：${jobLabel(s.job)}` : (s.exit_code === 0 ? `✅ ${jobLabel(s.job)} 完成` : `❌ ${jobLabel(s.job)} 失败 (code ${s.exit_code})`);
         document.getElementById("jobLog").textContent = s.output || "";
         if (s.status !== "running") {
           clearInterval(state.jobPoll);
           state.jobPoll = null;
+          syncGlobalJobBadge(s);
           await refreshHealth();
           await loadMaterials();
         }
@@ -6041,6 +6087,18 @@ async function pollJobStatus() {
   } else {
     el.textContent = st.job ? `${st.status}: ${jobLabel(st.job)}` : "就绪";
     log.textContent = st.output || "";
+  }
+}
+
+function syncGlobalJobBadge(st) {
+  const badge = document.getElementById("globalJobBadge");
+  if (!badge) return;
+  const running = st?.status === "running";
+  badge.hidden = !running;
+  badge.classList.toggle("hidden", !running);
+  if (running) {
+    badge.textContent = `后台：${jobLabel(st.job)}…`;
+    badge.title = "后台任务运行中，点击打开设置查看详情";
   }
 }
 
@@ -6123,6 +6181,7 @@ document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", asyn
 });
 
 document.getElementById("settingsOpenBtn")?.addEventListener("click", () => openSettingsDrawer());
+document.getElementById("globalJobBadge")?.addEventListener("click", () => openSettingsDrawer());
 document.getElementById("settingsCloseBtn")?.addEventListener("click", () => closeSettingsDrawer());
 document.getElementById("settingsBackdrop")?.addEventListener("click", () => closeSettingsDrawer());
 
