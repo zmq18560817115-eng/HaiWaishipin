@@ -251,44 +251,36 @@ def pick_shot_reference_path(
     footage_type: str | None = None,
     project: Path | None = None,
 ) -> tuple[Path | None, str]:
-    """产品可见镜头 I2V 垫图只能是白底主图；场景图/倒出口参考仅 Prompt。"""
+    """产品 I2V 垫图：白底主图锁外观；人像/倒出口仅 Prompt，禁止作 I2V。"""
+    from .product_staging import is_fixed_product
+
     role = (role or "").strip()
-    white = get_product_white_hero_image(product_id)
+    pid = str(product_id or "").strip()
+    white = get_product_white_hero_image(pid)
+
+    def _white_ref() -> tuple[Path | None, str]:
+        staged_white = _staged_path(project, "seedance-source.*")
+        if staged_white:
+            return staged_white, "product_identity"
+        return white, "product_identity"
+
+    if is_fixed_product(pid):
+        return _white_ref()
 
     if role in PRODUCT_FOCUS_ROLES:
-        staged_white = _staged_path(project, "seedance-source.*")
-        if staged_white:
-            return staged_white, "product_identity"
-        return white, "product_identity"
+        return _white_ref()
 
-    if role in ("方案", "证明"):
-        staged_white = _staged_path(project, "seedance-source.*")
-        if staged_white:
-            return staged_white, "product_identity"
-        return white, "product_identity"
+    if role in ("方案", "证明", "钩子", "行动号召"):
+        return _white_ref()
 
     ft = (footage_type or "").strip()
     if shot_includes_product(role, visual, footage_type) and ft in ("AI_BROLL", "AI_VIDEO", "LIVE_ACTION", ""):
-        staged_white = _staged_path(project, "seedance-source.*")
-        if staged_white:
-            return staged_white, "product_identity"
-        if white:
-            return white, "product_identity"
+        return _white_ref()
 
     if character and shot_needs_person(role, footage_type) and not shot_includes_product(role, visual, footage_type):
-        view = pick_character_view(role, visual=visual)
-        cref = character_view_path(character, view)
-        if project:
-            staged = project / "inputs" / "characters" / str(character.get("id", "char")) / f"{view}.png"
-            if staged.is_file():
-                return staged, "person"
-        if cref:
-            return cref, "person"
+        return _white_ref()
 
-    staged_white = _staged_path(project, "seedance-source.*")
-    if staged_white:
-        return staged_white, "product_identity"
-    return white, "product_identity"
+    return _white_ref()
 
 
 def build_character_prompt_block(character: dict[str, Any] | None) -> str:
@@ -395,16 +387,32 @@ def stage_project_production_assets(
     product_id: str,
     market: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    from .product_staging import force_stage_product_assets, is_fixed_product
+
     character = resolve_character(market)
+    if is_fixed_product(product_id):
+        staged = force_stage_product_assets(project, product_id, market=market)
+        char_dir = stage_project_character_refs(project, character)
+        return {
+            "product_ref": staged.get("product_ref", ""),
+            "usage_ref": staged.get("usage_ref", ""),
+            "character_id": character.get("id") if character else "",
+            "character_refs": _rel(char_dir) if char_dir else "",
+            "fixed_product_lock": True,
+        }
     product_ref = stage_seedance_source_image(project, product_id)
     pour = get_product_usage_pour_image(product_id)
     usage_ref = ""
     if pour:
         inputs = project / "inputs"
         inputs.mkdir(parents=True, exist_ok=True)
+        for old in inputs.glob("seedance-usage-ref.*"):
+            try:
+                old.unlink()
+            except OSError:
+                pass
         usage_dest = inputs / f"seedance-usage-ref{pour.suffix.lower()}"
-        if not usage_dest.exists() or usage_dest.stat().st_size != pour.stat().st_size:
-            shutil.copy2(pour, usage_dest)
+        shutil.copy2(pour, usage_dest)
         usage_ref = _rel(usage_dest)
     char_dir = stage_project_character_refs(project, character)
     return {

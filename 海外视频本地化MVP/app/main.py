@@ -120,6 +120,7 @@ from .seedance_bridge import (
     run_all,
     seedance_config,
     test_connection,
+    validate_product_staging as olm_validate_product_staging,
 )
 
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
@@ -142,7 +143,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 184
+UI_VERSION = 185
 
 
 def _render_index() -> HTMLResponse:
@@ -1134,6 +1135,23 @@ async def delivery_seedance_run(
                 status_code=409,
                 detail="缺少白底主图垫图：请在 01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/ 放置 白底主图.png 后重试",
             )
+        if staged.get("fixed_product_lock"):
+            brief_path = OVERSEAS_RUNS_DIR / slug / "localization-brief.yaml"
+            product_id = "便携恒温杯"
+            if brief_path.is_file():
+                try:
+                    import yaml
+
+                    brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+                    product_id = str(brief.get("sku") or product_id).strip() or product_id
+                except Exception:
+                    pass
+            check = await run_in_threadpool(olm_validate_product_staging, slug, product_id)
+            if not check.get("ok"):
+                raise HTTPException(
+                    status_code=409,
+                    detail="固定产品垫图校验失败：" + "；".join(check.get("errors") or ["请重新交付后再出片"]),
+                )
         status = await run_in_threadpool(project_status, slug)
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")

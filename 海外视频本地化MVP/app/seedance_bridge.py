@@ -137,7 +137,7 @@ print(json.dumps(seedance_status(project_dir(slug, create=False)), ensure_ascii=
 
 
 def refresh_project_seedance_source(slug: str) -> dict[str, Any] | None:
-    """按 localization-brief 的 sku 刷新 inputs/seedance-source 垫图。"""
+    """按 localization-brief 的 sku 强制刷新 inputs/seedance-source 白底主图垫图。"""
     project = OVERSEAS_RUNS_DIR / slug
     if not project.is_dir():
         return None
@@ -153,15 +153,6 @@ def refresh_project_seedance_source(slug: str) -> dict[str, Any] | None:
             product_id = ""
     if not product_id:
         return None
-    inputs = project / "inputs"
-    if inputs.is_dir():
-        for path in inputs.glob("seedance-source.*"):
-            if path.name == "seedance-source.meta.json":
-                continue
-            try:
-                path.unlink()
-            except OSError:
-                pass
     return stage_project_production_assets(
         project,
         product_id,
@@ -269,3 +260,14 @@ slug, num = sys.argv[1], int(sys.argv[2])
 print(json.dumps(regenerate_hero_frame(project_dir(slug, create=False), num), ensure_ascii=False))
 """
     return _run_olm(code, slug, str(int(shot_number)))
+
+
+def validate_product_staging(slug: str, product_id: str) -> dict[str, Any]:
+    code = """
+import json, sys
+from app.storage import project_dir
+from app.product_staging import validate_product_staging
+slug, pid = sys.argv[1], sys.argv[2]
+print(json.dumps(validate_product_staging(project_dir(slug, create=False), pid), ensure_ascii=False))
+"""
+    return _run_olm(code, slug, product_id)

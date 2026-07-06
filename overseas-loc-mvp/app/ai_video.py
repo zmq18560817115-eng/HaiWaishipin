@@ -114,11 +114,15 @@ def build_shot_video_prompt(
     explicit = str(pack_shot.get("seedance_prompt") or story_shot.get("notes") or "").strip()
     if len(explicit) >= 10:
         from .camera_motion import apply_motion_to_seedance_prompt
+        from .product_staging import is_fixed_product, pour_usage_prompt_suffix
 
         explicit = apply_motion_to_seedance_prompt(explicit, pack_shot)
         hero_lock = _product_hero_lock()
         if "white-background" not in explicit.lower() and "hero product photo" not in explicit.lower():
             explicit = f"{explicit} {hero_lock}"
+        pour_hint = pour_usage_prompt_suffix(product_name, role)
+        if pour_hint and pour_hint.lower() not in explicit.lower():
+            explicit = f"{explicit} {pour_hint}"
         if character and shot_needs_person(role) and "approved caregiver" not in explicit:
             person = build_character_prompt_block(character)
             return _clamp_prompt(f"{explicit} {person}")

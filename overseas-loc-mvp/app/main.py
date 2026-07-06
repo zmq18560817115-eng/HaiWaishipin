@@ -371,6 +371,7 @@ def _clear_broll_for_regenerate(project: Path) -> list[str]:
 async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict[str, Any]]:
     project = project_dir(slug)
     from .hero_frames import hero_frame_gate_enabled, is_hero_frames_confirmed
+    from .product_staging import force_stage_product_assets, is_fixed_product, resolved_i2v_image_ref, validate_product_staging
 
     if hero_frame_gate_enabled() and not is_hero_frames_confirmed(project):
         return [
@@ -380,6 +381,24 @@ async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict
                 "message": "关键帧未确认：请在工作台确认各镜构图后再生成动态视频",
             }
         ]
+
+    brief_path = project / "localization-brief.yaml"
+    product_id = "便携恒温杯"
+    if brief_path.is_file():
+        try:
+            brief = read_yaml(brief_path)
+            product_id = str(brief.get("sku") or product_id).strip() or product_id
+        except Exception:
+            pass
+    if is_fixed_product(product_id):
+        try:
+            force_stage_product_assets(project, product_id)
+        except ValueError as exc:
+            return [{"number": 0, "status": "error", "message": str(exc)}]
+        check = validate_product_staging(project, product_id)
+        if not check.get("ok"):
+            return [{"number": 0, "status": "error", "message": "；".join(check.get("errors") or ["垫图校验失败"])}]
+
     if force:
         _clear_broll_for_regenerate(project)
     status = seedance_status(project)
@@ -415,7 +434,8 @@ async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict
         if len(prompt) < 10:
             results.append({"number": number, "status": "error", "message": "缺少视频 Prompt"})
             continue
-        shot_image_ref = shot.get("image_ref") or image_ref
+        locked_ref = resolved_i2v_image_ref(project, product_id)
+        shot_image_ref = locked_ref or shot.get("image_ref") or image_ref
         try:
             meta = await seedance_broll(
                 SeedanceRequest(

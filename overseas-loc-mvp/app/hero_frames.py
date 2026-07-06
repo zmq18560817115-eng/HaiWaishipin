@@ -53,6 +53,8 @@ def _hero_dest(project: Path, number: int, src: Path) -> Path:
 
 def generate_hero_frames(project: Path, *, clear_confirm: bool = True) -> dict[str, Any]:
     """从各镜 I2V 参考图生成静态关键帧预览（不调用 SeedDance）。"""
+    from .product_staging import is_fixed_product, resolved_i2v_image_ref
+
     status = seedance_status(project)
     shots = status.get("shots") or []
     pack = _load_pack(project)
@@ -60,12 +62,23 @@ def generate_hero_frames(project: Path, *, clear_confirm: bool = True) -> dict[s
         int(row.get("number", index + 1)): row
         for index, row in enumerate(pack.get("storyboard") or [])
     }
+    brief = {}
+    brief_path = project / "localization-brief.yaml"
+    if brief_path.is_file():
+        try:
+            import yaml
+
+            brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            brief = {}
+    product_id = str(brief.get("sku") or "便携恒温杯").strip()
+    locked_ref = resolved_i2v_image_ref(project, product_id) if is_fixed_product(product_id) else None
 
     hero_shots: list[dict[str, Any]] = []
     for shot in shots:
         number = int(shot["number"])
         pack_shot = pack_by_num.get(number, {})
-        ref_rel = shot.get("image_ref")
+        ref_rel = locked_ref or shot.get("image_ref")
         hero_file: str | None = None
         ready = False
         if ref_rel:
