@@ -104,7 +104,6 @@
     <div class="settings-drawer-body">
       <details class="settings-block" open>
         <summary>引擎状态</summary>
-        <p class="hint muted">日常采集、清理与热点更新请在首页「爆款拆解」区的素材维护条操作。</p>
         <div class="settings-engine-grid">
           <section class="settings-engine-card">
             <h3 class="settings-engine-label">结构拆解</h3>
@@ -118,6 +117,32 @@
           </section>
         </div>
         <div id="envInfo" class="env-info settings-env-compact">加载中…</div>
+      </details>
+      <details class="settings-block" id="settingsMaintenanceBlock" open>
+        <summary>素材维护</summary>
+        <p class="hint muted">同步热点、整理对标素材、浏览器采集与清空重测均在此操作。</p>
+        <div class="hotspot-sync-bar settings-hotspot-bar" id="hotspotSyncBar" aria-live="polite">
+          <div class="hotspot-sync-main">
+            <span class="hotspot-sync-icon" aria-hidden="true">⟳</span>
+            <div class="hotspot-sync-text">
+              <strong id="hotspotSyncTitle">素材维护</strong>
+              <span id="hotspotSyncStatus" class="muted">配置产品后可同步热点、清理旧素材并刷新首页卡片</span>
+            </div>
+          </div>
+          <div class="hotspot-sync-actions">
+            <label class="hotspot-auto-toggle" title="每 30 分钟自动：同步热点 → 移除非品类 → 去重限额">
+              <input type="checkbox" id="hotspotAutoSync" />
+              <span>自动维护</span>
+            </label>
+            <button type="button" class="primary pill-btn pill-btn-sm" id="hotspotMaintainBtn" title="同步热点 + 移除非品类 + 去重限额（保留已拆解/成稿）">一键维护</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotRefreshBtn" title="仅从 MySQL 拉取高互动热点">更新热点</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotPruneBtn" title="移除非品类并去重限额，不拉取新数据">整理素材</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotDecomposeBtn" title="对未拆解素材批量规则拆解（免费）">拆解新素材</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotCollectBtn" title="浏览器抓取 TikTok 新热点">浏览器采集</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="decomposeLibraryBtn" title="打开对标素材库">素材库</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm danger-outline" id="hotspotClearLibraryBtn" title="清空全部对标视频与拆解结果，保留产品与采集关键词">清空素材库</button>
+          </div>
+        </div>
       </details>
       <details class="settings-block">
         <summary>快捷入口</summary>
@@ -337,33 +362,31 @@
             <section class="studio-major-block" aria-labelledby="decomposeBlockTitle">
               <header class="studio-major-head">
                 <div class="studio-major-head-text">
-                  <h2 class="studio-major-title" id="decomposeBlockTitle">爆款拆解</h2>
-                  <p class="studio-major-desc">采集对标、筛选入库并拆解爆款结构，供下方创作复用</p>
+                  <h2 class="studio-major-title" id="decomposeBlockTitle">视频生成</h2>
+                  <p class="studio-major-desc">按「产品 → 提示词/结构 → 对标 → 脚本预览 → AI 成片」推进；点击爆款卡片可直接复刻运行。</p>
                 </div>
                 <div class="studio-major-actions">
                   <button type="button" class="secondary pill-btn hidden" id="decomposeCollectorBtn" hidden aria-hidden="true" tabindex="-1">素材收集</button>
                 </div>
               </header>
 
-              <div class="hotspot-sync-bar" id="hotspotSyncBar" aria-live="polite">
-                <div class="hotspot-sync-main">
-                  <span class="hotspot-sync-icon" aria-hidden="true">⟳</span>
-                  <div class="hotspot-sync-text">
-                    <strong id="hotspotSyncTitle">素材维护</strong>
-                    <span id="hotspotSyncStatus" class="muted">配置产品后可同步热点、清理旧素材并刷新下方卡片</span>
-                  </div>
+              <div class="workflow-guide-card" id="workflowGuideCard" aria-live="polite">
+                <div class="workflow-guide-main">
+                  <span class="workflow-guide-eyebrow">创作路径</span>
+                  <strong id="workflowGuideTitle">先配置产品与场景标签</strong>
+                  <p id="workflowGuideStatus">产品、人群、场景、卖点、痛点会决定脚本和分镜的安全边界。</p>
                 </div>
-                <div class="hotspot-sync-actions">
-                  <label class="hotspot-auto-toggle" title="每 30 分钟自动：同步热点 → 移除非品类 → 去重限额">
-                    <input type="checkbox" id="hotspotAutoSync" />
-                    <span>自动维护</span>
-                  </label>
-                  <button type="button" class="primary pill-btn pill-btn-sm" id="hotspotMaintainBtn" title="同步热点 + 移除非品类 + 去重限额（保留已拆解/成稿）">一键维护</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotRefreshBtn" title="仅从 MySQL 拉取高互动热点">更新热点</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotPruneBtn" title="移除非品类并去重限额，不拉取新数据">整理素材</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotDecomposeBtn" title="对未拆解素材批量规则拆解（免费）">拆解新素材</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotCollectBtn" title="浏览器抓取 TikTok 新热点">浏览器采集</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="decomposeLibraryBtn" title="打开对标素材库">素材库</button>
+                <ol class="workflow-guide-steps" aria-label="视频生成步骤">
+                  <li data-workflow-step="product"><span>1</span><strong>产品</strong><em>场景标签</em></li>
+                  <li data-workflow-step="prompt"><span>2</span><strong>提示词/结构</strong><em>可选模板</em></li>
+                  <li data-workflow-step="ref"><span>3</span><strong>对标</strong><em>爆款节奏</em></li>
+                  <li data-workflow-step="create"><span>4</span><strong>生成</strong><em>脚本到成片</em></li>
+                </ol>
+                <div class="workflow-guide-actions">
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickProductBtn">选产品</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickPromptBtn">选提示词</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickRefBtn">选对标</button>
+                  <button type="button" class="primary pill-btn pill-btn-sm" id="workflowStartBtn">开始创作</button>
                 </div>
               </div>
 
@@ -397,8 +420,8 @@
             <section class="studio-major-block studio-major-block-generate" aria-labelledby="generateBlockTitle">
               <header class="studio-major-head studio-major-head-compact">
                 <div class="studio-major-head-text">
-                  <h2 class="studio-major-title" id="generateBlockTitle">视频生成</h2>
-                  <p class="studio-major-desc">配置产品、对标与场景，在底部工作台出脚本并成片</p>
+                  <h2 class="studio-major-title" id="generateBlockTitle">底部创作工作台</h2>
+                  <p class="studio-major-desc">固定在底部：产品、提示词、对标、视频参数和开始创作都在这里完成。</p>
                 </div>
               </header>
             </section>
@@ -416,6 +439,7 @@
             </nav>
             <button type="button" class="studio-dock-close settings-close hidden" id="generateDockCloseBtn" aria-label="返回主页面" title="返回主页面">×</button>
           </div>
+          <div class="dock-workflow-status" id="generateDockStatusLine">先选产品，再选提示词与对标，最后开始创作。</div>
           <div class="studio-dock-body">
             <div class="studio-dock-uploads">
               <button type="button" class="dock-upload-slot" id="dockOpenProductBtn" title="先选产品与场景标签">
@@ -432,7 +456,7 @@
               </button>
             </div>
             <div class="studio-dock-main dock-gen-prompt-area">
-              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="3" placeholder="① 点击「产品」配置场景标签 → ② 点击上方爆款卡片（自动拆解+出片）或底部「开始创作」"></textarea>
+              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="3" placeholder="① 产品场景 → ② 提示词模板/创作要求 → ③ 对标爆款节奏 → ④ 开始创作"></textarea>
             </div>
           </div>
           <div id="seedanceProgress" class="seedance-progress hidden" aria-live="polite">
@@ -560,6 +584,7 @@
             </nav>
             <button type="button" class="studio-dock-close settings-close hidden" id="imitateDockCloseBtn" aria-label="返回主页面" title="返回主页面">×</button>
           </div>
+          <div class="dock-workflow-status" id="imitateDockStatusLine">先选产品，再选要复刻的爆款结构。</div>
           <div class="studio-dock-body">
             <div class="studio-dock-uploads">
               <button type="button" class="dock-upload-slot" id="imitateOpenProductBtn" title="先选产品与场景标签">

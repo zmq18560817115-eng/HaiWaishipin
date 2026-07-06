@@ -1,16 +1,26 @@
-"""对标素材库：同步热点、品类收窄、去重限额 — 供首页一键维护。"""
+"""对标素材库：同步热点、品类收窄、去重限额 — 供设置内素材维护操作。"""
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import MVP_ROOT
+from paths import (
+    DECOMPOSE_DIR,
+    DISCOVERY_CANDIDATES_CSV,
+    MVP_ROOT,
+    PROMPT_LIBRARY_JSON,
+    RAW_LINKS_CSV,
+    THUMBNAILS_DIR,
+    VIDEO_ANALYSIS_CSV,
+    VIDEOS_META_CSV,
+)
 
 from .data import load_materials
-from .hotspot_refresh import refresh_hotspot_videos
+from .hotspot_refresh import refresh_hotspot_videos, save_hotspot_state
 from .material_scope import trim_material_library_to_product
 
 SCRIPTS_DIR = MVP_ROOT / "scripts"
@@ -124,3 +134,87 @@ def run_material_maintenance(
             }
         )
     return report
+
+
+def _write_csv_header(path: Path, header_line: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\ufeff" + header_line.rstrip("\n") + "\n", encoding="utf-8")
+
+
+def _purge_dir_contents(folder: Path) -> int:
+    if not folder.exists():
+        return 0
+    removed = 0
+    for child in folder.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child, ignore_errors=True)
+            removed += 1
+        else:
+            child.unlink(missing_ok=True)
+            removed += 1
+    return removed
+
+
+def _prune_reverse_prompts() -> int:
+    if not PROMPT_LIBRARY_JSON.exists():
+        return 0
+    try:
+        data = json.loads(PROMPT_LIBRARY_JSON.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return 0
+    items = data if isinstance(data, list) else list((data or {}).get("items") or [])
+    kept = [row for row in items if not str(row.get("source") or "").startswith("reverse")]
+    removed = len(items) - len(kept)
+    if removed:
+        payload = {"version": 1, "updated_at": _utc_now(), "items": kept}
+        PROMPT_LIBRARY_JSON.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return removed
+
+
+def clear_material_library() -> dict[str, Any]:
+    """清空对标素材库（保留产品资料、采集关键词与内置提示词预设）。"""
+    headers = {
+        RAW_LINKS_CSV: "link_id,url,category,platform,subcategory,source,status,notes,added_at",
+        VIDEOS_META_CSV: "link_id,url,video_id,author,author_url,title,description,duration_sec,view_count,like_count,comment_count,share_count,hashtags,thumbnail_url,fetched_at,fetch_status,fetch_provider,error_message",
+        VIDEO_ANALYSIS_CSV: "link_id,url,video_id,author,hook_3s,pain_points,selling_points,scenes,video_structure,subtitle_layout,cta,reusable_template,analyzed_at,analyze_status,analyze_provider,error_message",
+        DISCOVERY_CANDIDATES_CSV: "candidate_id,video_id,url,author,title,description,duration_sec,view_count,like_count,comment_count,share_count,hashtags,thumbnail_url,category,subcategory,source_query_id,source_type,source_value,discover_provider,fetch_provider,score,status,discovered_at,promoted_at,error_message",
+    }
+    cleared_paths: set[Path] = set()
+    for path, header in headers.items():
+        key = path.resolve()
+        if key in cleared_paths:
+            continue
+        cleared_paths.add(key)
+        _write_csv_header(path, header)
+        legacy = MVP_ROOT / "数据表" / path.name
+        if legacy.resolve() != key and legacy.exists():
+            _write_csv_header(legacy, header)
+
+    decompose_removed = _purge_dir_contents(DECOMPOSE_DIR)
+    legacy_decompose = MVP_ROOT / "AI拆解结果"
+    if legacy_decompose.resolve() != DECOMPOSE_DIR.resolve():
+        decompose_removed += _purge_dir_contents(legacy_decompose)
+    thumbs_removed = _purge_dir_contents(THUMBNAILS_DIR)
+    prompts_removed = _prune_reverse_prompts()
+    legacy_prompt = MVP_ROOT / "数据表" / "prompt_library.json"
+    if legacy_prompt.resolve() != PROMPT_LIBRARY_JSON.resolve() and legacy_prompt.exists():
+        try:
+            legacy_prompt.write_text(PROMPT_LIBRARY_JSON.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError:
+            pass
+    save_maintenance_state({})
+    save_hotspot_state({})
+
+    return {
+        "ok": True,
+        "message": "对标素材库已清空，可从 TikTok 采集重新测试",
+        "decompose_dirs_removed": decompose_removed,
+        "thumbnails_removed": thumbs_removed,
+        "reverse_prompts_removed": prompts_removed,
+        "materials_total": 0,
+        "materials_analyzed": 0,
+        "cleared_at": _utc_now(),
+    }

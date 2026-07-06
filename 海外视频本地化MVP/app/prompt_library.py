@@ -10,7 +10,6 @@ from typing import Any
 from paths import PROMPT_LIBRARY_JSON
 
 from .brand_policy import detect_content_line
-from .data import load_script_payload
 
 ADOPTED_FOR_PROMPT_LIBRARY = frozenset({"已采纳", "修改后采纳"})
 
@@ -334,6 +333,8 @@ def publish_approved_script(slug: str, feedback: dict[str, Any] | None = None) -
     link_id = _link_id_from_slug(slug) or _link_id_from_slug(str(feedback.get("link_id") or ""))
     payload: dict[str, Any] = {}
     if link_id:
+        from .data import load_script_payload
+
         payload = load_script_payload(link_id)
     if not payload:
         return None

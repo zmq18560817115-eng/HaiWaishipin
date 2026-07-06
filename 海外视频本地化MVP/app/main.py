@@ -88,7 +88,7 @@ from .feedback_tags import ISSUE_TAG_DEFS
 from .feishu_bridge import feishu_auth_url_payload, feishu_doctor_payload, feishu_status_payload
 from .hotspot_refresh import hotspot_status_payload, refresh_hotspot_videos
 from .llm_script import pick_template
-from .material_maintenance import maintenance_status_payload, run_material_maintenance
+from .material_maintenance import maintenance_status_payload, run_material_maintenance, clear_material_library
 from .olm_bridge import (
     build_delivery_zip,
     delivery_ready,
@@ -145,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 191
+UI_VERSION = 192
 
 
 def _render_index() -> HTMLResponse:
@@ -1101,6 +1101,14 @@ async def materials_maintenance_run(body: MaterialMaintenanceRequest) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"素材维护失败: {exc}") from exc
     return result
+
+
+@app.post("/api/materials/maintenance/clear")
+async def materials_maintenance_clear() -> dict:
+    try:
+        return await run_in_threadpool(clear_material_library)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"清空素材库失败: {exc}") from exc
 
 
 @app.post("/api/delivery/{slug}/finish")
