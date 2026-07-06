@@ -187,21 +187,32 @@ def _collect_forbidden() -> str:
     return "；".join(dict.fromkeys(terms))
 
 
+def _product_id_from_path(path: Path, product_name: str) -> str | None:
+    stem = path.stem
+    if stem in PILOT_PRODUCT_FILES:
+        return stem
+    if "吸奶器" in stem and any(k in stem for k in ("产品介绍", "品牌手册", "技术原理", "竞品", "品牌信息", "泌乳")):
+        return "吸奶器"
+    if ("恒温杯" in stem or "便携恒温杯" in stem) and any(
+        k in stem for k in ("产品介绍", "品牌手册", "竞品", "品牌信息")
+    ):
+        return "便携恒温杯"
+    return None
+
+
 def parse_product_md(path: Path, global_forbidden: str) -> dict[str, str] | None:
     text = path.read_text(encoding="utf-8")
     meta, body = _parse_frontmatter(text)
     sections = _section_map(body)
     title = str(meta.get("title") or path.stem)
     product_name = title.split("·")[0].strip() if "·" in title else title
-    stem = path.stem
-    if stem == "吸奶器" or "吸奶器" in product_name or "panda-bubu" in stem.lower():
-        product_id = "吸奶器"
-        product_name = "熊猫布布吸奶器"
-    elif stem == "便携恒温杯" or "恒温杯" in product_name:
-        product_id = "便携恒温杯"
-        product_name = "熊猫布布便携恒温杯"
-    else:
+    product_id = _product_id_from_path(path, product_name)
+    if not product_id:
         return None
+    if product_id == "吸奶器":
+        product_name = "熊猫布布吸奶器"
+    elif product_id == "便携恒温杯":
+        product_name = "熊猫布布便携恒温杯"
 
     row: dict[str, str] = {
         "product_id": product_id,
@@ -228,14 +239,14 @@ def parse_product_md(path: Path, global_forbidden: str) -> dict[str, str] | None
             row[field] = chunk
 
     if "恒温杯" in product_name or "暖奶" in product_name:
-        if not row["target_audience"]:
+        if not row["target_audience"] and path.stem in PILOT_PRODUCT_FILES:
             row["target_audience"] = "0-12月新手爸妈；夜奶/外出行程家庭；瓶喂与混合喂养妈妈"
         if not row["usage_scenarios"]:
             row["usage_scenarios"] = "夜间卧室喂奶；车内杯架；机场旅途；公园遛娃；办公室背奶"
         if not row["pain_points"]:
             row["pain_points"] = "外出没热水；加热太慢；温度不均；传统暖奶器不便携；夜喂等待久"
     elif "吸奶器" in product_name or "panda" in product_name.lower():
-        if not row["target_audience"]:
+        if not row["target_audience"] and path.stem in PILOT_PRODUCT_FILES:
             row["target_audience"] = "0-6月新手妈妈；背奶职场妈妈；夜间吸奶人群"
         if not row["usage_scenarios"]:
             row["usage_scenarios"] = "夜间吸奶；背奶通勤；居家哺乳角；办公室隐蔽吸奶"
@@ -266,8 +277,11 @@ def _is_product_doc(path: Path) -> bool:
 
 
 def discover_sources() -> tuple[list[Path], str]:
-    """试点模式：只从本地 knowledge/products 读取两款主产品。"""
+    """本地规范档案 + DS223 公司资料库（按白名单合并）。"""
     files: list[Path] = []
+    notes: list[str] = []
+    canonical_names = {f"{stem}.md" for stem in PILOT_PRODUCT_FILES}
+
     for root in LOCAL_PRODUCT_ROOTS:
         if not root.exists():
             continue
@@ -275,12 +289,70 @@ def discover_sources() -> tuple[list[Path], str]:
             path = root / f"{stem}.md"
             if path.exists():
                 files.append(path)
+    if files:
+        notes.append(f"本地规范档案 {len(files)} 篇")
+
+    if DS223_PRODUCTS_ROOT.exists():
+        ds223: list[Path] = []
+        for path in sorted(DS223_PRODUCTS_ROOT.rglob("*.md")):
+            if path.name in canonical_names:
+                continue
+            if _is_product_doc(path):
+                ds223.append(path)
+        if ds223:
+            files.extend(ds223)
+            notes.append(f"DS223 补充 {len(ds223)} 篇")
+    elif not files:
+        raise FileNotFoundError(
+            "未找到产品资料。请连接 DS223（\\\\DS223\\obsidian知识库）或检查本地 knowledge/products/"
+        )
+
     if not files:
         raise FileNotFoundError(
             f"未找到试点产品资料，请确认存在：{', '.join(f'{s}.md' for s in PILOT_PRODUCT_FILES)}"
         )
-    names = "、".join(PILOT_PRODUCT_FILES)
-    return files, f"试点产品 {len(files)} 款（{names}）"
+    return files, "；".join(notes) if notes else f"试点 {len(files)} 篇"
+
+
+def publish_canonical_to_ds223() -> list[Path]:
+    """将工作台规范产品档案写入 DS223 Obsidian 知识库。"""
+    if not DS223_PRODUCTS_ROOT.exists():
+        raise FileNotFoundError("DS223 离线，请先连接公司内网/VPN 后重试")
+    published: list[Path] = []
+    for root in LOCAL_PRODUCT_ROOTS:
+        if not root.exists():
+            continue
+        for stem in PILOT_PRODUCT_FILES:
+            src = root / f"{stem}.md"
+            if not src.is_file():
+                continue
+            dest = DS223_PRODUCTS_ROOT / f"{stem}.md"
+            body = src.read_text(encoding="utf-8")
+            if not body.startswith("---"):
+                header = (
+                    "---\n"
+                    f"title: {stem}\n"
+                    "category: products\n"
+                    "source: workspace-sync\n"
+                    f"updated: {utc_now()[:10]}\n"
+                    f"tags: [products, {stem}]\n"
+                    "---\n\n"
+                )
+                body = header + body.lstrip()
+            dest.write_text(body, encoding="utf-8")
+            published.append(dest)
+    return published
+
+
+def supplement_and_sync() -> tuple[list[dict[str, str]], str]:
+    """先推送规范档案到 DS223，再合并公司资料库同步到 product_materials。"""
+    try:
+        published = publish_canonical_to_ds223()
+        pub_note = f"已写入 DS223 {len(published)} 篇"
+    except FileNotFoundError as exc:
+        pub_note = str(exc)
+    rows, status = sync_products()
+    return rows, f"{pub_note}；{status}" if pub_note else status
 
 
 def sync_products() -> tuple[list[dict[str, str]], str]:
@@ -309,8 +381,13 @@ def sync_products() -> tuple[list[dict[str, str]], str]:
         for field in PRODUCT_FIELDS:
             if field in ("product_id", "product_name", "source_path", "synced_at"):
                 continue
-            if row.get(field) and row[field] not in (by_id[pid].get(field) or ""):
-                by_id[pid][field] = (by_id[pid].get(field) or "") + "；" + row[field]
+            chunk = str(row.get(field) or "").strip()
+            if not chunk:
+                continue
+            existing = str(by_id[pid].get(field) or "").strip()
+            if chunk in existing:
+                continue
+            by_id[pid][field] = (existing + "；" + chunk) if existing else chunk
 
     merged = [by_id[pid] for pid in PILOT_PRODUCT_IDS if pid in by_id]
 
@@ -322,13 +399,13 @@ def sync_products() -> tuple[list[dict[str, str]], str]:
     for row in merged:
         md = (
             f"# {row['product_name']}\n\n"
-            f"- **适用人群**: {row['target_audience']}\n"
-            f"- **核心卖点**: {row['core_selling_points']}\n"
-            f"- **用户痛点**: {row['pain_points']}\n"
-            f"- **使用场景**: {row['usage_scenarios']}\n"
-            f"- **禁用词/风险**: {row['forbidden_terms']}\n"
-            f"- **价格区间**: {row['price_range'] or '待补充'}\n"
-            f"- **竞品参考**: {row['competitor_ref']}\n\n"
+            f"## 适用人群\n{row['target_audience']}\n\n"
+            f"## 核心卖点\n{row['core_selling_points']}\n\n"
+            f"## 用户痛点\n{row['pain_points']}\n\n"
+            f"## 使用场景\n{row['usage_scenarios']}\n\n"
+            f"## 禁用词/风险表述\n{row['forbidden_terms']}\n\n"
+            f"## 价格区间\n{row['price_range'] or '待补充'}\n\n"
+            f"## 竞品参考\n{row['competitor_ref']}\n\n"
             f"> 来源: {row['source_path']}\n"
         )
         (PRODUCT_MATERIALS_DIR / f"{row['product_id']}.md").write_text(md, encoding="utf-8")

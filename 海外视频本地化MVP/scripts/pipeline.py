@@ -776,16 +776,19 @@ def cmd_templates() -> int:
 # ── products → product_materials（DS223 + 本地）────────────────────────────
 
 def cmd_products() -> int:
-    from sync_products import sync_products
+    from sync_products import supplement_and_sync
 
     try:
-        rows, status = sync_products()
+        rows, status = supplement_and_sync()
     except FileNotFoundError as exc:
         safe_print(str(exc))
         return 1
     safe_print(f"OK product_materials（{len(rows)} 个产品，{status}）")
     for row in rows:
-        safe_print(f"  · {row['product_name']} → {row['product_id']}")
+        safe_print(
+            f"  · {row['product_name']} → {row['product_id']}"
+            f"（人群 {len(row.get('target_audience') or '')} 字，卖点 {len(row.get('core_selling_points') or '')} 字）"
+        )
     return 0
 
 

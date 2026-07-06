@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-06T06:18:38+00:00",
+  "updated_at": "2026-07-06T07:22:00+00:00",
   "items": [
     {
       "source": "preset",
@@ -12,14 +12,12 @@
       "product_id": "",
       "content_line": "",
       "sort_order": 1,
-      "tags": [
-        "preset",
-        "scene-use"
-      ],
+      "tags": ["preset", "scene-use"],
       "prompt_id": "pl-preset-scene-use",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T06:18:38+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
       "_key": "preset|scene-use|"
     },
     {
@@ -32,14 +30,12 @@
       "product_id": "",
       "content_line": "",
       "sort_order": 2,
-      "tags": [
-        "preset",
-        "pain-hook"
-      ],
+      "tags": ["preset", "pain-hook"],
       "prompt_id": "pl-preset-pain-hook",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T06:18:38+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
       "_key": "preset|pain-hook|"
     },
     {
@@ -52,15 +48,31 @@
       "product_id": "",
       "content_line": "",
       "sort_order": 3,
-      "tags": [
-        "preset",
-        "unbox"
-      ],
+      "tags": ["preset", "unbox"],
       "prompt_id": "pl-preset-unbox",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T06:18:38+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
       "_key": "preset|unbox|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "brand-promo",
+      "label": "品牌宣传",
+      "sub": "品牌价值 · 信任背书",
+      "prompt_text": "品牌宣传短片结构：品牌理念一句话开场（解决什么问题、为谁而生）→产品作为品牌承诺的具象化载体入画（非硬广罗列参数）→2–3 个真实育儿场景混剪传递「可靠、贴心、专业」品牌气质→用户证言或数据背书（销量、口碑、奖项等可核实信息，禁止虚构）→品牌 Slogan + 温和 CTA（关注/了解系列）。口播稳重可信，画面统一品牌色调，竖屏 9:16。禁止 cure/treat/best/#1/medical grade 等禁用表述；温度展示约 98°F，禁止蒸汽沸腾。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 4,
+      "tags": ["preset", "brand-promo"],
+      "prompt_id": "pl-preset-brand-promo",
+      "approval_status": "approved",
+      "usage_count": 0,
+      "created_at": "2026-07-06T06:26:16+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
+      "_key": "preset|brand-promo|"
     },
     {
       "source": "preset",
@@ -71,15 +83,13 @@
       "prompt_text_en": "",
       "product_id": "",
       "content_line": "",
-      "sort_order": 4,
-      "tags": [
-        "preset",
-        "demo-proof"
-      ],
+      "sort_order": 5,
+      "tags": ["preset", "demo-proof"],
       "prompt_id": "pl-preset-demo-proof",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T06:18:38+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
       "_key": "preset|demo-proof|"
     },
     {
@@ -91,15 +101,13 @@
       "prompt_text_en": "",
       "product_id": "",
       "content_line": "",
-      "sort_order": 5,
-      "tags": [
-        "preset",
-        "travel-test"
-      ],
+      "sort_order": 6,
+      "tags": ["preset", "travel-test"],
       "prompt_id": "pl-preset-travel-test",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T06:18:38+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
       "_key": "preset|travel-test|"
     },
     {
@@ -111,407 +119,14 @@
       "prompt_text_en": "",
       "product_id": "",
       "content_line": "",
-      "sort_order": 6,
-      "tags": [
-        "preset",
-        "soft-cta"
-      ],
+      "sort_order": 7,
+      "tags": ["preset", "soft-cta"],
       "prompt_id": "pl-preset-soft-cta",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T06:18:38+00:00",
+      "updated_at": "2026-07-06T07:22:00+00:00",
       "_key": "preset|soft-cta|"
-    },
-    {
-      "source": "reverse_script",
-      "reverse_type": "script",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "脚本镜 1 · PART THREE: Having a portable bo",
-      "prompt_text": "夜间卧室喂奶：近景口播/问题特写；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（华氏度 °F 温度，典型约 98°F，禁止摄氏度）；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；数显温度单位为华氏度（°F），禁止显示摄氏度（°C）；出口版典型读数约 98°F（接近体温的舒适温奶，非沸水）；屏上须带 °F 标识，不得把 98 画成 98°C 或仅写 98 无单位；母乳/配方奶为温热状态（body-warm），倒奶时液体平稳流出；禁止：烧开冒热气、大量白色蒸汽、沸腾起泡、火苗加热、滚烫发红液体；竖屏9:16",
-      "prompt_text_en": "Hook opening, nighttime nursery bedroom feeding, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, medium shot holding portable rechargeable milk-warming thermos cup — match approved white-background hero product photo exactly for matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole, light-purple lid release button, nurture wise band, vertical digital Fahrenheit °F display showing ~98°F; no redesign, recolor, or simplification beside separate baby bottle on bedside table, warm soft light, subtle push-in, vertical 9:16, TikTok product ad style, no medical claim, same person identity across all shots, motivated key light, soft shadows, natural reflections, realistic exposure, match white-background hero product appearance exactly, no redesign; physics-safe pour and hand motion; scenario-consistent props. Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; Fahrenheit °F display ~98°F only, no °C; no steam or boiling; never put bottle inside cup; match white-background hero and pour-spout reference exactly. Mood: Middle-of-the-night feeds and milk still not warm enough?",
-      "structure_role": "AI_VIDEO",
-      "shot_index": 0,
-      "tags": [
-        "reverse",
-        "script",
-        "AI_VIDEO"
-      ],
-      "prompt_id": "pl-脚本镜-1-part-three-hav-b06fd008",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:30+00:00",
-      "updated_at": "2026-07-06T06:07:30+00:00",
-      "_key": "reverse_script|script|2|0|脚本镜-1-part-three-having-a-portab"
-    },
-    {
-      "source": "reverse_script",
-      "reverse_type": "script",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "脚本镜 2 · PART THREE: Having a portable bo",
-      "prompt_text": "夜间卧室喂奶：呈现痛点（外出没热水、找微波炉麻烦）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（华氏度 °F 温度，典型约 98°F，禁止摄氏度）；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；数显温度单位为华氏度（°F），禁止显示摄氏度（°C）；出口版典型读数约 98°F（接近体温的舒适温奶，非沸水）；屏上须带 °F 标识，不得把 98 画成 98°C 或仅写 98 无单位；母乳/配方奶为温热状态（body-warm），倒奶时液体平稳流出；禁止：烧开冒热气、大量白色蒸汽、沸腾起泡、火苗加热、滚烫发红液体；竖屏9:16",
-      "prompt_text_en": "Problem moment, nighttime nursery bedroom feeding, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, frustrated with cold milk in baby bottle, bulky old bottle warmer in background, moody lighting, realistic hand physics, vertical 9:16, TikTok product ad style, no medical claim, same person identity across all shots, motivated key light, soft shadows, natural reflections, realistic exposure, match white-background hero product appearance exactly, no redesign; physics-safe pour and hand motion; scenario-consistent props. Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; Fahrenheit °F display ~98°F only, no °C; no steam or boiling; never put bottle inside cup; match white-background hero and pour-spout reference exactly. No convenient hot water when baby wakes up hungry.",
-      "structure_role": "AI_VIDEO",
-      "shot_index": 1,
-      "tags": [
-        "reverse",
-        "script",
-        "AI_VIDEO"
-      ],
-      "prompt_id": "pl-脚本镜-2-part-three-hav-8f392ffd",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:30+00:00",
-      "updated_at": "2026-07-06T06:07:30+00:00",
-      "_key": "reverse_script|script|2|1|脚本镜-2-part-three-having-a-portab"
-    },
-    {
-      "source": "reverse_script",
-      "reverse_type": "script",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "脚本镜 3 · PART THREE: Having a portable bo",
-      "prompt_text": "夜间卧室喂奶：储奶袋/家用奶瓶经翻盖倒入杯内加热，倾斜经盖面圆孔出液嘴倒入干净奶瓶（便携可充电设计，外出随时加热；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（华氏度 °F 温度，典型约 98°F，禁止摄氏度）；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；数显温度单位为华氏度（°F），禁止显示摄氏度（°C）；出口版典型读数约 98°F（接近体温的舒适温奶，非沸水）；屏上须带 °F 标识，不得把 98 画成 98°C 或仅写 98 无单位；母乳/配方奶为温热状态（body-warm），倒奶时液体平稳流出；禁止：烧开冒热气、大量白色蒸汽、沸腾起泡、火苗加热、滚烫发红液体；竖屏9:16",
-      "prompt_text_en": "Product demo, nighttime nursery bedroom feeding, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, side angle — flip-top lid open, pour milk INTO portable rechargeable milk-warming thermos cup — match approved white-background hero product photo exactly for matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole, light-purple lid release button, nurture wise band, vertical digital Fahrenheit °F display showing ~98°F; no redesign, recolor, or simplification, tilt to pour warm milk OUT from lid spout into baby feeding bottle, realistic pour physics, vertical display visible, vertical 9:16, TikTok product ad style, no medical claim, same person identity across all shots, motivated key light, soft shadows, natural reflections, realistic exposure, match white-background hero product appearance exactly, no redesign; physics-safe pour and hand motion; scenario-consistent props. Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; Fahrenheit °F display ~98°F only, no °C; no steam or boiling; never put bottle inside cup; match white-background hero and pour-spout reference exactly. STRUCTURE (match pour-spout product reference exactly): flip-top hinged lid on top with light-purple side release button, NOT a screw cap; integrated POUR OUTLET is a small circular spout hole inside a bowl-shaped recess on the lid — when cup is tilted, warm milk streams OUT thro. USB-C rechargeable thermos cup — warm milk by the bed, pour when ready.",
-      "structure_role": "AI_VIDEO",
-      "shot_index": 2,
-      "tags": [
-        "reverse",
-        "script",
-        "AI_VIDEO"
-      ],
-      "prompt_id": "pl-脚本镜-3-part-three-hav-b7bc2df7",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:30+00:00",
-      "updated_at": "2026-07-06T06:07:30+00:00",
-      "_key": "reverse_script|script|2|2|脚本镜-3-part-three-having-a-portab"
-    },
-    {
-      "source": "reverse_script",
-      "reverse_type": "script",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "脚本镜 4 · PART THREE: Having a portable bo",
-      "prompt_text": "夜间卧室喂奶：效果/细节证明；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（华氏度 °F 温度，典型约 98°F，禁止摄氏度）；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；数显温度单位为华氏度（°F），禁止显示摄氏度（°C）；出口版典型读数约 98°F（接近体温的舒适温奶，非沸水）；屏上须带 °F 标识，不得把 98 画成 98°C 或仅写 98 无单位；母乳/配方奶为温热状态（body-warm），倒奶时液体平稳流出；禁止：烧开冒热气、大量白色蒸汽、沸腾起泡、火苗加热、滚烫发红液体；竖屏9:16",
-      "prompt_text_en": "Proof detail, nighttime nursery bedroom feeding, macro shot of body-warm milk pouring OUT from lid spout of portable rechargeable milk-warming thermos cup — match approved white-background hero product photo exactly for matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole, light-purple lid release button, nurture wise band, vertical digital Fahrenheit °F display showing ~98°F; no redesign, recolor, or simplification into baby feeding bottle, no steam plume or boiling bubbles, hinged lid open, no person face, no medical claim, vertical 9:16, TikTok product ad style, motivated key light, soft shadows, natural reflections, realistic exposure, match white-background hero product appearance exactly, no redesign; physics-safe pour and hand motion; scenario-consistent props. Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; Fahrenheit °F display ~98°F only, no °C; no steam or boiling; never put bottle inside cup; match white-background hero and pour-spout reference exactly. STRUCTURE (match pour-spout product reference exactly): flip-top hinged lid on top with light-purple side release button, NOT a screw cap; integrated POUR OUTLET is a small circular spout hole inside a bowl-shaped recess on the lid — when cup is tilted, warm milk streams OUT thro. Warm milk poured out ready for the bottle — without leaving the room.",
-      "structure_role": "AI_VIDEO",
-      "shot_index": 3,
-      "tags": [
-        "reverse",
-        "script",
-        "AI_VIDEO"
-      ],
-      "prompt_id": "pl-脚本镜-4-part-three-hav-d6502012",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:30+00:00",
-      "updated_at": "2026-07-06T06:07:30+00:00",
-      "_key": "reverse_script|script|2|3|脚本镜-4-part-three-having-a-portab"
-    },
-    {
-      "source": "reverse_script",
-      "reverse_type": "script",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "脚本镜 5 · PART THREE: Having a portable bo",
-      "prompt_text": "夜间卧室喂奶：口播对镜收束；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（华氏度 °F 温度，典型约 98°F，禁止摄氏度）；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；数显温度单位为华氏度（°F），禁止显示摄氏度（°C）；出口版典型读数约 98°F（接近体温的舒适温奶，非沸水）；屏上须带 °F 标识，不得把 98 画成 98°C 或仅写 98 无单位；母乳/配方奶为温热状态（body-warm），倒奶时液体平稳流出；禁止：烧开冒热气、大量白色蒸汽、沸腾起泡、火苗加热、滚烫发红液体；竖屏9:16",
-      "prompt_text_en": "CTA closing, nighttime nursery bedroom feeding, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, smiling to camera with portable rechargeable milk-warming thermos cup — match approved white-background hero product photo exactly for matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole, light-purple lid release button, nurture wise band, vertical digital Fahrenheit °F display showing ~98°F; no redesign, recolor, or simplification and baby bottle on clean surface, flip-top lid closed, digital display visible, natural gesture, vertical 9:16, TikTok product ad style, no medical claim, same person identity across all shots, motivated key light, soft shadows, natural reflections, realistic exposure, match white-background hero product appearance exactly, no redesign; physics-safe pour and hand motion; scenario-consistent props. Portable thermos cup warms milk inside; pour body-warm milk OUT through lid spout into baby bottle; Fahrenheit °F display ~98°F only, no °C; no steam or boiling; never put bottle inside cup; match white-background hero and pour-spout reference exactly. Save this for your next night feed.",
-      "structure_role": "AI_VIDEO",
-      "shot_index": 4,
-      "tags": [
-        "reverse",
-        "script",
-        "AI_VIDEO"
-      ],
-      "prompt_id": "pl-脚本镜-5-part-three-hav-0085d0f2",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:30+00:00",
-      "updated_at": "2026-07-06T06:07:30+00:00",
-      "_key": "reverse_script|script|2|4|脚本镜-5-part-three-having-a-portab"
-    },
-    {
-      "source": "reverse_script",
-      "reverse_type": "script",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "脚本结构 · PART THREE: Having a portable bo",
-      "prompt_text": "【钩子】0-3s 抛出反问或反差：「PART THREE: Having a portable …」抓住停留\n\n【痛点】妈妈常见困扰：portablebottlewarmer、bolololife、bololoportablebottlewarmer、bololo、exclusivelypumping 相关的不便、踩坑或焦虑（如配件不合、步骤繁琐、夜间打扰）\n\n【卖点】视频强调的价值点：实用技巧、省时省力、更好体验（从标题/话题推断：portablebottlewarmer、bolololife、bololoportablebottlewarmer、bololo、exclusivelypumping）\n\n【结构】钩子(0-3s) → 痛点(3-8s) → 方法演示(8-15s) → 效果/对比(15-18s) → CTA(18-20s)\n\n【模板】【模板】痛点反问开场 → 3步实操演示 → 前后对比一句 → 软性 CTA。适用于教程类、测评类、hack 类母婴短视频。\n\n【CTA】收藏教程 / 评论区交流经验 / 关注获取更多背奶技巧",
-      "prompt_text_en": "",
-      "structure_role": "structure",
-      "shot_index": -1,
-      "tags": [
-        "reverse",
-        "script",
-        "structure"
-      ],
-      "prompt_id": "pl-脚本结构-part-three-havi-fdd17142",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:30+00:00",
-      "updated_at": "2026-07-06T06:07:30+00:00",
-      "_key": "reverse_script|script|2|-1|脚本结构-part-three-having-a-portabl"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 转场",
-      "prompt_text": "系列内容开场可使用清晰的系列编号标识，方便老观众衔接内容，强化系列感",
-      "prompt_text_en": "固定镜头，文字渐显. （推断）画面居中显示“PART THREE”白色粗体文字，背景为浅色调，隐约可见婴儿奶瓶、妈咪包等物品轮廓. Structure: transition. Scene: 静物开场场景",
-      "structure_role": "transition",
-      "shot_index": 1,
-      "tags": [
-        "reverse",
-        "video",
-        "transition"
-      ],
-      "prompt_id": "pl-part-three-having-a--ab9e5943",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|1|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 钩子",
-      "prompt_text": "好物种草开场可直接点出产品核心利益点，快速命中目标用户核心需求，抓牢注意力",
-      "prompt_text_en": "中景固定镜头，聚焦博主与手中产品. （推断）博主手持便携温奶器出镜，面向镜头说话，背景为室内桌面或户外出行相关场景. Structure: hook. Scene: 博主口播场景",
-      "structure_role": "hook",
-      "shot_index": 2,
-      "tags": [
-        "reverse",
-        "video",
-        "hook"
-      ],
-      "prompt_id": "pl-part-three-having-a--a35dab3c",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|2|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · other",
-      "prompt_text": "产品介绍阶段需清晰展示品牌标识与产品外观，降低用户识别成本",
-      "prompt_text_en": "近景推进镜头，聚焦产品外观与品牌标识. （推断）镜头给到便携温奶器的近景特写，清晰展示产品外观与“bololo”品牌标识，奶瓶放置在温奶器上方. Structure: other. Scene: 产品展示场景",
-      "structure_role": "other",
-      "shot_index": 3,
-      "tags": [
-        "reverse",
-        "video",
-        "other"
-      ],
-      "prompt_id": "pl-part-three-having-a--6f643ae1",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|3|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 演示",
-      "prompt_text": "讲解续航类卖点时，搭配电量显示、使用时长标注等可视化元素，更具说服力",
-      "prompt_text_en": "特写固定镜头，聚焦电量相关部位. （推断）镜头特写温奶器的电量显示区域/充电接口，画面旁可能叠加续航时长的文字标注. Structure: demo. Scene: 卖点演示场景",
-      "structure_role": "demo",
-      "shot_index": 4,
-      "tags": [
-        "reverse",
-        "video",
-        "demo"
-      ],
-      "prompt_id": "pl-part-three-having-a--4210aed2",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|4|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 演示",
-      "prompt_text": "讲解便携/收纳卖点时，用实际操作演示替代文字描述，更直观易懂",
-      "prompt_text_en": "中景固定镜头，拍摄收纳操作过程. （推断）博主将温奶器放入妈咪包的隔层中，展示温奶器可轻松收纳进妈咪包. Structure: demo. Scene: 收纳场景演示",
-      "structure_role": "demo",
-      "shot_index": 5,
-      "tags": [
-        "reverse",
-        "video",
-        "demo"
-      ],
-      "prompt_id": "pl-part-three-having-a--cf3a3e88",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|5|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 演示",
-      "prompt_text": "讲解易清洁卖点时，直接演示拆解与清洗过程，打消用户清洁顾虑",
-      "prompt_text_en": "近景跟随镜头，拍摄拆解与清洁动作. （推断）博主拆解温奶器的可拆卸部件，用清水冲洗部件，展示产品结构简单. Structure: demo. Scene: 清洁演示场景",
-      "structure_role": "demo",
-      "shot_index": 6,
-      "tags": [
-        "reverse",
-        "video",
-        "demo"
-      ],
-      "prompt_id": "pl-part-three-having-a--7971c6d4",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|6|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 演示",
-      "prompt_text": "核心功能演示需清晰展示工作状态与效果，增强内容可信度",
-      "prompt_text_en": "特写固定镜头，聚焦温奶器工作状态. （推断）温奶器上放置着奶瓶，屏幕显示温度数值，展示温奶器工作加热的状态. Structure: demo. Scene: 功能演示场景",
-      "structure_role": "demo",
-      "shot_index": 7,
-      "tags": [
-        "reverse",
-        "video",
-        "demo"
-      ],
-      "prompt_id": "pl-part-three-having-a--dfe4ca5e",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|7|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 引导",
-      "prompt_text": "大促节点种草需明确提示促销信息，配合推荐语气，刺激用户即时转化",
-      "prompt_text_en": "中景固定镜头，博主出镜，促销文字叠加显示. （推断）博主面向镜头说话，画面侧方叠加“Black Friday sale”的文字与闪电、举手emoji. Structure: cta. Scene: 促销口播场景",
-      "structure_role": "cta",
-      "shot_index": 8,
-      "tags": [
-        "reverse",
-        "video",
-        "cta"
-      ],
-      "prompt_id": "pl-part-three-having-a--36550152",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|8|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · 引导",
-      "prompt_text": "视频结尾放置产品购买或账号关注引导，提升转化与涨粉效率",
-      "prompt_text_en": "固定镜头，展示产品与引导信息. （推断）画面展示Bololo便携温奶器的精美静物图，下方叠加产品购买引导或品牌账号标识. Structure: cta. Scene: 导流展示场景",
-      "structure_role": "cta",
-      "shot_index": 9,
-      "tags": [
-        "reverse",
-        "video",
-        "cta"
-      ],
-      "prompt_id": "pl-part-three-having-a--7b790aa5",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|9|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "PART THREE: Having a portable bo · other",
-      "prompt_text": "结尾添加精准话题标签，提升内容在垂直领域的曝光量",
-      "prompt_text_en": "固定镜头，标签文字滚动显示. （推断）画面底部滚动显示相关话题标签文字. Structure: other. Scene: 结尾标签场景",
-      "structure_role": "other",
-      "shot_index": 10,
-      "tags": [
-        "reverse",
-        "video",
-        "other"
-      ],
-      "prompt_id": "pl-part-three-having-a--099f4e26",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|10|part-three-having-a-portable-bo-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 2,
-      "material_title": "PART THREE: Having a portable bottle warmer makes heating your baby's bottles on the go so easy.  This one has a long battery, fits in your diaper bag, and is easy to clean. If you don’t have one yet, I highly recommend getting one during its Black Friday sale ⚡️🙌🏻 #portablebottlewarmer #bolololife #bololoportablebottlewarmer #bololo #exclusivelypumping #blackfriday #pumpingmom #pumpingmama #musthaves #momsoftiktok #momlife #momhack #fyp #fy #foryou #foryoupage",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "完整分镜 · PART THREE: Having a portable bo",
-      "prompt_text": "1. [转场] 系列内容开场可使用清晰的系列编号标识，方便老观众衔接内容，强化系列感\n2. [钩子] 好物种草开场可直接点出产品核心利益点，快速命中目标用户核心需求，抓牢注意力\n3. [other] 产品介绍阶段需清晰展示品牌标识与产品外观，降低用户识别成本\n4. [演示] 讲解续航类卖点时，搭配电量显示、使用时长标注等可视化元素，更具说服力\n5. [演示] 讲解便携/收纳卖点时，用实际操作演示替代文字描述，更直观易懂\n6. [演示] 讲解易清洁卖点时，直接演示拆解与清洗过程，打消用户清洁顾虑\n7. [演示] 核心功能演示需清晰展示工作状态与效果，增强内容可信度\n8. [引导] 大促节点种草需明确提示促销信息，配合推荐语气，刺激用户即时转化\n9. [引导] 视频结尾放置产品购买或账号关注引导，提升转化与涨粉效率\n10. [other] 结尾添加精准话题标签，提升内容在垂直领域的曝光量",
-      "prompt_text_en": "Shot 1 (transition): 固定镜头，文字渐显. （推断）画面居中显示“PART THREE”白色粗体文字，背景为浅色调，隐约可见婴儿奶瓶、妈咪包等物品轮廓. Structure: transition. Scene: 静物开场场景\n\nShot 2 (hook): 中景固定镜头，聚焦博主与手中产品. （推断）博主手持便携温奶器出镜，面向镜头说话，背景为室内桌面或户外出行相关场景. Structure: hook. Scene: 博主口播场景\n\nShot 3 (other): 近景推进镜头，聚焦产品外观与品牌标识. （推断）镜头给到便携温奶器的近景特写，清晰展示产品外观与“bololo”品牌标识，奶瓶放置在温奶器上方. Structure: other. Scene: 产品展示场景\n\nShot 4 (demo): 特写固定镜头，聚焦电量相关部位. （推断）镜头特写温奶器的电量显示区域/充电接口，画面旁可能叠加续航时长的文字标注. Structure: demo. Scene: 卖点演示场景\n\nShot 5 (demo): 中景固定镜头，拍摄收纳操作过程. （推断）博主将温奶器放入妈咪包的隔层中，展示温奶器可轻松收纳进妈咪包. Structure: demo. Scene: 收纳场景演示\n\nShot 6 (demo): 近景跟随镜头，拍摄拆解与清洁动作. （推断）博主拆解温奶器的可拆卸部件，用清水冲洗部件，展示产品结构简单. Structure: demo. Scene: 清洁演示场景\n\nShot 7 (demo): 特写固定镜头，聚焦温奶器工作状态. （推断）温奶器上放置着奶瓶，屏幕显示温度数值，展示温奶器工作加热的状态. Structure: demo. Scene: 功能演示场景\n\nShot 8 (cta): 中景固定镜头，博主出镜，促销文字叠加显示. （推断）博主面向镜头说话，画面侧方叠加“Black Friday sale”的文字与闪电、举手emoji. Structure: cta. Scene: 促销口播场景\n\nShot 9 (cta): 固定镜头，展示产品与引导信息. （推断）画面展示Bololo便携温奶器的精美静物图，下方叠加产品购买引导或品牌账号标识. Structure: cta. Scene: 导流展示场景\n\nShot 10 (other): 固定镜头，标签文字滚动显示. （推断）画面底部滚动显示相关话题标签文字. Structure: other. Scene: 结尾标签场景",
-      "structure_role": "full",
-      "shot_index": -1,
-      "tags": [
-        "reverse",
-        "video",
-        "full"
-      ],
-      "prompt_id": "pl-完整分镜-part-three-havi-06cedde4",
-      "usage_count": 0,
-      "created_at": "2026-07-06T06:07:36+00:00",
-      "updated_at": "2026-07-06T06:07:36+00:00",
-      "_key": "reverse_video|video|2|-1|完整分镜-part-three-having-a-portabl"
     }
   ]
 }

@@ -1,289 +1,154 @@
-{
-  "version": 1,
-  "updated_at": "2026-07-01T08:55:55+00:00",
-  "items": [
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "Keep your baby’s bottle warm on- · 钩子",
-      "prompt_text": "开篇用目标用户的高频痛点场景快速抓注意力，直接点题传递核心价值",
-      "prompt_text_en": "中景平拍. 推断画面为户外公共场景，家长手持凉的婴儿奶瓶，身旁有哭闹的宝宝，画面侧边露出便携式温奶器产品。. Structure: hook. Scene: 户外公共场景",
-      "structure_role": "hook",
-      "shot_index": 0,
-      "tags": [
-        "reverse",
-        "video",
-        "hook"
-      ],
-      "prompt_id": "pl-keep-your-baby-s-bot-4c82d3e3",
-      "usage_count": 1,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|0|keep-your-baby-s-bottle-warm-on-",
-      "last_used_at": "2026-07-01T02:57:20+00:00"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "Keep your baby’s bottle warm on- · 演示",
-      "prompt_text": "用操作演示+核心功能字幕高亮的方式，直观展示产品使用方式和核心优势，清晰易懂",
-      "prompt_text_en": "近景跟拍操作，特写温奶器屏幕. 推断画面为室内桌面场景，Babymoov便携式温奶器近景展示，演示者将装有液体的奶瓶放入温奶器并操作开机，温奶器屏幕显示温度上升状态。. Structure: demo. Scene: 室内桌面产品演示场景",
-      "structure_role": "demo",
-      "shot_index": 1,
-      "tags": [
-        "reverse",
-        "video",
-        "demo"
-      ],
-      "prompt_id": "pl-keep-your-baby-s-bot-1656ae28",
-      "usage_count": 0,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|1|keep-your-baby-s-bottle-warm-on-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "Keep your baby’s bottle warm on- · 演示",
-      "prompt_text": "用特写+图标动画+场景混剪的方式展示续航和充电卖点，强化外出使用的便利性",
-      "prompt_text_en": "特写推镜，切镜到充电使用场景. 推断画面为温奶器USB-C充电口特写，旁边弹出7小时续航的图标动画，穿插家长用充电宝给温奶器充电的画面。. Structure: demo. Scene: 产品特写+日常使用混剪场景",
-      "structure_role": "demo",
-      "shot_index": 2,
-      "tags": [
-        "reverse",
-        "video",
-        "demo"
-      ],
-      "prompt_id": "pl-keep-your-baby-s-bot-ff16d09e",
-      "usage_count": 0,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|2|keep-your-baby-s-bottle-warm-on-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "Keep your baby’s bottle warm on- · 验证",
-      "prompt_text": "用目标用户熟悉的多场景混剪，强化产品适配性，引发用户情感共鸣",
-      "prompt_text_en": "多镜头切换，以中景为主. 推断画面为多育儿场景混剪：家长推婴儿车逛公园时使用温奶器、自驾出行时温奶器放在杯架中、居家深夜带娃时使用温奶器，穿插宝宝开心喝奶的画面。. Structure: proof. Scene: 多育儿场景混剪",
-      "structure_role": "proof",
-      "shot_index": 3,
-      "tags": [
-        "reverse",
-        "video",
-        "proof"
-      ],
-      "prompt_id": "pl-keep-your-baby-s-bot-73cca5d5",
-      "usage_count": 0,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|3|keep-your-baby-s-bottle-warm-on-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "Keep your baby’s bottle warm on- · 引导",
-      "prompt_text": "用醒目CTA文字+产品全名明确引导用户点击简介链接购买，降低转化路径阻力",
-      "prompt_text_en": "固定机位，产品缓慢旋转，文字动态弹出. 推断画面为Babymoov便携式温奶器全景展示，产品缓慢旋转，画面上方/下方有醒目的指向性箭头和购买引导文字。. Structure: cta. Scene: 产品展示+CTA文字叠加场景",
-      "structure_role": "cta",
-      "shot_index": 4,
-      "tags": [
-        "reverse",
-        "video",
-        "cta"
-      ],
-      "prompt_id": "pl-keep-your-baby-s-bot-55ea6b91",
-      "usage_count": 0,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|4|keep-your-baby-s-bottle-warm-on-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "Keep your baby’s bottle warm on- · 引导",
-      "prompt_text": "结尾设置账号关注引导+垂直话题标签，同时提升账号涨粉量和内容曝光量",
-      "prompt_text_en": "固定机位，头像和关注按钮高亮动态展示. 推断画面为账号头像居中展示，旁边有高亮的关注按钮动画，底部滚动展示话题标签文字。. Structure: cta. Scene: 账号关注引导场景",
-      "structure_role": "cta",
-      "shot_index": 5,
-      "tags": [
-        "reverse",
-        "video",
-        "cta"
-      ],
-      "prompt_id": "pl-keep-your-baby-s-bot-4e9b7de1",
-      "usage_count": 0,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|5|keep-your-baby-s-bottle-warm-on-"
-    },
-    {
-      "source": "reverse_video",
-      "reverse_type": "video",
-      "link_id": 1,
-      "material_title": "Keep your baby’s bottle warm on-the-go! 🍼👶 This portable warmer heats water, formula milk, or breast milk to the perfect temperature in just 5 minutes. With a 7-hour battery life and USB-C charging, it’s ideal for busy parents.  **LINK IN BIO** Available Now: Babymoov Portable Bottle Warmer Moov & Feed Follow @gadgetglimpse to discover more interesting products. #BabyEssentials #TravelWithBaby #ParentingHacks #BabyCare #NewParents",
-      "content_line": "便携恒温杯",
-      "product_id": "便携恒温杯",
-      "label": "完整分镜 · Keep your baby’s bottle warm on-",
-      "prompt_text": "1. [钩子] 开篇用目标用户的高频痛点场景快速抓注意力，直接点题传递核心价值\n2. [演示] 用操作演示+核心功能字幕高亮的方式，直观展示产品使用方式和核心优势，清晰易懂\n3. [演示] 用特写+图标动画+场景混剪的方式展示续航和充电卖点，强化外出使用的便利性\n4. [验证] 用目标用户熟悉的多场景混剪，强化产品适配性，引发用户情感共鸣\n5. [引导] 用醒目CTA文字+产品全名明确引导用户点击简介链接购买，降低转化路径阻力\n6. [引导] 结尾设置账号关注引导+垂直话题标签，同时提升账号涨粉量和内容曝光量",
-      "prompt_text_en": "Shot 1 (hook): 中景平拍. 推断画面为户外公共场景，家长手持凉的婴儿奶瓶，身旁有哭闹的宝宝，画面侧边露出便携式温奶器产品。. Structure: hook. Scene: 户外公共场景\n\nShot 2 (demo): 近景跟拍操作，特写温奶器屏幕. 推断画面为室内桌面场景，Babymoov便携式温奶器近景展示，演示者将装有液体的奶瓶放入温奶器并操作开机，温奶器屏幕显示温度上升状态。. Structure: demo. Scene: 室内桌面产品演示场景\n\nShot 3 (demo): 特写推镜，切镜到充电使用场景. 推断画面为温奶器USB-C充电口特写，旁边弹出7小时续航的图标动画，穿插家长用充电宝给温奶器充电的画面。. Structure: demo. Scene: 产品特写+日常使用混剪场景\n\nShot 4 (proof): 多镜头切换，以中景为主. 推断画面为多育儿场景混剪：家长推婴儿车逛公园时使用温奶器、自驾出行时温奶器放在杯架中、居家深夜带娃时使用温奶器，穿插宝宝开心喝奶的画面。. Structure: proof. Scene: 多育儿场景混剪\n\nShot 5 (cta): 固定机位，产品缓慢旋转，文字动态弹出. 推断画面为Babymoov便携式温奶器全景展示，产品缓慢旋转，画面上方/下方有醒目的指向性箭头和购买引导文字。. Structure: cta. Scene: 产品展示+CTA文字叠加场景\n\nShot 6 (cta): 固定机位，头像和关注按钮高亮动态展示. 推断画面为账号头像居中展示，旁边有高亮的关注按钮动画，底部滚动展示话题标签文字。. Structure: cta. Scene: 账号关注引导场景",
-      "structure_role": "full",
-      "shot_index": -1,
-      "tags": [
-        "reverse",
-        "video",
-        "full"
-      ],
-      "prompt_id": "pl-完整分镜-keep-your-baby--d3c8d839",
-      "usage_count": 0,
-      "created_at": "2026-07-01T02:57:20+00:00",
-      "updated_at": "2026-07-01T03:08:21+00:00",
-      "_key": "reverse_video|video|1|-1|完整分镜-keep-your-baby-s-bottle-war"
-    },
-    {
-      "source": "preset",
-      "prompt_type": "scene-use",
-      "label": "场景种草",
-      "sub": "真实场景 · 卖点展示",
-      "prompt_text": "竖屏 9:16，真实育儿日常场景（客厅或外出休息区）。妈妈从妈咪包取出便携恒温杯，倒入温水后特写杯身数字屏稳定在约 98°F（37°C），口播自然讲解「外出也能随时冲奶」。镜头节奏紧凑：中景使用→特写温度屏→产品入画，突出便携、恒温、一键操作。禁止蒸汽、沸腾、奶液喷溅或夸张热雾画面。",
-      "prompt_text_en": "",
-      "product_id": "",
-      "content_line": "",
-      "sort_order": 1,
-      "tags": [
-        "preset",
-        "scene-use"
-      ],
-      "prompt_id": "pl-preset-scene-use",
-      "usage_count": 1,
-      "created_at": "2026-07-01T03:08:21+00:00",
-      "updated_at": "2026-07-01T08:55:55+00:00",
-      "_key": "preset|scene-use|",
-      "last_used_at": "2026-07-01T03:08:21+00:00"
-    },
-    {
-      "source": "preset",
-      "prompt_type": "pain-hook",
-      "label": "痛点钩子",
-      "sub": "3秒钩子 · 问题切入",
-      "prompt_text": "开场 3 秒钩子：宝宝饿哭/户外找不到合适水温的焦虑特写，字幕点出「凉水冲奶、保温难」痛点。随后便携恒温杯入画解决问题：加水→设定温度→屏显约 98°F 稳定。结构：痛点场景→产品介入→快速演示→效果确认→软性引导关注。口播口语化、镜头短平快，禁止蒸汽与沸腾夸张表现。",
-      "prompt_text_en": "",
-      "product_id": "",
-      "content_line": "",
-      "sort_order": 2,
-      "tags": [
-        "preset",
-        "pain-hook"
-      ],
-      "prompt_id": "pl-preset-pain-hook",
-      "usage_count": 0,
-      "created_at": "2026-07-01T03:08:21+00:00",
-      "updated_at": "2026-07-01T08:55:55+00:00",
-      "_key": "preset|pain-hook|"
-    },
-    {
-      "source": "preset",
-      "prompt_type": "unbox",
-      "label": "开箱测评",
-      "sub": "开箱 → 演示 → 推荐",
-      "prompt_text": "开箱测评结构：包装开箱→配件陈列→通电/setup 演示→外出场景实测→总结推荐。重点展示杯身做工、数字温控屏、续航与 USB-C 充电，实测冲奶/保温流程，强调「便携、恒温、外出友好」。结尾口播总结 2–3 个核心卖点。画面真实明亮，禁止蒸汽、沸腾、夸张热雾。",
-      "prompt_text_en": "",
-      "product_id": "",
-      "content_line": "",
-      "sort_order": 3,
-      "tags": [
-        "preset",
-        "unbox"
-      ],
-      "prompt_id": "pl-preset-unbox",
-      "usage_count": 0,
-      "created_at": "2026-07-01T03:08:21+00:00",
-      "updated_at": "2026-07-01T08:55:55+00:00",
-      "_key": "preset|unbox|"
-    },
-    {
-      "source": "preset",
-      "prompt_type": "demo-proof",
-      "label": "功能演示",
-      "sub": "操作特写 · 效果验证",
-      "prompt_text": "近景跟拍操作：单手开盖、加水、设定目标温度，特写屏幕从室温升至并稳定在约 98°F。穿插中景展示杯身尺寸与妈咪包收纳，字幕标注「恒温」「便携」「续航」。结尾对比使用前（凉水奶瓶）与使用后（温度适宜）的安心表情。禁止蒸汽、沸腾、液体飞溅。",
-      "prompt_text_en": "",
-      "product_id": "",
-      "content_line": "",
-      "sort_order": 4,
-      "tags": [
-        "preset",
-        "demo-proof"
-      ],
-      "prompt_id": "pl-preset-demo-proof",
-      "usage_count": 0,
-      "created_at": "2026-07-01T03:08:21+00:00",
-      "updated_at": "2026-07-01T08:55:55+00:00",
-      "_key": "preset|demo-proof|"
-    },
-    {
-      "source": "preset",
-      "prompt_type": "travel-test",
-      "label": "出行实测",
-      "sub": "车载 / 户外 · 真实续航",
-      "prompt_text": "出行实测：车载或公园长椅场景，家长带娃外出，从包中取出恒温杯完成一次冲奶/保温流程。展示 USB-C 充电、电量指示与长时间保温能力，口播强调「7 小时续航」「出门必备」。镜头含环境建立镜头+产品操作特写，氛围生活化、真实可信。禁止蒸汽、夸张热力特效。",
-      "prompt_text_en": "",
-      "product_id": "",
-      "content_line": "",
-      "sort_order": 5,
-      "tags": [
-        "preset",
-        "travel-test"
-      ],
-      "prompt_id": "pl-preset-travel-test",
-      "usage_count": 0,
-      "created_at": "2026-07-01T03:08:21+00:00",
-      "updated_at": "2026-07-01T08:55:55+00:00",
-      "_key": "preset|travel-test|"
-    },
-    {
-      "source": "preset",
-      "prompt_type": "soft-cta",
-      "label": "软性种草",
-      "sub": "生活方式 · 温和推荐",
-      "prompt_text": "生活方式软性种草：清晨/午后育儿片段，恒温杯作为背景道具自然出现，妈妈从容冲奶、宝宝满足饮用。旁白或字幕温和推荐「新手爸妈外出必备」。色调温暖、节奏舒缓，1–2 次产品特写即可，避免硬广口吻。温度展示约 98°F，禁止蒸汽与沸腾画面。",
-      "prompt_text_en": "",
-      "product_id": "",
-      "content_line": "",
-      "sort_order": 6,
-      "tags": [
-        "preset",
-        "soft-cta"
-      ],
-      "prompt_id": "pl-preset-soft-cta",
-      "usage_count": 0,
-      "created_at": "2026-07-01T03:08:21+00:00",
-      "updated_at": "2026-07-01T08:55:55+00:00",
-      "_key": "preset|soft-cta|"
-    }
-  ]
+﻿{
+    "updated_at":  "2026-07-06T07:11:44+00:00",
+    "version":  1,
+    "items":  [
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "scene-use",
+                      "label":  "场景种草",
+                      "sub":  "真实场景 · 卖点展示",
+                      "prompt_text":  "竖屏 9:16，真实育儿日常场景（客厅或外出休息区）。妈妈从妈咪包取出便携恒温杯，倒入温水后特写杯身数字屏稳定在约 98°F（37°C），口播自然讲解「外出也能随时冲奶」。镜头节奏紧凑：中景使用→特写温度屏→产品入画，突出便携、恒温、一键操作。禁止蒸汽、沸腾、奶液喷溅或夸张热雾画面。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  1,
+                      "tags":  [
+                                   "preset",
+                                   "scene-use"
+                               ],
+                      "prompt_id":  "pl-preset-scene-use",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-02T06:33:42+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|scene-use|"
+                  },
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "pain-hook",
+                      "label":  "痛点钩子",
+                      "sub":  "3秒钩子 · 问题切入",
+                      "prompt_text":  "开场 3 秒钩子：宝宝饿哭/户外找不到合适水温的焦虑特写，字幕点出「凉水冲奶、保温难」痛点。随后便携恒温杯入画解决问题：加水→设定温度→屏显约 98°F 稳定。结构：痛点场景→产品介入→快速演示→效果确认→软性引导关注。口播口语化、镜头短平快，禁止蒸汽与沸腾夸张表现。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  2,
+                      "tags":  [
+                                   "preset",
+                                   "pain-hook"
+                               ],
+                      "prompt_id":  "pl-preset-pain-hook",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-02T06:33:42+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|pain-hook|"
+                  },
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "unbox",
+                      "label":  "开箱测评",
+                      "sub":  "开箱 → 演示 → 推荐",
+                      "prompt_text":  "开箱测评结构：包装开箱→配件陈列→通电/setup 演示→外出场景实测→总结推荐。重点展示杯身做工、数字温控屏、续航与 USB-C 充电，实测冲奶/保温流程，强调「便携、恒温、外出友好」。结尾口播总结 2–3 个核心卖点。画面真实明亮，禁止蒸汽、沸腾、夸张热雾。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  3,
+                      "tags":  [
+                                   "preset",
+                                   "unbox"
+                               ],
+                      "prompt_id":  "pl-preset-unbox",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-02T06:33:42+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|unbox|"
+                  },
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "brand-promo",
+                      "label":  "品牌宣传",
+                      "sub":  "品牌价值 · 信任背书",
+                      "prompt_text":  "品牌宣传短片结构：品牌理念一句话开场（解决什么问题、为谁而生）→产品作为品牌承诺的具象化载体入画（非硬广罗列参数）→2–3 个真实育儿场景混剪传递「可靠、贴心、专业」品牌气质→用户证言或数据背书（销量、口碑、奖项等可核实信息，禁止虚构）→品牌 Slogan + 温和 CTA（关注/了解系列）。口播稳重可信，画面统一品牌色调，竖屏 9:16。禁止 cure/treat/best/#1/medical grade 等禁用表述；温度展示约 98°F，禁止蒸汽沸腾。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  4,
+                      "tags":  [
+                                   "preset",
+                                   "brand-promo"
+                               ],
+                      "prompt_id":  "pl-preset-brand-promo",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-06T06:26:16+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|brand-promo|"
+                  },
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "demo-proof",
+                      "label":  "功能演示",
+                      "sub":  "操作特写 · 效果验证",
+                      "prompt_text":  "近景跟拍操作：单手开盖、加水、设定目标温度，特写屏幕从室温升至并稳定在约 98°F。穿插中景展示杯身尺寸与妈咪包收纳，字幕标注「恒温」「便携」「续航」。结尾对比使用前（凉水奶瓶）与使用后（温度适宜）的安心表情。禁止蒸汽、沸腾、液体飞溅。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  5,
+                      "tags":  [
+                                   "preset",
+                                   "demo-proof"
+                               ],
+                      "prompt_id":  "pl-preset-demo-proof",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-02T06:33:42+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|demo-proof|"
+                  },
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "travel-test",
+                      "label":  "出行实测",
+                      "sub":  "车载 / 户外 · 真实续航",
+                      "prompt_text":  "出行实测：车载或公园长椅场景，家长带娃外出，从包中取出恒温杯完成一次冲奶/保温流程。展示 USB-C 充电、电量指示与长时间保温能力，口播强调「7 小时续航」「出门必备」。镜头含环境建立镜头+产品操作特写，氛围生活化、真实可信。禁止蒸汽、夸张热力特效。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  6,
+                      "tags":  [
+                                   "preset",
+                                   "travel-test"
+                               ],
+                      "prompt_id":  "pl-preset-travel-test",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-02T06:33:42+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|travel-test|"
+                  },
+                  {
+                      "source":  "preset",
+                      "prompt_type":  "soft-cta",
+                      "label":  "软性种草",
+                      "sub":  "生活方式 · 温和推荐",
+                      "prompt_text":  "生活方式软性种草：清晨/午后育儿片段，恒温杯作为背景道具自然出现，妈妈从容冲奶、宝宝满足饮用。旁白或字幕温和推荐「新手爸妈外出必备」。色调温暖、节奏舒缓，1–2 次产品特写即可，避免硬广口吻。温度展示约 98°F，禁止蒸汽与沸腾画面。",
+                      "prompt_text_en":  "",
+                      "product_id":  "",
+                      "content_line":  "",
+                      "sort_order":  7,
+                      "tags":  [
+                                   "preset",
+                                   "soft-cta"
+                               ],
+                      "prompt_id":  "pl-preset-soft-cta",
+                      "approval_status":  "approved",
+                      "usage_count":  0,
+                      "created_at":  "2026-07-02T06:33:42+00:00",
+                      "updated_at":  "2026-07-06T07:11:23+00:00",
+                      "_key":  "preset|soft-cta|"
+                  }
+              ]
 }
+

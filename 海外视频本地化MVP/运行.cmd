@@ -12,7 +12,7 @@ if "%~1"=="" (
   echo   db         导入 MySQL（可选）
   echo   decompose  结构拆解（规则）→ video_analysis
   echo   templates  爆款结构模板库
-  echo   products   产品资料库 ^(DS223^)
+  echo   products   产品资料库 ^(DS223 补充 + 同步^)
   echo   knowledge  知识库检索 ^(KRO^)
   echo   bridge     对接到 MVP 页面
   echo.
