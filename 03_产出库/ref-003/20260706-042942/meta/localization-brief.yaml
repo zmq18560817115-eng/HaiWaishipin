@@ -1,0 +1,31 @@
+material_id: ref-003
+slug: ref-003
+sku: 便携恒温杯
+target_country: US
+language: en
+platform:
+- tiktok
+- amazon
+theme: '🍼💡 Baby''s milk, perfectly warm with the tap of your phone with the Smart
+  Bottle '
+master_video_id: '7383388217879383339'
+owner: content-ops
+launch_date: TBD
+allowed_claims_en:
+- portable design for travel
+- heats milk to comfortable temperature
+- rechargeable battery for on-the-go use
+- fits in diaper bag or cup holder
+- USB-C charging
+- even heating in minutes
+forbidden_terms_extra: []
+export_plan_confirmed: false
+overseas_product_page_available: false
+allowed_claims_available: true
+source_video_usage_rights_confirmed: false
+source_link_id: 3
+source_tiktok_url: https://www.tiktok.com/@babybrezza/video/7383388217879383339
+audience_tags:
+- 0-12月新手爸妈
+scenario_tags:
+- 夜间卧室喂奶

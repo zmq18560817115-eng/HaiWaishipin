@@ -1,0 +1,12 @@
+{
+  "assembled_at": "2026-07-06T04:30:16.277402+00:00",
+  "shots": [
+    {
+      "number": 1,
+      "file": "broll/shot-1.mp4"
+    }
+  ],
+  "output": "broll/final-video.mp4",
+  "bytes": 1190144,
+  "ffmpeg": "/Users/apple/.openclaw/workspace/vl-workflow/overseas-loc-mvp/.venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1"
+}
