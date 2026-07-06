@@ -22,6 +22,7 @@ from .doubao_config import script_llm_config
 from .doubao_script import call_doubao_script
 from .product_tags import validate_delivery_selection
 from .output_standards import enrich_pack_with_standards
+from .camera_motion import ensure_shot_camera_motion
 from .scene_script import (
     align_pack_to_market_tags,
     build_storyboard,
@@ -57,6 +58,7 @@ SYSTEM_PROMPT = f"""你是母婴出海短视频脚本策划。根据用户在脚
 14. **人物同一视频前后一致**：若出镜，全片保持同一人物档案（年龄、服饰、发型、肤色、手部）；无法保证时用产品特写或手部镜头。
 15. **光影增强真实感**：在保持场景统一的前提下，使用有动机的主光、柔和阴影与自然反射，提升画面真实感，但不得借光影掩盖产品变形。
 16. 后续新增品类时，同样必须绑定白底主图 + 场景图 + 细节图后再出脚本或生成。
+17. 每个 storyboard 镜头必须包含 camera_motion 对象：type 为 dolly_in|dolly_out|pan_left|pan_right|static|arc|crash_zoom 之一；按 role 建议：钩子/方案用 dolly_in，痛点/CTA 用 static，证明用 crash_zoom；可填 start_frame_focus、end_frame_focus（中文）、duration_sec（整数秒）。
 """
 
 OUTPUT_SCHEMA = {
@@ -74,6 +76,12 @@ OUTPUT_SCHEMA = {
             "visual_prompt": "实拍/构图提示（中文）",
             "seedance_prompt": "AI空镜时英文 SeedDance 提示词，实拍镜留空",
             "footage_type": "LIVE_ACTION 或 AI_BROLL",
+            "camera_motion": {
+                "type": "dolly_in",
+                "start_frame_focus": "人物中景",
+                "end_frame_focus": "产品特写",
+                "duration_sec": 4,
+            },
         }
     ],
     "subtitle_copy": ["每镜一条英文字幕"],
@@ -417,6 +425,8 @@ def _rule_pack_thermos(
 
 def normalize_pack(pack: dict[str, Any]) -> dict[str, Any]:
     storyboard = pack.get("storyboard") or []
+    for shot in storyboard:
+        ensure_shot_camera_motion(shot)
     if storyboard and not pack.get("subtitle_copy"):
         pack["subtitle_copy"] = [s.get("subtitle_en", "") for s in storyboard]
     if storyboard and not pack.get("visual_prompts"):

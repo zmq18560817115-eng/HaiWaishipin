@@ -1,0 +1,12 @@
+{
+  "view_log_cap": 7.0,
+  "engagement_cap": 0.12,
+  "analysis_fields": ["hook_3s", "video_structure", "reusable_template"],
+  "weights": {
+    "view_score": 0.35,
+    "engagement_score": 0.25,
+    "analysis_score": 0.2,
+    "product_match": 0.2
+  },
+  "min_analyzed_for_radar": true
+}

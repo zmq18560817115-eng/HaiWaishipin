@@ -42,6 +42,9 @@ const state = {
   seedanceVideoComplete: false,
   producePartialReady: false,
   dockFocusDismissed: false,
+  awaitingHeroConfirm: false,
+  heroConfirmThenProduce: false,
+  feedbackConstraintsFlash: false,
   scriptTagSnapshot: null,
   lastScriptProductId: null,
   scriptEditBaseline: null,
@@ -66,6 +69,32 @@ const VIDEO_RESOLUTIONS = ["720P", "1080P"];
 const VIDEO_ASPECT_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3"];
 const VIDEO_DURATIONS = [5, 10, 20];
 const GENERATE_COUNTS = [1, 2, 3, 4];
+const CAMERA_MOTION_TYPES = ["dolly_in", "dolly_out", "pan_left", "pan_right", "static", "arc", "crash_zoom"];
+const CAMERA_MOTION_LABELS = {
+  dolly_in: "推近",
+  dolly_out: "拉远",
+  pan_left: "左摇",
+  pan_right: "右摇",
+  static: "固定",
+  arc: "环绕",
+  crash_zoom: "急推",
+};
+
+function shotCameraMotionType(shot) {
+  const m = shot?.camera_motion;
+  if (m && m.type && CAMERA_MOTION_TYPES.includes(m.type)) return m.type;
+  const role = shot?.role || "";
+  const defaults = { 钩子: "dolly_in", 痛点: "static", 方案: "dolly_in", 证明: "crash_zoom", 行动号召: "static" };
+  return defaults[role] || "static";
+}
+
+function cameraMotionSelectHtml(shot) {
+  const cur = shotCameraMotionType(shot);
+  const opts = CAMERA_MOTION_TYPES.map((t) =>
+    `<option value="${t}"${t === cur ? " selected" : ""}>${CAMERA_MOTION_LABELS[t] || t}</option>`
+  ).join("");
+  return `<label class="script-edit-field script-edit-field-inline"><span class="pack-label">运镜</span><select data-shot-field="camera_motion_type" class="camera-motion-select">${opts}</select></label>`;
+}
 
 const SCOPED_MATERIAL_JOBS = new Set(["discover", "promote", "fetch"]);
 
@@ -441,6 +470,7 @@ function formatStoryboardEditableHtml(storyboard) {
         <label class="script-edit-field"><span class="pack-label">口播</span><textarea rows="2" data-shot-field="voiceover_en">${esc(s.voiceover_en || "")}</textarea></label>
         <label class="script-edit-field"><span class="pack-label">字幕</span><textarea rows="2" data-shot-field="subtitle_en">${esc(s.subtitle_en || "")}</textarea></label>
         <label class="script-edit-field"><span class="pack-label">构图</span><textarea rows="4" data-shot-field="visual_prompt">${esc(s.visual_prompt || "")}</textarea></label>
+        ${cameraMotionSelectHtml(s)}
         <label class="script-edit-field"><span class="pack-label">空镜</span><textarea rows="4" data-shot-field="seedance_prompt">${esc(s.seedance_prompt || "")}</textarea></label>
       </div>
     </details>`;
@@ -463,6 +493,7 @@ function packEditsSnapshot(pack) {
       subtitle_en: String(s.subtitle_en || "").trim(),
       visual_prompt: String(s.visual_prompt || "").trim(),
       seedance_prompt: String(s.seedance_prompt || "").trim(),
+      camera_motion: s.camera_motion || { type: shotCameraMotionType(s) },
     })),
   });
 }
@@ -488,7 +519,12 @@ function collectScriptPackEdits() {
       footage_type: row.dataset.shotFootage || "",
     };
     row.querySelectorAll("[data-shot-field]").forEach((el) => {
-      shot[el.dataset.shotField] = el.value.trim();
+      const field = el.dataset.shotField;
+      if (field === "camera_motion_type") {
+        shot.camera_motion = { ...(shot.camera_motion || {}), type: el.value };
+      } else {
+        shot[field] = el.value.trim();
+      }
     });
     pack.storyboard.push(shot);
   });
@@ -636,6 +672,22 @@ function mountScriptPackEditor(container, pack, meta) {
     advSummary.textContent = "构图 / 空镜 Prompt";
     advanced.appendChild(advSummary);
     appendScriptEditTextarea(advanced, "构图", "shotField", "visual_prompt", s.visual_prompt, 4);
+    const motionWrap = document.createElement("div");
+    motionWrap.className = "script-edit-field script-edit-field-inline";
+    motionWrap.innerHTML = `<span class="pack-label">运镜</span>`;
+    const sel = document.createElement("select");
+    sel.dataset.shotField = "camera_motion_type";
+    sel.className = "camera-motion-select";
+    const cur = shotCameraMotionType(s);
+    CAMERA_MOTION_TYPES.forEach((t) => {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = CAMERA_MOTION_LABELS[t] || t;
+      if (t === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    motionWrap.appendChild(sel);
+    advanced.appendChild(motionWrap);
     appendScriptEditTextarea(advanced, "空镜", "shotField", "seedance_prompt", s.seedance_prompt, 4);
     row.appendChild(advanced);
     shotsWrap.appendChild(row);
@@ -1685,6 +1737,147 @@ function syncProducePreviewForActiveView() {
   syncProducePreviewAllDocks(state.lastPreview || {});
 }
 
+function heroFrameGateEnabled() {
+  return Boolean(state.healthCache?.hero_frame_gate);
+}
+
+function heroFramePanelTargets(scope = "active") {
+  const map = {
+    script: document.getElementById("scriptHeroFramePanel"),
+    generate: document.getElementById("dockHeroFramePanel"),
+    imitate: document.getElementById("imitateDockHeroFramePanel"),
+  };
+  if (scope === "all") return Object.values(map).filter(Boolean);
+  if (scope === "script") return map.script ? [map.script] : [];
+  if (scope === "imitate") return map.imitate ? [map.imitate] : [];
+  if (state.view === "imitate") return map.imitate ? [map.imitate] : [];
+  return [map.generate, map.script].filter(Boolean);
+}
+
+function hideHeroFramePanels() {
+  heroFramePanelTargets("all").forEach((el) => {
+    el.classList.add("hidden");
+    el.innerHTML = "";
+  });
+}
+
+function buildHeroFramePanelHtml(slug, status) {
+  const confirmed = Boolean(status.confirmed);
+  const shots = status.shots || [];
+  const cards = shots.map((shot) => {
+    const num = shot.number;
+    const img = shot.hero_file
+      ? `/api/delivery/${encodeURIComponent(slug)}/files/${shot.hero_file}`
+      : "";
+    const thumb = img
+      ? `<img src="${esc(img)}" alt="镜${num}关键帧" class="hero-frame-thumb" loading="lazy">`
+      : `<div class="hero-frame-thumb hero-frame-thumb--empty">无参考图</div>`;
+    return `
+      <article class="hero-frame-card" data-shot="${num}">
+        <div class="hero-frame-card-media">${thumb}</div>
+        <div class="hero-frame-card-meta">
+          <div class="hero-frame-card-title">镜 ${num} · ${esc(shot.role || "分镜")}</div>
+          <div class="hero-frame-card-motion muted">${esc(shot.motion_summary || shot.timing || "")}</div>
+          <p class="hero-frame-card-visual muted">${esc((shot.visual || "").slice(0, 72))}${(shot.visual || "").length > 72 ? "…" : ""}</p>
+          <button type="button" class="secondary pill-btn hero-frame-regen-btn" data-shot="${num}" ${confirmed ? "disabled" : ""}>重生成关键帧</button>
+        </div>
+      </article>`;
+  }).join("");
+  const confirmBtn = confirmed
+    ? `<p class="hero-frame-confirmed-note">✓ 关键帧已确认，可生成动态视频</p>`
+    : `<button type="button" class="primary primary-dark hero-frame-confirm-all" data-slug="${esc(slug)}">确认全部关键帧，开始生成视频</button>`;
+  return `
+    <div class="hero-frame-gate-inner">
+      <div class="hero-frame-gate-head">
+        <h4>分镜关键帧确认</h4>
+        <p class="muted">确认各镜构图与运镜后再生成动态视频（此步不消耗 SeedDance 成片额度）。</p>
+      </div>
+      <div class="hero-frame-grid">${cards}</div>
+      <footer class="hero-frame-gate-foot">${confirmBtn}</footer>
+    </div>`;
+}
+
+function wireHeroFramePanelEvents(slug, root = document) {
+  root.querySelectorAll(".hero-frame-regen-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const num = Number(btn.dataset.shot);
+      btn.disabled = true;
+      try {
+        const data = await api(`/api/delivery/${encodeURIComponent(slug)}/hero-frames/${num}/regenerate`, { method: "POST" });
+        renderHeroFramePanels(slug, data);
+        setScriptActionStatus(`镜 ${num} 关键帧已更新，请重新确认全部关键帧。`, { forceDock: true });
+      } catch (err) {
+        setScriptActionStatus(`关键帧重生成失败：${err.message}`, { isError: true });
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+  root.querySelectorAll(".hero-frame-confirm-all").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await submitHeroFrameConfirm(slug);
+      } catch (err) {
+        setScriptActionStatus(`确认失败：${err.message}`, { isError: true });
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function renderHeroFramePanels(slug, status, { scope = "active" } = {}) {
+  const panels = heroFramePanelTargets(scope);
+  if (!heroFrameGateEnabled() || !status?.shots?.length) {
+    hideHeroFramePanels();
+    return;
+  }
+  const html = buildHeroFramePanelHtml(slug, status);
+  panels.forEach((panel) => {
+    panel.classList.remove("hidden");
+    panel.innerHTML = html;
+    wireHeroFramePanelEvents(slug, panel);
+  });
+}
+
+async function submitHeroFrameConfirm(slug) {
+  const data = await api(`/api/delivery/${encodeURIComponent(slug)}/hero-frames/confirm`, { method: "POST" });
+  state.awaitingHeroConfirm = false;
+  renderHeroFramePanels(slug, data);
+  setScriptActionStatus("关键帧已确认，正在启动动态视频生成…", { forceDock: true });
+  if (state.heroConfirmThenProduce) {
+    state.heroConfirmThenProduce = false;
+    await runSeedanceGenerate({ background: true, keepCountdown: true });
+  }
+  return data;
+}
+
+async function ensureHeroFramesGate(slug, { background = false } = {}) {
+  if (!heroFrameGateEnabled()) return true;
+  let status = await api(`/api/delivery/${encodeURIComponent(slug)}/hero-frames`);
+  if (!status.shots?.length || !status.all_ready) {
+    setScriptActionStatus("正在准备各镜关键帧预览…", { forceDock: true });
+    status = await api(`/api/delivery/${encodeURIComponent(slug)}/hero-frames/generate`, { method: "POST" });
+  }
+  if (status.confirmed) {
+    state.awaitingHeroConfirm = false;
+    hideHeroFramePanels();
+    return true;
+  }
+  state.awaitingHeroConfirm = true;
+  renderHeroFramePanels(slug, status);
+  setScriptActionStatus("请先确认各镜关键帧构图，再开始生成动态视频。", { forceDock: true });
+  if (!background) openScriptFloatPanel();
+  showSeedanceProgress(true, {
+    status: "等待关键帧确认…",
+    indeterminate: true,
+    persist: true,
+  });
+  activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+  return false;
+}
+
 function syncProducePreviewAllDocks(prev = state.lastPreview || {}) {
   const lp = prev;
   const boxIds = ["dockProducePreview", "imitateDockProducePreview"];
@@ -2614,6 +2807,92 @@ function viralVideoCardHtml(item) {
   </button>`;
 }
 
+function radarVideoCardHtml(item) {
+  const active = item.link_id === state.selectedMaterialId ? " selected" : "";
+  const thumb = item.thumbnail_url
+    ? `<img class="viral-video-thumb" src="${esc(item.thumbnail_url)}" alt="">`
+    : `<span class="feature-card-bg g-video-rev"></span>`;
+  const title = (item.title || "").trim().slice(0, 28) || `#${item.link_id}`;
+  const score = item.radar_score != null ? Number(item.radar_score).toFixed(0) : "—";
+  const tags = (item.radar_tags || []).slice(0, 3).map((t) => `<span class="radar-tag">${esc(t)}</span>`).join("");
+  const why = esc((item.why_pick || "").slice(0, 64));
+  return `<div class="radar-card-wrap">
+    <button type="button" class="feature-card viral-video-card radar-video-card${active}" data-link-id="${item.link_id}" data-radar-card="1">
+      ${thumb}
+      <span class="radar-score-badge" title="雷达综合分">${score}</span>
+      <span class="feature-card-label"><strong>${esc(title)}</strong><span class="radar-why-pick">${why}</span></span>
+      <span class="radar-tag-row">${tags}</span>
+    </button>
+    <button type="button" class="btn-text radar-reverse-btn" data-radar-reverse="${item.link_id}" title="反推结构到提示词库">反推</button>
+  </div>`;
+}
+
+function bindRadarCards(root) {
+  if (!root) return;
+  root.querySelectorAll(".radar-video-card[data-link-id]").forEach((card) => {
+    card.addEventListener("click", async () => {
+      const linkId = Number(card.dataset.linkId);
+      if (!productWorkflowReady()) {
+        state.pendingViralLinkId = linkId;
+        await openProductFloatPanel();
+        return;
+      }
+      await runViralBenchmarkPipeline(linkId);
+    });
+  });
+  root.querySelectorAll("[data-radar-reverse]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const linkId = Number(btn.dataset.radarReverse);
+      state.reverseMaterialId = linkId;
+      state.selectedMaterialId = linkId;
+      syncReverseDockMaterial();
+      if (!currentProductId()) {
+        await openProductFloatPanel();
+        return;
+      }
+      switchView("reverse");
+      document.getElementById("reverseDock")?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  });
+}
+
+async function renderRadarGrid(gridId, descId) {
+  const root = document.getElementById(gridId);
+  const desc = document.getElementById(descId);
+  if (!root) return;
+  const productId = currentProductId();
+  if (!productId) {
+    if (desc) desc.textContent = "请先在底部配置「产品」与场景标签，雷达将按品类推荐值得跟拍的爆款。";
+    root.innerHTML = '<p class="muted module-feature-empty">配置产品后显示雷达推荐</p>';
+    return;
+  }
+  root.innerHTML = '<p class="muted">雷达扫描中…</p>';
+  try {
+    const data = await api(`/api/radar/feed?product_id=${encodeURIComponent(productId)}&limit=12`);
+    const items = data.items || [];
+    if (desc) {
+      desc.textContent = items.length
+        ? `综合播放、互动与结构拆解，为「${currentProductLabel()}」推荐 ${items.length} 条选题（CreatOK 式雷达）`
+        : `当前产品暂无已拆解对标，请先在设置同步 TikTok 或打开「对标」浏览`;
+    }
+    if (!items.length) {
+      root.innerHTML = '<p class="muted module-feature-empty">暂无雷达推荐，请先同步并拆解同品类素材。</p>';
+      return;
+    }
+    root.classList.add("has-viral-videos");
+    root.innerHTML = items.map((item) => radarVideoCardHtml(item)).join("");
+    bindRadarCards(root);
+  } catch (err) {
+    root.innerHTML = `<p class="muted">雷达加载失败：${esc(friendlyApiErrorMessage(err.message))}</p>`;
+  }
+}
+
+function renderAllRadarGrids() {
+  renderRadarGrid("generateRadarGrid", "generateRadarDesc");
+  renderRadarGrid("imitateRadarGrid", "imitateRadarDesc");
+}
+
 function syncImitationViralGridDesc(descId, count, variant = "generate") {
   const el = document.getElementById(descId);
   if (!el) return;
@@ -2674,6 +2953,7 @@ function renderImitationViralGrid(gridId, descId, variant = "generate") {
 }
 
 function renderAllImitationViralGrids() {
+  renderAllRadarGrids();
   renderImitationViralGrid("generateFeatureGrid", "generateViralGridDesc", "generate");
   renderImitationViralGrid("imitateFeatureGrid", "imitateViralGridDesc", "imitate");
 }
@@ -5910,6 +6190,14 @@ async function runSeedanceGenerate(options = {}) {
       signal: videoProductionSignal(),
     });
     renderSeedance(slug, data.seedance, state.healthCache);
+    const blocked = (data.results || []).filter((r) => r.status === "blocked");
+    if (blocked.length) {
+      const bmsg = blocked[0].message || "关键帧未确认";
+      showVideoGenError(bmsg);
+      await ensureHeroFramesGate(slug, { background });
+      state.heroConfirmThenProduce = true;
+      return false;
+    }
     const failed = (data.results || []).filter((r) => r.status === "error");
     const skipped = (data.results || []).filter((r) => r.status === "skipped");
     const okCount = (data.results || []).filter((r) => r.status === "ok").length;
@@ -6018,6 +6306,11 @@ async function runProduceVideo(options = {}) {
       }
       await refreshScriptPreview();
     }
+    const gateOk = await ensureHeroFramesGate(slug, { background });
+    if (!gateOk) {
+      state.heroConfirmThenProduce = true;
+      return false;
+    }
     return await runSeedanceGenerate({
       force: forceRegen,
       background,
@@ -6092,6 +6385,28 @@ async function loadFinishedView() {
 }
 
 // ── Feedback ─────────────────────────────────────────────────────────────
+
+function buildActiveConstraintsHtml(prev, { highlight = false } = {}) {
+  if (!prev?.matched_count) return "";
+  const items = (prev.constraints_zh || [])
+    .map((line) => `<li>${esc(line)}</li>`)
+    .join("");
+  const sources = (prev.sources || [])
+    .filter((s) => s.slug)
+    .map(
+      (s) => `<span class="feedback-constraint-source" title="场景 ${esc(s.scenario_tags || "—")}">${esc(s.slug)} · ${esc(s.adopted || "")}</span>`,
+    )
+    .join("");
+  return `
+    <section class="feedback-active-constraints${highlight ? " feedback-active-constraints--flash" : ""}" aria-label="已生效约束">
+      <div class="feedback-active-constraints-head">
+        <strong>已生效约束</strong>
+        <span class="muted">下次生成将参考以下 ${prev.matched_count} 条反馈</span>
+      </div>
+      <ul class="feedback-constraint-list">${items}</ul>
+      ${sources ? `<div class="feedback-constraint-sources">${sources}</div>` : ""}
+    </section>`;
+}
 
 async function ensureFeedbackTagDefs() {
   if (state.feedbackTagDefs) return state.feedbackTagDefs;
@@ -6239,6 +6554,8 @@ async function renderFeedbackEditor() {
   const slug = state.selectedFeedbackSlug;
   if (!slug) return;
   const tab = state.feedbackEditorTab || "review";
+  const flashConstraints = Boolean(state.feedbackConstraintsFlash);
+  state.feedbackConstraintsFlash = false;
   try {
     const r = await api(`/api/library/feedback/${encodeURIComponent(slug)}`);
     const pub = r.publish || {};
@@ -6251,11 +6568,13 @@ async function renderFeedbackEditor() {
       </label>`).join("");
     const scLine = (r.scenario_tags || []).join("、") || "—";
     let loopPreview = "";
+    let constraintsBlock = "";
     if (r.product_id) {
       try {
         const prev = await api(
           `/api/library/feedback-constraints?product_id=${encodeURIComponent(r.product_id)}&scenario_tags=${encodeURIComponent((r.scenario_tags || []).join(","))}`,
         );
+        constraintsBlock = buildActiveConstraintsHtml(prev, { highlight: flashConstraints });
         if (prev.matched_count > 0) {
           loopPreview = `<p class="feedback-loop-banner">闭环已启用：下次生成「${esc(r.product_id)}」且场景匹配时，将自动带入 <strong>${prev.matched_count}</strong> 条已采纳约束。</p>`;
         } else if (r.adopted === "已采纳" || r.adopted === "修改后采纳") {
@@ -6269,6 +6588,7 @@ async function renderFeedbackEditor() {
         <h3>${esc(r.title || slug)}</h3>
         <p class="muted feedback-editor-meta">产品 ${esc(r.product_id || "—")} · 场景 ${esc(scLine)}</p>
       </div>
+      ${constraintsBlock}
       ${loopPreview}
       <nav class="feedback-editor-tabs" id="feedbackEditorTabs" aria-label="反馈类型">
         <button type="button" class="${tab === "review" ? "active" : ""}" data-fb-tab="review">成片审核</button>
@@ -6347,6 +6667,10 @@ async function renderFeedbackEditor() {
             publish_notes: fd.get("publish_notes"),
           }),
         });
+        const adopted = String(fd.get("adopted") || "");
+        if (adopted === "已采纳" || adopted === "修改后采纳") {
+          state.feedbackConstraintsFlash = true;
+        }
         const fresh = await api("/api/library/feedback");
         const items = fresh.items || [];
         const nextSlug = pickNextFeedbackSlug(items, savedSlug);

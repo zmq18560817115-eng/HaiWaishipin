@@ -370,6 +370,16 @@ def _clear_broll_for_regenerate(project: Path) -> list[str]:
 
 async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict[str, Any]]:
     project = project_dir(slug)
+    from .hero_frames import hero_frame_gate_enabled, is_hero_frames_confirmed
+
+    if hero_frame_gate_enabled() and not is_hero_frames_confirmed(project):
+        return [
+            {
+                "number": 0,
+                "status": "blocked",
+                "message": "关键帧未确认：请在工作台确认各镜构图后再生成动态视频",
+            }
+        ]
     if force:
         _clear_broll_for_regenerate(project)
     status = seedance_status(project)
@@ -448,6 +458,12 @@ def _maybe_assemble_final_video(slug: str) -> dict[str, Any]:
     if not ai_video_concat_enabled():
         return {"ok": False, "message": "AI_VIDEO_CONCAT=0，未拼接成片", "file": None}
     project = project_dir(slug)
+    try:
+        from .video_enhance import enhance_shot_clips
+
+        enhance_shot_clips(project)
+    except Exception:
+        pass
     result = assemble_storyboard_video(project, min_shots=ai_video_concat_min_shots())
     if result.get("ok"):
         from .production_archive import archive_production

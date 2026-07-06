@@ -907,6 +907,9 @@ def seedance_status(project: Path) -> dict[str, Any]:
             character=character,
             aspect_ratio=prod.aspect_ratio,
         )
+        from .camera_motion import apply_motion_to_seedance_prompt
+
+        prompt = apply_motion_to_seedance_prompt(prompt, pack_shot)
         ref_path, asset_type = pick_shot_reference_path(
             product_id=product_id,
             role=role,

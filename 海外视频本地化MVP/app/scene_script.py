@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .ai_video import default_footage_for_role, build_role_video_prompt
+from .camera_motion import default_camera_motion, ensure_shot_camera_motion
 from .character_assets import resolve_character
 from .product_usage import (
     THERMOS_USAGE_ZH,
@@ -306,6 +307,7 @@ def build_storyboard(
             "visual_prompt": vp,
             "seedance_prompt": sd,
             "footage_type": ft,
+            "camera_motion": default_camera_motion(role),
         })
         subtitle_copy.append(vo)
         visual_prompts.append(vp)
@@ -399,6 +401,7 @@ def align_pack_to_market_tags(
 
     storyboard = pack.get("storyboard") or []
     for shot in storyboard:
+        ensure_shot_camera_motion(shot)
         role = str(shot.get("role") or "").strip()
         if role in role_visual:
             shot["visual"] = role_visual[role]

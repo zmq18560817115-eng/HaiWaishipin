@@ -29,7 +29,7 @@ def _pipeline_label() -> str:
 
 SEEDANCE_PIPELINE = _pipeline_label()
 
-_OLM_ENV_PREFIXES = ("AI_VIDEO_", "ARK_", "SEEDANCE_", "FAL_", "SKIP_SEEDANCE")
+_OLM_ENV_PREFIXES = ("AI_VIDEO_", "ARK_", "SEEDANCE_", "FAL_", "SKIP_SEEDANCE", "HERO_FRAME_")
 
 
 def _olm_subprocess_env() -> dict[str, str]:
@@ -217,3 +217,55 @@ status = seedance_status(project_dir(slug))
 print(json.dumps({"assemble": assemble, "seedance": status}, ensure_ascii=False))
 """
     return _run_olm(code, slug)
+
+
+def hero_frame_gate_enabled() -> bool:
+    env = dotenv_values(OVERSEAS_ENV)
+    return (env.get("HERO_FRAME_GATE") or "0").strip().lower() in ("1", "true", "yes")
+
+
+def hero_frames_status(slug: str) -> dict[str, Any]:
+    project = OVERSEAS_RUNS_DIR / slug
+    if not project.is_dir():
+        return {"gate_enabled": hero_frame_gate_enabled(), "confirmed": True, "shots": [], "all_ready": False}
+    code = """
+import json, sys
+from app.storage import project_dir
+from app.hero_frames import hero_frames_status
+slug = sys.argv[1]
+print(json.dumps(hero_frames_status(project_dir(slug, create=False)), ensure_ascii=False))
+"""
+    return _run_olm(code, slug)
+
+
+def generate_hero_frames(slug: str) -> dict[str, Any]:
+    code = """
+import json, sys
+from app.storage import project_dir
+from app.hero_frames import generate_hero_frames
+slug = sys.argv[1]
+print(json.dumps(generate_hero_frames(project_dir(slug, create=False)), ensure_ascii=False))
+"""
+    return _run_olm(code, slug)
+
+
+def confirm_hero_frames(slug: str) -> dict[str, Any]:
+    code = """
+import json, sys
+from app.storage import project_dir
+from app.hero_frames import confirm_hero_frames
+slug = sys.argv[1]
+print(json.dumps(confirm_hero_frames(project_dir(slug, create=False)), ensure_ascii=False))
+"""
+    return _run_olm(code, slug)
+
+
+def regenerate_hero_frame(slug: str, shot_number: int) -> dict[str, Any]:
+    code = """
+import json, sys
+from app.storage import project_dir
+from app.hero_frames import regenerate_hero_frame
+slug, num = sys.argv[1], int(sys.argv[2])
+print(json.dumps(regenerate_hero_frame(project_dir(slug, create=False), num), ensure_ascii=False))
+"""
+    return _run_olm(code, slug, str(int(shot_number)))

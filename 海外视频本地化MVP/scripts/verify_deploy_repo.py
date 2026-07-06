@@ -19,6 +19,7 @@ REQUIRED_FILES = [
     "ARCHITECTURE.md",
     "README_使用说明.md",
     "config/knowledge-sources.json",
+    "config/radar-weights.json",
     "海外视频本地化MVP/app/main.py",
     "海外视频本地化MVP/web/index.html",
     "海外视频本地化MVP/web/app.js",

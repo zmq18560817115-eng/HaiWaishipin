@@ -83,6 +83,7 @@ from .video_queue import (
 )
 from .library_api import list_feedback, list_finished, load_feedback, load_templates, save_feedback
 from .feedback_loop import preview_constraints
+from .radar import radar_feed
 from .feedback_tags import ISSUE_TAG_DEFS
 from .llm_script import pick_template
 from .feishu_bridge import feishu_auth_url_payload, feishu_doctor_payload, feishu_status_payload
@@ -109,8 +110,13 @@ from .tiktok_collector_bridge import collector_database_enabled
 from .tiktok_collector_bridge import sync_collector_database_to_workflow
 from .seedance_bridge import (
     assemble_project,
+    confirm_hero_frames,
+    generate_hero_frames,
+    hero_frame_gate_enabled,
+    hero_frames_status,
     project_status,
     refresh_project_seedance_source,
+    regenerate_hero_frame,
     run_all,
     seedance_config,
     test_connection,
@@ -136,7 +142,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 182
+UI_VERSION = 184
 
 
 def _render_index() -> HTMLResponse:
@@ -325,6 +331,7 @@ async def health() -> dict:
         },
         "aigc_primary": "seedance-2.0",
         "seedance": seedance_config(),
+        "hero_frame_gate": hero_frame_gate_enabled(),
         "feishu": feishu_status_payload(),
         "tiktok_collector": {
             "available": True,
@@ -376,6 +383,16 @@ async def materials(
         analyzed_only=analyzed_only,
     )
     return {"total": len(filtered), "items": filtered}
+
+
+@app.get("/api/radar/feed")
+async def radar_feed_api(
+    product_id: str = "",
+    limit: int = 24,
+    analyzed_only: bool = True,
+) -> dict:
+    """CreatOK 式爆款雷达：综合播放/互动/拆解/品类匹配评分，不替换素材库默认排序。"""
+    return radar_feed(product_id=product_id.strip(), limit=limit, analyzed_only=analyzed_only)
 
 
 @app.get("/api/materials/{link_id}/analysis/detail")
@@ -1120,6 +1137,13 @@ async def delivery_seedance_run(
         status = await run_in_threadpool(project_status, slug)
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
+        if hero_frame_gate_enabled():
+            hf = await run_in_threadpool(hero_frames_status, slug)
+            if not hf.get("confirmed"):
+                raise HTTPException(
+                    status_code=409,
+                    detail="关键帧未确认：请先在预览区确认各镜构图后再生成动态视频",
+                )
         payload = await run_in_threadpool(run_all, slug, force=force)
         if is_ticket_cancelled(ticket_id):
             complete_ticket(ticket_id, ok=False, message="用户已取消生成")
@@ -1173,6 +1197,52 @@ async def delivery_assemble(slug: str) -> dict:
         return await run_in_threadpool(assemble_project, slug)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/delivery/{slug}/hero-frames")
+async def delivery_hero_frames(slug: str) -> dict:
+    if not project_exists(slug):
+        raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
+    try:
+        return await run_in_threadpool(hero_frames_status, slug)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/delivery/{slug}/hero-frames/generate")
+async def delivery_hero_frames_generate(slug: str) -> dict:
+    if not project_exists(slug):
+        raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
+    try:
+        return await run_in_threadpool(generate_hero_frames, slug)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/delivery/{slug}/hero-frames/confirm")
+async def delivery_hero_frames_confirm(slug: str) -> dict:
+    if not project_exists(slug):
+        raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
+    try:
+        return await run_in_threadpool(confirm_hero_frames, slug)
+    except RuntimeError as exc:
+        msg = str(exc)
+        if "关键帧" in msg or "缺少" in msg:
+            raise HTTPException(status_code=409, detail=msg) from exc
+        raise HTTPException(status_code=500, detail=msg) from exc
+
+
+@app.post("/api/delivery/{slug}/hero-frames/{shot_number}/regenerate")
+async def delivery_hero_frame_regenerate(slug: str, shot_number: int) -> dict:
+    if not project_exists(slug):
+        raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
+    try:
+        return await run_in_threadpool(regenerate_hero_frame, slug, shot_number)
+    except RuntimeError as exc:
+        msg = str(exc)
+        if "不存在" in msg:
+            raise HTTPException(status_code=404, detail=msg) from exc
+        raise HTTPException(status_code=500, detail=msg) from exc
 
 
 @app.on_event("startup")

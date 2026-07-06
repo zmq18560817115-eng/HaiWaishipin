@@ -20,6 +20,7 @@ from .character_assets import stage_project_production_assets
 from .product_tags import validate_delivery_selection
 from .data import ANALYSIS_FIELDS, load_analysis, material_detail
 from .llm_script import generate_script_pack, normalize_pack, pack_to_bridge_shots, pack_to_markdown
+from .camera_motion import ensure_shot_camera_motion
 
 SHOT_EDIT_FIELDS = (
     "visual",
@@ -251,6 +252,13 @@ def apply_pack_edits(pack: dict[str, Any], edits: dict[str, Any]) -> dict[str, A
             for keep in ("role", "timing", "footage_type"):
                 if row.get(keep) not in (None, ""):
                     base[keep] = row.get(keep)
+            if isinstance(row.get("camera_motion"), dict):
+                base["camera_motion"] = row.get("camera_motion")
+            elif isinstance(row.get("camera_motion_type"), str):
+                motion = dict(base.get("camera_motion") or {})
+                motion["type"] = row.get("camera_motion_type")
+                base["camera_motion"] = motion
+            ensure_shot_camera_motion(base)
             merged.append(base)
         out["storyboard"] = merged
 

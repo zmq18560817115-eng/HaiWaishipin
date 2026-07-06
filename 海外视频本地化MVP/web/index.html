@@ -319,6 +319,7 @@
       <p id="scenarioConflictWarn" class="workflow-warn hidden"></p>
       <div id="scriptFloatBody" class="output-body output-body-compact script-float-output"></div>
       <p id="scriptActionStatus" class="script-action-status"></p>
+      <div id="scriptHeroFramePanel" class="hero-frame-gate-panel hidden" aria-live="polite"></div>
       <div id="seedanceFinalPreview" class="seedance-final-preview hidden"></div>
     </div>
     <footer class="product-float-foot script-float-foot">
@@ -418,6 +419,12 @@
                 <button type="button" class="secondary pill-btn module-studio-back hidden" id="generateBackHomeBtn" aria-hidden="true" tabindex="-1">← 返回</button>
               </header>
 
+              <section class="module-feature-section radar-feature-section" id="generateRadarSection">
+                <h3 class="module-feature-title">爆款雷达 <span class="radar-section-badge">选题</span></h3>
+                <p class="module-feature-desc" id="generateRadarDesc">配置产品标签后，按播放/互动/结构综合推荐对标</p>
+                <div class="feature-grid feature-grid-viral feature-grid-radar" id="generateRadarGrid"></div>
+              </section>
+
               <section class="module-feature-section" id="generateFeatureSection">
                 <h3 class="module-feature-title">爆款参考</h3>
                 <p class="module-feature-desc" id="generateViralGridDesc">配置产品标签后，点击爆款卡片将自动拆解结构、生成脚本并出片</p>
@@ -485,6 +492,7 @@
             </div>
             <p id="seedancePipelineCompact" class="seedance-progress-meta muted"></p>
           </div>
+          <div id="dockHeroFramePanel" class="hero-frame-gate-panel hidden" aria-live="polite"></div>
           <div id="dockProducePreview" class="dock-produce-preview hidden" aria-live="polite"></div>
           <footer class="studio-dock-toolbar">
             <button type="button" class="dock-toolbar-more-btn" aria-expanded="false">更多</button>
@@ -571,6 +579,11 @@
               <button type="button" data-studio-tab="templates">结构模板</button>
             </nav>
           </header>
+          <section class="module-feature-section radar-feature-section" id="imitateRadarSection">
+            <h2 class="module-feature-title">爆款雷达 <span class="radar-section-badge">选题</span></h2>
+            <p class="module-feature-desc" id="imitateRadarDesc">按雷达分推荐同品类值得跟拍的对标</p>
+            <div class="feature-grid feature-grid-viral feature-grid-radar" id="imitateRadarGrid"></div>
+          </section>
           <section class="module-feature-section" id="imitateFeatureSection">
             <h2 class="module-feature-title">爆款结构复刻</h2>
             <p class="module-feature-desc" id="imitateViralGridDesc">配置产品标签后，点击爆款卡片自动拆解对标结构并出片</p>
@@ -618,6 +631,7 @@
             </div>
             <p id="imitateSeedancePipelineCompact" class="seedance-progress-meta muted"></p>
           </div>
+          <div id="imitateDockHeroFramePanel" class="hero-frame-gate-panel hidden" aria-live="polite"></div>
           <div id="imitateDockProducePreview" class="dock-produce-preview hidden" aria-live="polite"></div>
           <footer class="studio-dock-toolbar">
             <button type="button" class="dock-toolbar-more-btn" aria-expanded="false">更多</button>
