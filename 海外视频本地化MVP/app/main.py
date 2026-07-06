@@ -75,6 +75,7 @@ from .video_queue import (
     assert_can_run,
     cancel_ticket,
     complete_ticket,
+    is_ticket_cancelled,
     join_queue,
     mark_running,
     queue_snapshot,
@@ -135,7 +136,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 178
+UI_VERSION = 179
 
 
 def _render_index() -> HTMLResponse:
@@ -1120,6 +1121,9 @@ async def delivery_seedance_run(
         if not status.get("shots"):
             raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
         payload = await run_in_threadpool(run_all, slug, force=force)
+        if is_ticket_cancelled(ticket_id):
+            complete_ticket(ticket_id, ok=False, message="用户已取消生成")
+            raise HTTPException(status_code=409, detail="生成已取消")
         assemble = payload.get("assemble") if isinstance(payload.get("assemble"), dict) else {}
         seedance = payload.get("seedance") if isinstance(payload.get("seedance"), dict) else {}
         shots = seedance.get("shots") or []

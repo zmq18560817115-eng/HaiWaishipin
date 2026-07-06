@@ -1,3 +1,6 @@
+const WORKFLOW_SNAPSHOT_KEY = "wb_workflow_snapshot";
+const PARTIAL_QUOTA_NOTE = "（仅分镜成功，未计今日成片次数）";
+
 const state = {
   view: "generate",
   draftFeedbackSub: "finished",
@@ -1089,6 +1092,7 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
     if (meta) meta.textContent = "";
     hideSeedanceProgressIfIdle();
     syncDockScrollPadding();
+    syncGlobalPipelineBadge("");
     return;
   }
 
@@ -1102,6 +1106,7 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
 
   showSeedanceProgress(true, { status, percent, indeterminate, pipeline, countdownSec });
   syncDockScrollPadding();
+  syncGlobalPipelineBadge(status);
 }
 
 function resetScriptProgress() {
@@ -1261,6 +1266,91 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
   else if (visible && !wasVisible) syncDockScrollPadding();
   if (visible) state.dockFocusDismissed = false;
   syncStudioFocusMode();
+  syncGlobalPipelineBadge(status);
+}
+
+function saveWorkflowSnapshot() {
+  try {
+    const productId = document.getElementById("scriptProductSelect")?.value || state.selectedProductId || "";
+    if (!productId && !state.selectedMaterialId) return;
+    sessionStorage.setItem(WORKFLOW_SNAPSHOT_KEY, JSON.stringify({
+      productId,
+      materialId: state.selectedMaterialId,
+      tags: readAllSelectedTags(),
+      slug: state.scriptSlug || state.lastPreview?.slug || "",
+      view: state.view,
+      generateDockMode: state.generateDockMode,
+      savedAt: Date.now(),
+    }));
+    syncRestoreWorkflowButton();
+  } catch {
+    /* ignore */
+  }
+}
+
+function syncRestoreWorkflowButton() {
+  const btn = document.getElementById("restoreWorkflowBtn");
+  if (!btn) return;
+  try {
+    const raw = sessionStorage.getItem(WORKFLOW_SNAPSHOT_KEY);
+    const snap = raw ? JSON.parse(raw) : null;
+    const show = Boolean(snap?.productId);
+    btn.hidden = !show;
+    btn.classList.toggle("hidden", !show);
+  } catch {
+    btn.hidden = true;
+    btn.classList.add("hidden");
+  }
+}
+
+async function restoreWorkflowSnapshot() {
+  try {
+    const raw = sessionStorage.getItem(WORKFLOW_SNAPSHOT_KEY);
+    if (!raw) return;
+    const snap = JSON.parse(raw);
+    if (!snap.productId) return;
+    state.selectedProductId = snap.productId;
+    const ps = document.getElementById("scriptProductSelect");
+    if (ps?.querySelector(`option[value="${snap.productId}"]`)) ps.value = snap.productId;
+    if (snap.tags) {
+      state.tagSelection = {
+        audience: [...(snap.tags.audience || [])],
+        scenarios: [...(snap.tags.scenarios || [])],
+        selling: [...(snap.tags.selling || [])],
+        pains: [...(snap.tags.pains || [])],
+      };
+      state.selectedAudience = state.tagSelection.audience;
+      state.selectedScenarios = state.tagSelection.scenarios;
+      refreshTagGroupsUI();
+    }
+    if (snap.materialId) await selectMaterial(snap.materialId, { loadDetail: false });
+    if (snap.slug) state.scriptSlug = snap.slug;
+    switchView(snap.view === "imitate" ? "imitate" : "generate");
+    if (snap.generateDockMode) syncGenerateDockMode(snap.generateDockMode);
+    await refreshScriptPreview({ preserveTagSelection: true });
+    syncDockProductSlot();
+    syncDockRefSlot();
+    repopulateScriptMaterials();
+    renderAllImitationViralGrids();
+    setScriptActionStatus("已恢复上次工作配置");
+  } catch (err) {
+    setScriptActionStatus(`恢复失败：${err.message}`, { isError: true });
+  }
+}
+
+function syncGlobalPipelineBadge(statusText = "") {
+  const badge = document.getElementById("globalPipelineBadge");
+  if (!badge) return;
+  const busy = state.videoGenActive || state.createPipelineActive || state.viralPipelineBusy || state.scriptGenActive;
+  badge.hidden = !busy;
+  badge.classList.toggle("hidden", !busy);
+  if (!busy) return;
+  const st = statusText
+    || document.getElementById("seedanceProgressStatus")?.textContent
+    || document.getElementById("imitateSeedanceProgressStatus")?.textContent
+    || document.getElementById("scriptGenProgressStatus")?.textContent
+    || "任务进行中…";
+  badge.textContent = state.scriptGenActive ? `脚本：${String(st).slice(0, 24)}` : `出片：${String(st).slice(0, 24)}`;
 }
 
 function resetSeedanceProgressDock() {
@@ -1294,6 +1384,7 @@ function resetSeedanceProgressDock() {
   }
   showSeedanceProgress(false);
   syncStudioFocusMode();
+  syncGlobalPipelineBadge("");
 }
 
 function renderSeedanceFinalPreview(slug, seedance, options = {}) {
@@ -1634,8 +1725,8 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
     state.seedanceProgressPersist = true;
     const asmMsg = assemble?.message || message || "分镜已生成，成片合成未完成";
     const friendly = asmMsg.includes("ffmpeg")
-      ? `${asmMsg}。可先预览下方分镜 mp4 或下载 zip，再点「重新合成」。`
-      : `${asmMsg}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
+      ? `${asmMsg}${PARTIAL_QUOTA_NOTE}。可先预览下方分镜 mp4 或下载 zip，再点「重新合成」。`
+      : `${asmMsg}${PARTIAL_QUOTA_NOTE}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
     renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg, engageFocus: true, scope: "active" });
     syncProduceAssetsUi({ ...(state.lastPreview || {}), slug: s, seedance });
     showProduceCompleteModal("分镜已生成", friendly, s, seedance, { partial: true });
@@ -3226,6 +3317,7 @@ function initModuleStudios() {
     const productChanged = Boolean(state.lastScriptProductId && productId !== state.lastScriptProductId);
     if (productChanged || tagsChanged) resetPromptEnhanceUsed();
     closeProductFloatPanel();
+    saveWorkflowSnapshot();
     const pendingViral = state.pendingViralLinkId;
     state.pendingViralLinkId = null;
     if (pendingViral) {
@@ -5477,6 +5569,7 @@ async function runScriptGenerate() {
     state.scriptSlug = res.slug || slugFor(linkId);
     state.scriptTagSnapshot = captureTagSnapshot();
     state.lastScriptProductId = productId;
+    saveWorkflowSnapshot();
     const previewPatch = {
       script_pack: pack,
       script_meta: res.meta,
@@ -5643,7 +5736,7 @@ async function runSeedanceGenerate(options = {}) {
         : `视频生成完成${spec}，可预览 mp4 或下载 zip`;
     } else if (okCount > 0) {
       const asm = data.assemble?.message || "分镜已生成，但成片合成未完成";
-      msg = `${asm}。请确认 ffmpeg 可用后点「重新合成」；zip 内仅有分镜 mp4。`;
+      msg = `${asm}${PARTIAL_QUOTA_NOTE}。请确认 ffmpeg 可用后点「重新合成」；zip 内仅有分镜 mp4。`;
     } else if (skipped.length) {
       msg = force
         ? "本次未覆盖旧视频：请重启工作台（启动页面.cmd）后再勾选强制重生成，或运行 本地生成视频.cmd <编号> --force"
@@ -5666,7 +5759,7 @@ async function runSeedanceGenerate(options = {}) {
     return level !== "error";
   } catch (err) {
     stopSeedanceCountdown();
-    if (isAbortError(err)) {
+    if (isAbortError(err) || String(err.message || "").includes("生成已取消")) {
       setScriptActionStatus("已取消生成", { forceDock: true });
       resetSeedanceProgressDock();
       return false;
@@ -6274,6 +6367,10 @@ document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", asyn
 
 document.getElementById("settingsOpenBtn")?.addEventListener("click", () => openSettingsDrawer());
 document.getElementById("globalJobBadge")?.addEventListener("click", () => openSettingsDrawer());
+document.getElementById("globalPipelineBadge")?.addEventListener("click", () => {
+  activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
+});
+document.getElementById("restoreWorkflowBtn")?.addEventListener("click", () => { void restoreWorkflowSnapshot(); });
 document.getElementById("settingsCloseBtn")?.addEventListener("click", () => closeSettingsDrawer());
 document.getElementById("settingsBackdrop")?.addEventListener("click", () => closeSettingsDrawer());
 
@@ -6481,6 +6578,7 @@ document.getElementById("videoQueueCloseBtn")?.addEventListener("click", () => {
 document.getElementById("videoQueueCancelBtn")?.addEventListener("click", async () => {
   const ticket = state.videoQueueTicket;
   if (!ticket) return;
+  const wasRunning = state.videoGenActive;
   abortVideoProduction();
   stopVideoQueuePoll();
   try {
@@ -6489,7 +6587,7 @@ document.getElementById("videoQueueCancelBtn")?.addEventListener("click", async 
     });
     showVideoQueuePanel(false);
     state.videoQueueTicket = null;
-    setScriptActionStatus("已取消排队", { forceDock: true });
+    setScriptActionStatus(wasRunning ? "已取消生成" : "已取消排队", { forceDock: true });
     resetSeedanceProgressDock();
   } catch (err) {
     if (!isAbortError(err)) showVideoGenError(err.message);
@@ -6520,6 +6618,7 @@ async function bootstrapApp() {
   }
   syncDockScrollPadding();
   window.addEventListener("resize", syncDockScrollPadding);
+  syncRestoreWorkflowButton();
   activateView("generate");
   if (!isStarterGuideDismissed()) {
     window.setTimeout(() => openStarterGuidePanel(), 480);

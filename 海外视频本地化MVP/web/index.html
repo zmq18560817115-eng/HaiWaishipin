@@ -8,6 +8,7 @@
 </head>
 <body class="app-light">
   <header class="app-top">
+    <button type="button" class="global-pipeline-badge hidden" id="globalPipelineBadge" hidden title="成片任务进行中，点击定位到底部进度">出片中…</button>
     <button type="button" class="global-job-badge hidden" id="globalJobBadge" hidden title="后台任务运行中，点击查看">后台任务…</button>
     <button type="button" class="settings-trigger settings-trigger-floating" id="settingsOpenBtn" aria-expanded="false" aria-controls="settingsDrawer" title="设置与数据同步">
       <span class="settings-trigger-icon" aria-hidden="true">⚙</span>
@@ -43,6 +44,7 @@
       <button type="button" class="top-stat-pill" id="openMaterialLibraryAnalyzedBtn" title="打开已拆解素材">
         <strong id="statAnalyzed">-</strong> 已拆解
       </button>
+      <button type="button" class="top-stat-pill hidden" id="restoreWorkflowBtn" title="恢复上次产品、标签与对标配置">↺ 上次配置</button>
     </div>
   </header>
 

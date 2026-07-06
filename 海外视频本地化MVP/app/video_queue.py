@@ -218,17 +218,24 @@ def cancel_ticket(ticket_id: str, client_id: str = "") -> dict[str, Any]:
             raise ValueError("排队号不存在")
         if client_id and ticket.get("client_id") != client_id:
             raise ValueError("无权取消此排队")
-        if ticket.get("status") == "running":
-            raise ValueError("生成中无法取消")
+        if ticket.get("status") in ("done", "error"):
+            raise ValueError("该排队已结束")
+        was_running = ticket.get("status") == "running"
         ticket["status"] = "cancelled"
         ticket["finished_at"] = _utc()
-        ticket["message"] = "已取消排队"
+        ticket["message"] = "用户已取消生成" if was_running else "已取消排队"
         if ticket_id in _order:
             _order.remove(ticket_id)
         if _current_id == ticket_id:
             _current_id = None
             _promote_next()
         return ticket_status(ticket_id) or {}
+
+
+def is_ticket_cancelled(ticket_id: str) -> bool:
+    with _lock:
+        ticket = _tickets.get(ticket_id)
+        return bool(ticket and ticket.get("status") == "cancelled")
 
 
 def assert_can_run(ticket_id: str, slug: str) -> None:

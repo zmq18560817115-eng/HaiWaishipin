@@ -473,6 +473,30 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
+.global-pipeline-badge {
+  position: absolute;
+  top: 18px;
+  right: 220px;
+  z-index: 5;
+  max-width: min(42vw, 200px);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-pipeline-badge:hover {
+  background: #dbeafe;
+}
+
 .global-job-badge:hover {
   background: #fef3c7;
 }
@@ -6915,6 +6939,7 @@ body.studio-focus-mode .produce-complete-banner {
   .studio-dock-run { width: auto; margin-left: auto; justify-content: center; flex: 1; min-width: 0; }
   .studio-dock-reassemble { width: 100%; }
   .global-job-badge { right: 96px; top: 12px; font-size: 11px; padding: 5px 10px; }
+  .global-pipeline-badge { display: none; }
 }
 
 @media (max-width: 480px) {
