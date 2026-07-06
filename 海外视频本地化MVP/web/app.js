@@ -785,16 +785,24 @@ function syncStudioFocusMode() {
 
 function dismissStudioFocus() {
   const busy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy;
+  const downloadReady = produceDownloadReady(state.lastPreview);
   state.dockFocusDismissed = true;
   hideProduceCompleteModal();
-  hideProduceCompleteBanner();
+  if (!downloadReady) hideProduceCompleteBanner();
   closeScriptFloatPanel();
-  hideDockProducePreviews();
+  if (downloadReady) {
+    syncProduceAssetsUi(state.lastPreview || {});
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(currentScriptSlug() || state.lastPreview?.slug)}/zip`, true);
+  } else {
+    hideDockProducePreviews();
+  }
   if (!busy) {
-    state.seedanceProgressPersist = false;
-    showSeedanceProgress(false);
-    resetScriptProgress();
-    clearVideoGenErrorOnly();
+    if (!downloadReady) {
+      state.seedanceProgressPersist = false;
+      showSeedanceProgress(false);
+      resetScriptProgress();
+      clearVideoGenErrorOnly();
+    }
   } else {
     setScriptActionStatus("视频仍在后台生成，可切换其他模块；底部工作台可查看进度。", { forceDock: false });
   }
@@ -1526,7 +1534,7 @@ function buildProduceResultHtml(slug, seedance, { assembleMessage = "" } = {}) {
     : "";
   const zipHref = withApiToken(`/api/delivery/${encodeURIComponent(slug)}/zip`);
   const zipBlock = (finalReady || shots.length)
-    ? `<a class="seedance-final-link produce-zip-link" href="${zipHref}" download>${finalReady ? "下载成片 zip" : "下载分镜 zip（含已生成 mp4）"}</a>`
+    ? `<a class="seedance-final-link produce-zip-link primary pill-btn" href="${zipHref}" download>${finalReady ? "⬇ 下载成片 zip" : "⬇ 下载分镜 zip（含已生成 mp4）"}</a>`
     : "";
   const retryBlock = !finalReady && shots.length
     ? `<button type="button" class="primary pill-btn produce-retry-assemble" data-retry-slug="${esc(slug)}">${REASSEMBLE_LABEL}</button>
@@ -2028,7 +2036,7 @@ function isScriptFloatPanelOpen() {
 function videoOutputHint(slug) {
   const s = slug || currentScriptSlug() || state.lastPreview?.slug;
   if (!s) return "";
-  return `成片：overseas-loc-mvp/runs/${s}/broll/final-video.mp4 · 归档：03_产出库/${s}/ · 页面可下载 zip`;
+  return `服务器路径：overseas-loc-mvp/runs/${s}/broll/final-video.mp4 · 归档：03_产出库/${s}/`;
 }
 
 function friendlyApiErrorMessage(msg, path = "") {
@@ -3938,7 +3946,7 @@ function updateLoopBarFromForm(prev = {}) {
     if (tagsChangedSinceScript() && hasScript) {
       hint.textContent = "产品定义已更新（场景/卖点/痛点），点击「开始创作」或「重新生成脚本」同步。";
     } else if (state.scriptStep === "produce" && state.seedanceVideoComplete) {
-      hint.textContent = "成片已完成：可下载 zip 或预览视频。";
+      hint.textContent = "成片已完成：请在底部工作台点「⬇ 下载成片 zip」，或打开脚本浮层下载。";
     } else if (state.scriptStep === "produce" && hasScript) {
       hint.textContent = "请检查脚本与分镜，确认无误后点击「确认生成视频」。";
     } else if (state.scriptStep === "product") {

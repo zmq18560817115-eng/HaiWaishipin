@@ -136,7 +136,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 180
+UI_VERSION = 181
 
 
 def _render_index() -> HTMLResponse:
