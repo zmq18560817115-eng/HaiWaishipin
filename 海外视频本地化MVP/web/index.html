@@ -15,10 +15,15 @@
       <span>设置</span>
     </button>
     <div class="app-hero">
-      <div class="app-brand-mark">VL</div>
-      <h1 class="app-hero-title">分析、复刻或生成本地化爆款视频</h1>
-      <p class="app-hero-sub">爆款结构迁移 · 品牌脚本出稿 · AI 分镜交付</p>
+      <div class="app-hero-brand">
+        <div class="app-brand-mark">VL</div>
+        <div class="app-hero-copy">
+          <h1 class="app-hero-title">分析、复刻或生成本地化爆款视频</h1>
+          <p class="app-hero-sub">爆款结构迁移 · 品牌脚本出稿 · AI 分镜交付</p>
+        </div>
+      </div>
     </div>
+    <div class="app-top-secondary">
     <nav class="top-nav-pills" id="mainNav" aria-label="主导航">
       <button type="button" data-view="generate" class="active">
         <span class="nav-label">视频生成</span>
@@ -45,6 +50,7 @@
         <strong id="statAnalyzed">-</strong> 已拆解
       </button>
       <button type="button" class="top-stat-pill hidden" id="restoreWorkflowBtn" title="恢复上次产品、标签与对标配置">↺ 上次配置</button>
+    </div>
     </div>
   </header>
 
@@ -354,6 +360,42 @@
     </footer>
   </div>
 
+  <div id="workflowGuideBackdrop" class="product-float-backdrop workflow-guide-backdrop" hidden></div>
+  <div id="workflowGuidePanel" class="product-float-panel workflow-guide-panel" role="dialog" aria-modal="true" aria-labelledby="workflowGuidePanelTitle" aria-hidden="true" hidden style="display:none">
+    <div class="product-float-head">
+      <div>
+        <h2 id="workflowGuidePanelTitle" class="product-float-title">创作路径</h2>
+        <p class="product-float-sub">按「产品 → 提示词/结构 → 对标 → 脚本预览 → AI 成片」推进</p>
+      </div>
+      <button type="button" class="settings-close" id="workflowGuideCloseBtn" aria-label="关闭">×</button>
+    </div>
+    <div class="product-float-body workflow-guide-float-body">
+      <div class="workflow-guide-card" id="workflowGuideCard" aria-live="polite">
+        <div class="workflow-guide-main">
+          <span class="workflow-guide-eyebrow">当前步骤</span>
+          <strong id="workflowGuideTitle">先配置产品与场景标签</strong>
+          <p id="workflowGuideStatus">产品、人群、场景、卖点、痛点会决定脚本和分镜的安全边界。</p>
+        </div>
+        <ol class="workflow-guide-steps" aria-label="视频生成步骤">
+          <li data-workflow-step="product"><span>1</span><strong>产品</strong><em>场景标签</em></li>
+          <li data-workflow-step="prompt"><span>2</span><strong>提示词/结构</strong><em>可选模板</em></li>
+          <li data-workflow-step="ref"><span>3</span><strong>对标</strong><em>爆款节奏</em></li>
+          <li data-workflow-step="create"><span>4</span><strong>生成</strong><em>脚本到成片</em></li>
+        </ol>
+        <div class="workflow-guide-actions">
+          <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickProductBtn">选产品</button>
+          <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickPromptBtn">选提示词</button>
+          <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickRefBtn">选对标</button>
+          <button type="button" class="primary pill-btn pill-btn-sm" id="workflowStartBtn">开始创作</button>
+        </div>
+      </div>
+    </div>
+    <footer class="product-float-foot workflow-guide-foot">
+      <button type="button" class="primary primary-dark" id="workflowGuideGotItBtn">知道了，开始配置</button>
+      <button type="button" class="secondary pill-btn workflow-guide-skip" id="workflowGuideSkipBtn">不再提示</button>
+    </footer>
+  </div>
+
   <div class="content-shell">
     <main id="viewWorkspace" class="view active view-script">
       <div class="module-studio" data-module="generate">
@@ -366,29 +408,10 @@
                   <p class="studio-major-desc">按「产品 → 提示词/结构 → 对标 → 脚本预览 → AI 成片」推进；点击爆款卡片可直接复刻运行。</p>
                 </div>
                 <div class="studio-major-actions">
+                  <button type="button" class="text-link" id="openWorkflowGuideBtn">创作教程</button>
                   <button type="button" class="secondary pill-btn hidden" id="decomposeCollectorBtn" hidden aria-hidden="true" tabindex="-1">素材收集</button>
                 </div>
               </header>
-
-              <div class="workflow-guide-card" id="workflowGuideCard" aria-live="polite">
-                <div class="workflow-guide-main">
-                  <span class="workflow-guide-eyebrow">创作路径</span>
-                  <strong id="workflowGuideTitle">先配置产品与场景标签</strong>
-                  <p id="workflowGuideStatus">产品、人群、场景、卖点、痛点会决定脚本和分镜的安全边界。</p>
-                </div>
-                <ol class="workflow-guide-steps" aria-label="视频生成步骤">
-                  <li data-workflow-step="product"><span>1</span><strong>产品</strong><em>场景标签</em></li>
-                  <li data-workflow-step="prompt"><span>2</span><strong>提示词/结构</strong><em>可选模板</em></li>
-                  <li data-workflow-step="ref"><span>3</span><strong>对标</strong><em>爆款节奏</em></li>
-                  <li data-workflow-step="create"><span>4</span><strong>生成</strong><em>脚本到成片</em></li>
-                </ol>
-                <div class="workflow-guide-actions">
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickProductBtn">选产品</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickPromptBtn">选提示词</button>
-                  <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickRefBtn">选对标</button>
-                  <button type="button" class="primary pill-btn pill-btn-sm" id="workflowStartBtn">开始创作</button>
-                </div>
-              </div>
 
               <header class="module-studio-head">
                 <nav class="module-studio-tabs" aria-label="爆款拆解视图">

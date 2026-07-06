@@ -44,61 +44,83 @@ body {
 .app-top {
   flex-shrink: 0;
   position: relative;
-  padding: 20px 28px 12px;
-  padding-right: 120px;
+  padding: 8px 18px 6px;
+  padding-right: 96px;
   background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
   border-bottom: 1px solid var(--line-soft);
 }
 
 .app-hero {
-  text-align: center;
-  max-width: 920px;
-  margin: 0 auto 16px;
+  max-width: 1080px;
+  margin: 0 auto 6px;
+}
+
+.app-hero-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.app-hero-copy {
+  min-width: 0;
+  text-align: left;
 }
 
 .app-brand-mark {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  margin-bottom: 10px;
-  border-radius: 10px;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0;
+  border-radius: 8px;
   background: var(--primary-dark);
   color: #fff;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 10px;
   letter-spacing: -.5px;
 }
 
 .app-hero-title {
   margin: 0;
-  font-size: clamp(22px, 2.4vw, 30px);
+  font-size: clamp(15px, 1.6vw, 18px);
   font-weight: 700;
-  letter-spacing: -.03em;
+  line-height: 1.25;
+  letter-spacing: -.02em;
   color: var(--ink);
 }
 
 .app-hero-sub {
-  margin: 8px 0 0;
-  font-size: 14px;
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.3;
   color: var(--muted);
+}
+
+.app-top-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  max-width: 1080px;
+  margin: 0 auto;
 }
 
 .top-nav-pills {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
-  max-width: 1080px;
-  margin: 0 auto;
+  gap: 4px;
 }
 
 .top-nav-pills button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 8px 18px;
+  gap: 0;
+  padding: 5px 13px;
   border: none;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -121,12 +143,13 @@ body {
 
 
 .top-nav-pills .nav-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .top-nav-pills .nav-desc {
+  display: none;
   font-size: 11px;
   opacity: .8;
   line-height: 1.2;
@@ -140,6 +163,44 @@ body {
 
 .starter-guide-backdrop {
   z-index: 37;
+}
+
+.workflow-guide-panel {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(85vh, 560px);
+  z-index: 38;
+}
+
+.workflow-guide-backdrop {
+  z-index: 37;
+}
+
+.workflow-guide-float-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workflow-guide-panel .workflow-guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workflow-guide-foot {
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.workflow-guide-foot .workflow-guide-skip {
+  margin-left: auto;
 }
 
 .starter-guide-float-body {
@@ -373,8 +434,8 @@ body {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 0;
 }
 
 .top-stat-pill-action {
@@ -693,15 +754,15 @@ body {
 
 .settings-trigger-floating {
   position: absolute;
-  top: 18px;
-  right: 20px;
+  top: 8px;
+  right: 14px;
   z-index: 5;
 }
 
 .global-job-badge {
   position: absolute;
-  top: 18px;
-  right: 108px;
+  top: 8px;
+  right: 96px;
   z-index: 5;
   padding: 6px 12px;
   border-radius: 999px;
@@ -716,8 +777,8 @@ body {
 
 .global-pipeline-badge {
   position: absolute;
-  top: 18px;
-  right: 220px;
+  top: 8px;
+  right: 200px;
   z-index: 5;
   max-width: min(42vw, 200px);
   padding: 6px 12px;
@@ -981,12 +1042,12 @@ body {
 .top-stat-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
+  gap: 4px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: #fff;
   border: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   box-shadow: var(--shadow-soft);
   cursor: pointer;
@@ -4330,10 +4391,12 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 }
 
 @media (max-width: 640px) {
-  .app-top { padding: 14px 12px 10px; padding-right: 88px; }
-  .settings-trigger-floating { top: 12px; right: 12px; }
-  .top-nav-pills .nav-desc { display: none; }
-  .top-nav-pills button { padding: 8px 12px; }
+  .app-top { padding: 8px 10px 6px; padding-right: 76px; }
+  .app-hero-brand { gap: 8px; }
+  .app-hero-sub { display: none; }
+  .app-top-secondary { flex-direction: column; gap: 6px; }
+  .settings-trigger-floating { top: 8px; right: 10px; }
+  .top-nav-pills button { padding: 5px 10px; }
   .module-studio { padding: 12px 14px 0; }
   .studio-major-head { flex-direction: column; align-items: stretch; }
   .starter-guide-foot { flex-direction: column; align-items: stretch; }
@@ -5444,8 +5507,7 @@ body.studio-focus-mode .module-studio-scroll {
 }
 
 body.studio-focus-mode .app-hero,
-body.studio-focus-mode .top-nav-pills,
-body.studio-focus-mode .top-stats {
+body.studio-focus-mode .app-top-secondary {
   opacity: 0;
   pointer-events: none;
 }

@@ -758,7 +758,7 @@ function resolveScenarioTagFromFeature(scenarioTag) {
 }
 
 function isAnyFloatPanelOpen() {
-  return ["scriptFloatPanel", "productFloatPanel", "refFloatPanel", "promptSelectFloatPanel", "starterGuidePanel"]
+  return ["scriptFloatPanel", "productFloatPanel", "refFloatPanel", "promptSelectFloatPanel", "starterGuidePanel", "workflowGuidePanel"]
     .some((id) => document.getElementById(id)?.classList.contains("open"));
 }
 
@@ -914,6 +914,11 @@ function handleGlobalEscapeKey() {
   const guidePanel = document.getElementById("starterGuidePanel");
   if (guidePanel?.classList.contains("open")) {
     dismissStarterGuide();
+    return;
+  }
+  const workflowGuidePanel = document.getElementById("workflowGuidePanel");
+  if (workflowGuidePanel?.classList.contains("open")) {
+    closeWorkflowGuidePanel();
     return;
   }
   const modal = document.getElementById("produceCompleteModal");
@@ -3967,10 +3972,16 @@ function initModuleStudios() {
     ?.addEventListener("click", () => openGenerateModule());
   document.getElementById("generateDockRun")?.addEventListener("click", () => runStartCreate());
   document.getElementById("imitateDockRun")?.addEventListener("click", () => runStartCreate());
-  document.getElementById("workflowPickProductBtn")?.addEventListener("click", () => openProductFloatPanel());
-  document.getElementById("workflowPickPromptBtn")?.addEventListener("click", () => openPromptSelectFloatPanel());
-  document.getElementById("workflowPickRefBtn")?.addEventListener("click", () => openRefFloatPanel());
-  document.getElementById("workflowStartBtn")?.addEventListener("click", () => runStartCreate());
+  function workflowGuideAction(fn) {
+    return () => {
+      closeWorkflowGuidePanel();
+      fn();
+    };
+  }
+  document.getElementById("workflowPickProductBtn")?.addEventListener("click", workflowGuideAction(() => openProductFloatPanel()));
+  document.getElementById("workflowPickPromptBtn")?.addEventListener("click", workflowGuideAction(() => openPromptSelectFloatPanel()));
+  document.getElementById("workflowPickRefBtn")?.addEventListener("click", workflowGuideAction(() => openRefFloatPanel()));
+  document.getElementById("workflowStartBtn")?.addEventListener("click", workflowGuideAction(() => runStartCreate()));
   document.getElementById("dockOpenMaterialsBtn")?.addEventListener("click", () => openRefFloatPanel());
   document.getElementById("imitateOpenMaterialsBtn")?.addEventListener("click", () => openRefFloatPanel());
   document.getElementById("dockOpenProductBtn")?.addEventListener("click", () => openProductFloatPanel());
@@ -4800,6 +4811,7 @@ function openTikTokLibraryEntry() {
 }
 
 const STARTER_GUIDE_DISMISSED_KEY = "vl_starter_guide_dismissed";
+const WORKFLOW_GUIDE_DISMISSED_KEY = "vl_workflow_guide_dismissed";
 
 function isStarterGuideDismissed() {
   return (
@@ -4808,10 +4820,20 @@ function isStarterGuideDismissed() {
   );
 }
 
+function isWorkflowGuideDismissed() {
+  return localStorage.getItem(WORKFLOW_GUIDE_DISMISSED_KEY) === "1";
+}
+
 function dismissStarterGuide() {
   localStorage.setItem(STARTER_GUIDE_DISMISSED_KEY, "1");
   localStorage.removeItem("vl_starter_guide_closed");
   closeStarterGuidePanel();
+  maybeOpenWorkflowGuidePanel();
+}
+
+function dismissWorkflowGuide() {
+  localStorage.setItem(WORKFLOW_GUIDE_DISMISSED_KEY, "1");
+  closeWorkflowGuidePanel();
 }
 
 function openStarterGuidePanel() {
@@ -4821,6 +4843,21 @@ function openStarterGuidePanel() {
 
 function closeStarterGuidePanel() {
   closeFloatPanel("starterGuidePanel", "starterGuideBackdrop");
+}
+
+function openWorkflowGuidePanel({ manual = false } = {}) {
+  if (!manual && isWorkflowGuideDismissed()) return;
+  syncWorkflowGuide();
+  openFloatPanel("workflowGuidePanel", "workflowGuideBackdrop");
+}
+
+function closeWorkflowGuidePanel() {
+  closeFloatPanel("workflowGuidePanel", "workflowGuideBackdrop");
+}
+
+function maybeOpenWorkflowGuidePanel() {
+  if (isWorkflowGuideDismissed() || isAnyFloatPanelOpen()) return;
+  window.setTimeout(() => openWorkflowGuidePanel(), 320);
 }
 
 async function refreshCollectorRuntimeHint() {
@@ -7474,6 +7511,11 @@ document.getElementById("guideGoLibraryBtn")?.addEventListener("click", () => {
 document.getElementById("starterGuideSkipBtn")?.addEventListener("click", dismissStarterGuide);
 document.getElementById("starterGuideCloseBtn")?.addEventListener("click", dismissStarterGuide);
 document.getElementById("starterGuideBackdrop")?.addEventListener("click", dismissStarterGuide);
+document.getElementById("openWorkflowGuideBtn")?.addEventListener("click", () => openWorkflowGuidePanel({ manual: true }));
+document.getElementById("workflowGuideGotItBtn")?.addEventListener("click", () => closeWorkflowGuidePanel());
+document.getElementById("workflowGuideSkipBtn")?.addEventListener("click", dismissWorkflowGuide);
+document.getElementById("workflowGuideCloseBtn")?.addEventListener("click", () => closeWorkflowGuidePanel());
+document.getElementById("workflowGuideBackdrop")?.addEventListener("click", () => closeWorkflowGuidePanel());
 
 document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", async () => {
   const el = document.getElementById("backupStatus");
@@ -7746,6 +7788,8 @@ async function bootstrapApp() {
   activateView("generate");
   if (!isStarterGuideDismissed()) {
     window.setTimeout(() => openStarterGuidePanel(), 480);
+  } else if (!isWorkflowGuideDismissed()) {
+    window.setTimeout(() => openWorkflowGuidePanel(), 480);
   }
 }
 
