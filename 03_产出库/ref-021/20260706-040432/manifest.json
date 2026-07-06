@@ -1,0 +1,47 @@
+{
+  "slug": "ref-021",
+  "version": "20260706-040432",
+  "archived_at": "2026-07-06T04:04:32.034936+00:00",
+  "note": "",
+  "prompt_fingerprint": "7263705d",
+  "shots": [
+    "shot-1.mp4",
+    "shot-3.mp4",
+    "shot-4.mp4",
+    "shot-5.mp4"
+  ],
+  "final_video": "final-video.mp4",
+  "bytes": 6486468,
+  "source_runs": "/Users/apple/.openclaw/workspace/vl-workflow/overseas-loc-mvp/runs/ref-021",
+  "assemble": {
+    "ok": true,
+    "message": "已拼接 4 镜 → final-video.mp4",
+    "shots_used": 4,
+    "file": "broll/final-video.mp4",
+    "bytes": 6486468,
+    "meta": {
+      "assembled_at": "2026-07-06T04:04:32.014524+00:00",
+      "shots": [
+        {
+          "number": 1,
+          "file": "broll/shot-1.mp4"
+        },
+        {
+          "number": 3,
+          "file": "broll/shot-3.mp4"
+        },
+        {
+          "number": 4,
+          "file": "broll/shot-4.mp4"
+        },
+        {
+          "number": 5,
+          "file": "broll/shot-5.mp4"
+        }
+      ],
+      "output": "broll/final-video.mp4",
+      "bytes": 6486468,
+      "ffmpeg": "/Users/apple/.openclaw/workspace/vl-workflow/overseas-loc-mvp/.venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1"
+    }
+  }
+}

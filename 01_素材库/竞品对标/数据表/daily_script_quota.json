@@ -1,0 +1,29 @@
+{
+  "date": "2026-07-06",
+  "entries": [
+    {
+      "link_id": 1,
+      "provider": "doubao",
+      "model": "doubao-seed-2-1-pro-260628",
+      "at": "10:37:32"
+    },
+    {
+      "link_id": 1,
+      "provider": "doubao",
+      "model": "doubao-seed-2-1-pro-260628",
+      "at": "10:40:38"
+    },
+    {
+      "link_id": 19,
+      "provider": "doubao",
+      "model": "doubao-seed-2-1-pro-260628",
+      "at": "11:11:55"
+    },
+    {
+      "link_id": 22,
+      "provider": "doubao",
+      "model": "doubao-seed-2-1-pro-260628",
+      "at": "12:15:08"
+    }
+  ]
+}

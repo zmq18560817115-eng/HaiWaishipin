@@ -1,0 +1,24 @@
+{
+  "assembled_at": "2026-07-06T03:33:36.047724+00:00",
+  "shots": [
+    {
+      "number": 1,
+      "file": "broll/shot-1.mp4"
+    },
+    {
+      "number": 3,
+      "file": "broll/shot-3.mp4"
+    },
+    {
+      "number": 4,
+      "file": "broll/shot-4.mp4"
+    },
+    {
+      "number": 5,
+      "file": "broll/shot-5.mp4"
+    }
+  ],
+  "output": "broll/final-video.mp4",
+  "bytes": 7032060,
+  "ffmpeg": "/Users/apple/.openclaw/workspace/vl-workflow/overseas-loc-mvp/.venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1"
+}
